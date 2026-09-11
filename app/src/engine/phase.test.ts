@@ -36,6 +36,13 @@ describe('cyclePhaseFor', () => {
     expect(cyclePhaseFor({ ...base, date: '2026-11-30' }).cycleDay).toBe(91)
     expect(cyclePhaseFor({ ...base, date: '2026-12-01' })).toMatchObject({ phase: 'unknown', cycleDay: null })
   })
+  it('does not use a later cycle forecast for an earlier cycle', () => {
+    expect(cyclePhaseFor({ ...base, date: '2026-08-15' })).toMatchObject({ phase: 'cycle', cycleDay: 12 })
+    // A logged start exactly at the fertile-window boundary also invalidates it.
+    expect(cyclePhaseFor({ ...base, date: '2026-09-07', periodStarts: [...base.periodStarts, '2026-09-10'] }).phase).toBe('cycle')
+    expect(cyclePhaseFor({ ...base, date: '2026-09-07', periodStarts: [...base.periodStarts, '2026-09-11'] }).phase).toBe('follicular')
+    expect(cyclePhaseFor({ ...base, date: '2026-08-05' }).phase).toBe('period')
+  })
   it('bounds period days by consecutive flow rather than assuming five days', () => {
     expect(cyclePhaseFor({ ...base, date: '2026-09-05' }).phase).toBe('follicular')
     expect(cyclePhaseFor({ ...base, date: '2026-09-07', flowDates: [...base.flowDates, '2026-09-07'] })).toMatchObject({ phase: 'period', detail: 'Day 1 of your period' })

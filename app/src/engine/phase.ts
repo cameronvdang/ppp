@@ -38,10 +38,13 @@ export function cyclePhaseFor({ date, periodStarts, flowDates, prediction, eligi
       ? 'Phase estimates are off while on hormonal contraception.'
       : 'Phase estimates are off during pregnancy.')
   }
-  if (eligibility.ovulationForecast && prediction.ovulationDate === date) {
+  const fertileStart = prediction.fertileWindow?.start
+  const laterCycle = start !== undefined && fertileStart !== undefined &&
+    periodStarts.some(value => value > start && value <= fertileStart)
+  if (!laterCycle && eligibility.ovulationForecast && prediction.ovulationDate === date) {
     return result('ovulation', 'Ovulation (estimate)', 'Estimated from your cycle history.')
   }
-  const fertile = eligibility.fertileWindow ? prediction.fertileWindow : null
+  const fertile = !laterCycle && eligibility.fertileWindow ? prediction.fertileWindow : null
   if (fertile && date >= fertile.start && date <= fertile.end) {
     return result('fertile', 'Fertile window (estimate)', 'Estimated from your cycle history.')
   }

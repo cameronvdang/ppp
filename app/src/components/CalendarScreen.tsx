@@ -16,6 +16,35 @@ function iso(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
+export async function loadCalendarMonth(today: string, year: number, month: number) {
+  const [currentForecast, logs] = await Promise.all([
+    computePersonalizedForecast(today),
+    db.dailyLogs.toArray(),
+  ])
+  const { periodStarts, flowDates } = currentForecast
+  const dates = Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) => iso(year, month, index + 1))
+  const startsByDate = new Map(dates.map(date => [date, periodStarts.filter(start => start <= date).at(-1)]))
+  const visibleStarts = [...new Set(startsByDate.values())].filter((start): start is string => start !== undefined)
+  const currentStart = periodStarts.filter(start => start <= today).at(-1)
+  // Reuse today's forecast for the current cycle, including its predicted period.
+  // Historical cycles each get one forecast anchored to their own logged start.
+  const forecastsByStart = new Map(await Promise.all(visibleStarts.map(async start => [
+    start,
+    start === currentStart ? currentForecast : await computePersonalizedForecast(start),
+  ] as const)))
+  const logsByDate = new Map(logs.map(log => [log.date, log]))
+  const marksByDate = new Map(dates.map(date => {
+    const start = startsByDate.get(date)
+    const forecast = (start ? forecastsByStart.get(start) : undefined) ?? currentForecast
+    return [date, calendarDayMarks(date, {
+      periodStarts, flowDates, logsByDate, today,
+      prediction: forecast.prediction,
+      eligibility: forecast.predictionContext.eligibility,
+    })] as const
+  }))
+  return { marksByDate, logged: new Set(flowDates), eligibility: currentForecast.predictionContext.eligibility }
+}
+
 export function CalendarScreen() {
   const { setCalendarOpen, openSheet } = useApp()
   const today = localToday()
@@ -24,21 +53,7 @@ export function CalendarScreen() {
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
   const [editingPeriods, setEditingPeriods] = useState(false)
 
-  const data = useLiveQuery(async () => {
-    const [forecast, logs] = await Promise.all([
-      computePersonalizedForecast(today),
-      db.dailyLogs.toArray(),
-    ])
-    return {
-      prediction: forecast.prediction,
-      eligibility: forecast.predictionContext.eligibility,
-      periodStarts: forecast.periodStarts,
-      flowDates: forecast.flowDates,
-      logsByDate: new Map(logs.map(log => [log.date, log])),
-      logged: new Set(forecast.flowDates),
-      today,
-    }
-  }, [today])
+  const data = useLiveQuery(() => loadCalendarMonth(today, view.year, view.month), [today, view.year, view.month])
 
   const first = new Date(view.year, view.month, 1)
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate()
@@ -164,7 +179,7 @@ export function CalendarScreen() {
               {Array.from({ length: leadBlanks }).map((_, index) => <div key={`b${index}`} />)}
               {Array.from({ length: daysInMonth }).map((_, index) => {
                 const date = iso(view.year, view.month, index + 1)
-                const marks = data ? calendarDayMarks(date, data) : null
+                const marks = data?.marksByDate.get(date)
                 return (
                   <button
                     key={date}
