@@ -165,7 +165,9 @@ describe('Settings browser privacy actions', () => {
     await wipeLocalData(reload)
     expect(order).toEqual(['stop', 'destroy', 'destroyed', 'reload'])
     expect(reload).toHaveBeenCalledOnce()
-    for (const table of db.tables) expect(await table.count()).toBe(0)
+    for (const table of db.tables) expect(await table.count()).toBe(table.name === 'recordsConnection' ? 1 : 0)
+    expect(await db.recordsConnection.get('primary')).toMatchObject({ status: 'disconnected' })
+    expect(await db.recordsConnection.get('primary')).not.toHaveProperty('subject')
     expect(await secureVault.getSecureSecret('openai-api-key')).toBeNull()
   })
 
