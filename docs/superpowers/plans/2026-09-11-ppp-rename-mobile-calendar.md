@@ -18,6 +18,7 @@
 - No new network destinations. The `.ics` file is generated locally and leaves only through the user's share or download action.
 - Copy style: plain sentences, no exclamation marks, no medical claims. "PPP" is never expanded.
 - Tests that need `window`/`navigator`/`matchMedia` use `vi.stubGlobal` and `vi.unstubAllGlobals()`.
+- **The Amendments section at the end of this plan overrides any task text it names.** Read it before starting each task.
 
 ---
 
@@ -873,3 +874,48 @@ List for the reviewer: the exact browser checks (320px and 375px layouts, iOS UA
 - **Spec coverage:** A1/A2 → T1–T2; B1 → T3; B2 → T4–T5; B3 → T6–T7; C1 → T9/T11; C2 → T8/T10; C3 → T10; C4 → T11; C5 → T11 (`skipped`, silent share cancel); privacy → T11; testing → each task; phasing → one run.
 - **Type consistency:** `IcsAllDayEvent`/`IcsTimedEvent`/`buildIcs` (T9) are consumed by T10/T11 with the same names; `computePersonalizedForecast` (T8) returns `prediction`, `predictionContext`, `forecastDiagnostics` used by T10/T11; `shareOrDownload(name, contents, mime)` (T11) matches the call in `export.ts`; `SK.installCardDismissedAt` (T4) is used by T5; `SK.calendarDiscreet`/`SK.calendarCycles` (T11) are read by `export.ts`.
 - **Judgement calls left to the implementer:** exact `app.css` selectors for hit areas (T6); whether `manualChunks` is needed (T7); the engine's exact two-cycle forecast date in T8's test; `defaultReminderPreferences`' real signature (T10).
+
+
+---
+
+## Amendments (from the independent adversarial review; these override the task text above)
+
+**A1 (Task 1 guard).** In `rename.test.ts` use `const SKIP = /\/(?:node_modules|dist|\.wrangler|__fixtures__)\/|\/rename\.test\.ts$/` and `const ALLOWED = [/based on Lunara/, /github\.com\/Blueturboguy07\/lunara/, /app(?:: | === )'lunara'/, /'lunara' \| 'ppp'/]`. Remove `/rename\.test\.ts/` from `ALLOWED`.
+
+**A2 (Task 1 legacy import).** `ExportPayloadV1.app` becomes `'lunara' | 'ppp'`; `validatePayload` accepts `p.app === 'lunara' || p.app === 'ppp'` and its `legacy` object writes `app: 'ppp' as const`; `collectExport` writes `'ppp'`; `transferValidation.ts` error strings say `in PPP export.`. The Global Constraints sentence about `transferValidation.ts` holding a legacy literal is wrong; the literal lives in `db/transfer.ts` and its test.
+
+**A3 (Task 1 hosts).** Replace the `lunara.app` host everywhere (`workers/reminders/wrangler.toml`, `workers/backup/wrangler.toml`, `workers/reminders/src/index.js`, `workers/reminders/src/templates.test.js`) with the placeholder `ppp.example` (`https://ppp.example`, `reminders@ppp.example`). It is not a domain PPP owns; add a wrangler comment saying operators must replace it.
+
+**A4 (Task 1 identifiers missed).** Also rename: `.lunara-mark` in `app/src/styles/health-import.css` (dead selector, delete it), `LUNARA_CRESCENT_PATH` → `PPP_CRESCENT_PATH`, `copyFor` outputs `'Lunara update'`/`'Lunara check-in'` → `'PPP update'`/`'PPP check-in'`, the daily title in `platform/notifications.ts`, the print job names in `platform/reportExport.ts`, `components/DoctorReport.tsx`, `screens/CycleReportScreen.tsx`, and `workers/records-relay/README.md` header name. After this commit anyone with a PIN in a dev browser profile must clear site data (the PIN hash domain changed), and a deployed relay must be redeployed with the app (header name changed); say both in the commit body.
+
+**A5 (Task 2).** Add `app/pwa.config.test.ts` (`name: 'PPP'`) and `PRIVACY.md` (`lunara-keys` → `ppp-keys`) to the Modify list.
+
+**A6 (Task 3 sharp).** Run `cd app && pnpm add -D sharp@0.33.5 --offline` unconditionally before the splash script. Use `.png({ compressionLevel: 9, palette: true })`; background `#FFF8FA` (matches the SVG).
+
+**A7 (Task 4).** `getInstallState()` returns `{ mode: 'unsupported' }` when `typeof window === 'undefined' || typeof window.matchMedia !== 'function'`. Expected test count is 8, not 9.
+
+**A8 (Task 6).** Step 1 becomes only `html { -webkit-text-size-adjust: 100%; }` and `[role='button'], a, .chip, .cal-day, .date-cell { touch-action: manipulation; }` (base.css already covers buttons, inputs, overscroll and the root height; do not add `#root { min-height: 100dvh }`). In Step 2 drop `.tabbar-item`, `.pin-key` and `.quick-action-circle` from the 44px rule (already large); keep `.chip`, `.icon-button`, `.calendar-toolbar button`, and the `.cal-day`/`.date-cell` hit-area extension. Replace the safe-area rule with `.overlay, .sheet, .health-overlay { padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }`.
+
+**A9 (Task 7).** Create `app/src/lib/assistantModels.ts` holding `AssistantProvider`, `ANTHROPIC_MODELS`, `DEFAULT_ANTHROPIC_MODEL`, `DEFAULT_OPENAI_MODEL` (and any other constants `Onboarding.tsx` imports from `lib/assistant`); `lib/assistant.ts` re-exports them; `Onboarding.tsx` imports from `../lib/assistantModels`. After this, `grep -rln "lib/assistant'" app/src` lists only `AssistantScreen.tsx` and the type-only import in `assistantContext.ts`. In `App.tsx` import `PerimenopauseScreen`, `PregnancyDetailScreen`, `TrackerCustomizeScreen`, `TtcDetailScreen` from their own source files and lazy-load `CycleReportScreen` with `import('./screens/CycleReportScreen')`; App must not import `./screens/healthFeatures`.
+
+**A10 (Task 8 test).** `eligibility.periodForecast` is a policy flag that is true whenever the user is not pregnant, even with no data. Replace `expect(r.predictionContext.eligibility.periodForecast).toBe(false)` with `expect(r.prediction.nextPeriodStart).toBeNull()`. The two-start fixture yields `nextPeriodStart: '2026-08-26'` and `uncertaintyDays: 7` (verified).
+
+**A11 (Task 10 forecast rules).** Replace the first rule bullet with: "If `!eligibility.periodForecast`, or `prediction.nextPeriodStart === null`, or `prediction.averageCycleLength < 15`, return `[]`. Period base window = `nextPeriodStart ± prediction.uncertaintyDays` (ignore `diagnostics.periodWindow`, which uses the raw uncertainty). Cycle n shifts by `n * averageCycleLength` and widens by `n * uncertaintyDays` on both sides." Delete the "falls back to nextPeriodStart" test (that is now the only path) and update test 3 so `periodForecast: false` yields `[]` even with fertility eligible. `ForecastEventOptions` gains `sequence?: number`.
+
+**A12 (Task 10 discreet mode).** UIDs are opaque in both modes: `ppp-a-<n>@ppp.local` (period), `ppp-b-<n>@ppp.local` (fertile), `ppp-c-<n>@ppp.local` (ovulation), so switching modes still replaces events. In discreet mode omit `X-PPP-KIND` and use the description `Estimate from PPP, ±N days.` (fertile/ovulation: `Estimate from PPP.`); in descriptive mode keep `X-PPP-KIND` and append ` Not for contraception.`. The Settings card copy carries the contraception disclaimer in both modes. Update the forecast tests' expected UIDs and descriptions accordingly.
+
+**A13 (Task 10 reminders).** Default plan ids are `settings-<definitionId>`. Titles never use definition labels: `const copy = copyFor(plan.kind, prefs.privatePreviews ? 'private' : plan.preview?.mode); summary = copy.title; description = copy.body`. Test 2 becomes "uses the category title when private previews are off" and expects `'PPP check-in'` for the `settings-bbt` plan (`enabled: p.id === 'settings-bbt'`). `defaultReminderPreferences` takes `{ timeZone, startDate, permission?, legacyTime? }`; tests pass `{ timeZone: 'UTC', startDate: '2026-09-11' }`.
+
+**A14 (Task 10 rruleFor).** Signature `rruleFor(recurrence: ReminderRecurrence, today: IsoDate): { rrule?: string; rdates?: IsoDate[]; start: IsoDate }`. `base = max(recurrence.startDate ?? today, today)`; `weekdays` → first date ≥ base whose ISO weekday is in `weekdays` (DTSTART must fall on a BYDAY day); `daily`/`interval-days` with `every > 1` → first `startDate + k·every` ≥ today; `daily` with `every` 1 → base; `monthly` → first `day` ≥ base; `once` → `date`; `dates` → `dates[0]` with `rdates = dates.slice(1)` (the caller maps to `{ date, time: plan.localTime }`). Tests call `rruleFor(recurrence as any, '2026-09-11')` and expect `rdates: ['2026-10-05']`.
+
+**A15 (Task 10 golden file).** Add `app/src/calendar/__fixtures__/.gitattributes` containing `*.ics -text` so CRLF survives checkout.
+
+**A16 (Task 11 types).** In `export.test.ts` use `type Share = (filename: string, contents: string, mime?: string) => Promise<void>` and `const share = vi.fn<Share>(async () => {})`.
+
+**A17 (Task 11 eligibility).** "Nothing to export" is `prediction.nextPeriodStart === null || !eligibility.periodForecast`. Today shows the Calendar quick action when `data.prediction.nextPeriodStart !== null`.
+
+**A18 (Task 11 Today and Settings).** Change `.today-quick-actions` to `grid-template-columns: repeat(4, minmax(0, 1fr))` (keep the 320px circle size from Task 6). Add `const [calendarNotice, setCalendarNotice] = useState<string | null>(null)` in Today, rendered under the quick actions. Add the sentence "Quiet hours are not applied to calendar reminders." to the Settings Calendar card. Insert the privacy row before the `'Anything else'` row so it stays last.
+
+**A19 (Task 11 share cancel).** In `shareOrDownload`, `catch (error) { if ((error as DOMException)?.name === 'AbortError') return }` before falling back to the download, so cancelling the share sheet does not also download the file.
+
+**A20 (Task 4 install).** `getInstallState` must not throw under the stubbed `window` used by `Settings.test.ts` (no `matchMedia`); see A7.

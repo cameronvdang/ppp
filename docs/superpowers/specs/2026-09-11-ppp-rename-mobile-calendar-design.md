@@ -64,6 +64,7 @@ alone.
 | Settings footer | "Lunara is open source (AGPL-3.0) and not affiliated with Flo Health Inc." | "PPP is open source (AGPL-3.0), based on Lunara, and not affiliated with Flo Health Inc." |
 | Packages | `@lunara/app`, `@lunara/*-worker` | `@ppp/app`, `@ppp/*-worker`; root `name: "ppp"` |
 | Wrangler names | `lunara-backup`, `lunara-reminders`, `lunara-records-relay`, bucket `lunara-backups` | `ppp-backup`, `ppp-reminders`, `ppp-records-relay`, `ppp-backups` |
+| Hostnames in worker config and tests | `lunara.app` | placeholder `ppp.example` (PPP owns no domain yet; operators replace it) |
 | Relay header | `X-Lunara-Relay-Token` | `X-PPP-Relay-Token` (relay, provider, tests, README, CSP notes) |
 | Dexie class and DB names | `LunaraDB`, `lunara`, `lunara-keys`, `lunara-secrets` | `PppDB`, `ppp`, `ppp-keys`, `ppp-secrets` |
 | Web Lock names, notification tags | `lunara-vault-lifecycle`, `lunara-daily:*`, `lunara-records-refresh`, `lunara-relay-settings`, `lunara-v3-migration` | `ppp-` prefix |
@@ -167,17 +168,23 @@ state. In `installed` mode both disappear.
   events when `periodForecast` is false; no fertile or ovulation events when
   `fertileWindow` / `ovulationForecast` are false (pregnancy or hormonal
   contraception).
-- Cycle 1 uses the engine's `periodWindow`, `fertileWindowRange`,
-  `ovulationWindow`. Cycles 2..N shift those windows by
-  `prediction.averageCycleLength` days and widen the period window by
-  `uncertaintyDays` per extra cycle. N defaults to 3, max 6.
+- Nothing is exported when `prediction.nextPeriodStart` is null (the
+  eligibility flag alone is not enough; it is true for anyone not pregnant).
+  Cycle 1's period window is `nextPeriodStart ± prediction.uncertaintyDays`
+  (the profile-adjusted value); fertile and ovulation windows come from the
+  engine. Cycles 2..N shift by `prediction.averageCycleLength` days and widen
+  the period window by `uncertaintyDays` per extra cycle. N defaults to 3,
+  max 6.
 - Events are all-day. Titles: discreet mode (default) "PPP" (period), "PPP +"
   (fertile), "PPP ○" (ovulation); descriptive mode "Period expected",
   "Fertile window (estimate)", "Ovulation (estimate)". Description always
   ends with "Estimate from PPP, ±N days. Not for contraception."
-- UIDs are stable per cycle index so re-importing replaces rather than
-  duplicates: `ppp-period-<n>@ppp.local`, `ppp-fertile-<n>@ppp.local`,
-  `ppp-ovulation-<n>@ppp.local`. `SEQUENCE` is the epoch minute of export.
+- UIDs are stable and opaque in both modes so re-importing or switching modes
+  replaces rather than duplicates: `ppp-a-<n>@ppp.local` (period),
+  `ppp-b-<n>@ppp.local` (fertile), `ppp-c-<n>@ppp.local` (ovulation).
+  `SEQUENCE` is the epoch minute of export. Discreet mode also omits the
+  `X-PPP-KIND` property and the contraception sentence from descriptions;
+  the Settings card carries that disclaimer instead.
 
 ### C3. Reminder events
 
@@ -189,9 +196,10 @@ state. In `installed` mode both disappear.
   `monthly` → `FREQ=MONTHLY;BYMONTHDAY=d`; `once` → single event; `dates` →
   `RDATE`. `endDate` → `UNTIL`. Quiet hours are not applied (calendar apps have
   their own) and the Settings copy says so.
-- Titles reuse the existing privacy-safe copy: with private previews on,
-  "PPP reminder"; otherwise the plan's label. Bodies never include results,
-  medication names, or fertility state (same rule as notifications).
+- Titles and bodies come from the same neutral copy as notifications
+  (`copyFor`): "PPP" in private-preview mode, otherwise "PPP reminder" /
+  "PPP check-in" / "PPP update". Definition labels such as "Ovulation test"
+  are never used; calendars are the most-shared surface.
 - UID `ppp-reminder-<plan.id>@ppp.local`.
 
 ### C4. UI
