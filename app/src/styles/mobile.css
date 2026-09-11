@@ -14,3 +14,32 @@
 .install-card-settings { margin: 0; box-shadow: none; }
 .install-share-glyph { width: 20px; height: 24px; vertical-align: middle; margin-left: 4px; }
 .install-dismiss { display: block; min-height: 44px; padding: 8px; margin-top: 4px; background: none; text-decoration: underline; }
+
+/* Enlarge actual controls; date visuals retain their existing dimensions. */
+.chip, .icon-button, .calendar-toolbar button { min-width: 44px; min-height: 44px; }
+button.cal-day, button.date-cell { position: relative; }
+button.cal-day::before, button.date-cell::before { content: ''; position: absolute; inset: -6px; }
+
+/* Floating surfaces already pad their contents; only add the device inset. */
+.overlay, .sheet, .health-overlay {
+  padding-left: env(safe-area-inset-left, 0px);
+  padding-right: env(safe-area-inset-right, 0px);
+}
+
+@media (display-mode: standalone) {
+  main { padding-top: max(var(--safe-top), 12px); }
+  .install-card { display: none; }
+}
+
+@media screen and (max-height: 500px) and (orientation: landscape) {
+  .tabbar { padding-top: 2px; padding-bottom: calc(var(--safe-bottom) + 2px); }
+  .tabbar-label { display: none; }
+  .sheet, .overlay, .health-overlay { max-height: 100dvh; }
+  .sheet-body, .overlay-body { min-height: 0; overflow-y: auto; }
+}
+
+@media (max-width: 340px) {
+  .page { padding-left: 12px; padding-right: 12px; }
+  .today-quick-actions { gap: 8px; }
+  .quick-action-circle { width: 56px; height: 56px; }
+}
