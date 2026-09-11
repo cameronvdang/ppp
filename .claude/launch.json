@@ -1,0 +1,17 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "ppp-preview",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ppp/app", "preview", "--", "--port", "4173", "--strictPort"],
+      "port": 4173
+    },
+    {
+      "name": "ppp-dev",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@ppp/app", "dev", "--", "--port", "5173", "--strictPort"],
+      "port": 5173
+    }
+  ]
+}

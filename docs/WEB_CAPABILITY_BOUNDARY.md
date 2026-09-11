@@ -29,7 +29,7 @@ After the initial app load, these features need no account or hosted backend:
   unlock the vault key. Device unlock requires enrollment and browser/device
   support.
 - In-session reminders with permission and Notifications API support. Keep a
-  Lunara tab open; closing all tabs stops delivery, and browser suspension can
+  PPP tab open; closing all tabs stops delivery, and browser suspension can
   delay it. Reminder plans persist, but notification action buttons are not
   wired to completion or snooze callbacks.
 - A production PWA shell that can load offline after its initial successful
@@ -70,7 +70,7 @@ it would not make AI inference run entirely inside this browser app.
 
 ## Not possible in a browser
 
-- Reliable future notifications after every Lunara tab is closed without a
+- Reliable future notifications after every PPP tab is closed without a
   push service or another delivery service. This fork has no push backend;
   the PWA service worker alone is not a future-notification scheduler.
 - Direct HealthKit or Health Connect access through the removed native bridges.

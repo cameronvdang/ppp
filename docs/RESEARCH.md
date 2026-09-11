@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Lunara research synthesis
 
 Updated: 2026-07-26

@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Feature-depth delivery map
 
 Updated: 2026-09-11 for the web fork.

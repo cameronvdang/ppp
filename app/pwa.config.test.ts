@@ -5,7 +5,7 @@ import { pwaOptions } from './pwa.config'
 describe('pwa config', () => {
   it('registers with autoUpdate and a standalone manifest', () => {
     expect(pwaOptions.registerType).toBe('autoUpdate')
-    expect(pwaOptions.manifest).toMatchObject({ name: 'Lunara', display: 'standalone' })
+    expect(pwaOptions.manifest).toMatchObject({ name: 'PPP', display: 'standalone' })
   })
 
   afterEach(() => vi.unstubAllGlobals())

@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Current progress and roadmap
 
 > **2026-09-11 — Web fork update:** The current direction is the

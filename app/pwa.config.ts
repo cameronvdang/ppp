@@ -5,8 +5,8 @@ export const pwaOptions: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
   includeAssets: ['icons/apple-touch-icon.png'],
   manifest: {
-    name: 'Lunara',
-    short_name: 'Lunara',
+    name: 'PPP',
+    short_name: 'PPP',
     description: 'Private cycle, fertility, pregnancy and perimenopause companion. Your data stays in your browser.',
     display: 'standalone',
     start_url: '/',

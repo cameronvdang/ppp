@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Flo reference-screen catalog
 
 This catalog records public evidence for product structure and interaction

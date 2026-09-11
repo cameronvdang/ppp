@@ -1,10 +1,10 @@
-# Lunara
+# PPP
 
-An open-source, local-first browser companion for cycle, fertility, pregnancy, and perimenopause tracking.
+PPP is a privacy-first cycle, fertility, pregnancy and perimenopause companion that runs entirely in your browser. It is based on Lunara (AGPL-3.0, https://github.com/Blueturboguy07/lunara) and is not affiliated with Flo Health Inc.
 
 ## Fork notice
 
-This AGPL-3.0 fork of [upstream Lunara](https://github.com/Blueturboguy07/lunara)
+This AGPL-3.0 fork
 replaces the Capacitor iOS and Android shells with a web-first React/Vite app
 and a PWA shell. It remains a work in progress.
 
@@ -13,7 +13,7 @@ covers the browser platform, Aileron typography, baby pink / baby red palette,
 responsive layout, and FinchNode records integration. Phases 1–3 are implemented;
 the final Phase 4 hardening and browser review remain separate work.
 
-Lunara is an open-source alternative to Flo®. It is not affiliated with,
+PPP is an open-source alternative to Flo®. It is not affiliated with,
 endorsed by, or connected to Flo Health Inc.
 
 ## Run it
@@ -49,7 +49,7 @@ See [PRIVACY.md](PRIVACY.md) for the network-destination table and storage bound
 and [Web capability boundary](docs/WEB_CAPABILITY_BOUNDARY.md) for browser limits.
 
 - **Local first:** core tracking uses browser storage without an account or a
-  Lunara-hosted user database. Clearing site data removes local history.
+  PPP-hosted user database. Clearing site data removes local history.
 - **Opt-in transfers:** records connect/refresh, AI messages and encrypted backup
   uploads require user action. Records are never sent to the AI assistant.
 - **Limited encryption scope:** medical-record bodies and vault secrets are sealed
@@ -76,7 +76,7 @@ For live records from your provider:
 3. In **Settings → Medical records**, save the relay URL and its required token.
    The token is sealed in the vault and bound to that canonical URL.
 4. Open Records, consent to at least one category, and choose **Connect my provider**.
-   Complete Hosted Connect. Lunara resumes only the pending session you started,
+   Complete Hosted Connect. PPP resumes only the pending session you started,
    polls its sync state, and imports your granted categories.
 
 Use **Refresh** to update records. Partial refreshes keep missing categories cached
@@ -101,7 +101,7 @@ See [PRIVACY.md](PRIVACY.md) for deletion, export and relay trust details.
 Run the app tests from the repository root:
 
 ```sh
-pnpm --filter @lunara/app test
+pnpm --filter @ppp/app test
 (cd app && npx tsc --noEmit && npx vite build)
 (cd workers/records-relay && pnpm test)
 ```
@@ -125,7 +125,7 @@ also checks TypeScript before generating the production bundle.
 
 ## AI companion
 
-The AI companion is optional and bring-your-own-key. Lunara ships no shared
+The AI companion is optional and bring-your-own-key. PPP ships no shared
 credential, and core tracking works without AI. The current UI supports:
 
 - **Anthropic** — an API key or a token from `claude setup-token`.
@@ -144,7 +144,7 @@ site in your browser could read them. PIN and device unlock are screen gates.
 
 ## Disclaimer
 
-Lunara is not a medical device and does not diagnose, treat, cure, or prevent any condition. Predictions are estimates for informational purposes only and must not be used to prevent pregnancy.
+PPP is not a medical device and does not diagnose, treat, cure, or prevent any condition. Predictions are estimates for informational purposes only and must not be used to prevent pregnancy.
 
 ## License
 
