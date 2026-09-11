@@ -18,7 +18,7 @@
 /* Enlarge actual controls; date visuals retain their existing dimensions. */
 .chip, .icon-button, .calendar-toolbar button { min-width: 44px; min-height: 44px; }
 button.cal-day, button.date-cell { position: relative; }
-button.cal-day::before, button.date-cell::before { content: ''; position: absolute; inset: -6px 0; }
+button.cal-day::before, button.date-cell::before { content: ''; position: absolute; inset: -3px 0; }
 
 /* Floating surfaces already pad their contents; only add the device inset. */
 .overlay, .sheet, .health-overlay {
