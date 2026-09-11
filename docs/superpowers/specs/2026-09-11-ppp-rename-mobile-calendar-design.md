@@ -263,3 +263,31 @@ browser.
 - Extrapolated cycles 2..N are less reliable than cycle 1; the description
   says so and the default is 3 cycles.
 - Floating-time reminders shift if the user travels; documented.
+
+## 11. Addendum: phases and per-day symptoms (2026-09-11)
+
+The user asked that PPP track phases and let users note symptoms such as
+diarrhea or nausea on specific days. What exists: a per-day log with a
+Digestion section (nausea, bloating, diarrhea, constipation, and more) plus
+symptom and mood sections; Today's hero shows period, fertile-window and
+ovulation states; the calendar marks period, fertile and ovulation days.
+Gaps: the follicular and luteal phases are never named, the daily log does
+not say which phase its day is in, and the calendar does not show which days
+have notes.
+
+Design:
+
+- A pure phase engine (`engine/phase.ts`) names the phase of any date:
+  period, follicular, fertile window (estimate), ovulation (estimate), luteal,
+  or plain "Cycle day N" when estimates are unavailable or suppressed by
+  hormonal contraception or pregnancy. It derives from logged flow runs plus
+  the personalized prediction, so it never contradicts Today.
+- Today shows the phase name with the cycle day; the daily log sheet shows the
+  phase of the day being edited; the calendar tints follicular and luteal days
+  lightly, keeps its period/fertile/ovulation markers, and adds a dot on days
+  with any symptom, digestion or mood note, with legend entries for each.
+- Tapping a calendar day still opens that day's log, which is where symptoms
+  are noted. No schema or taxonomy changes.
+- Copy always says "estimate"; nothing is presented as confirmed ovulation.
+
+Plan: `docs/superpowers/plans/2026-09-11-ppp-phases-symptoms.md` (Tasks 13–15).
