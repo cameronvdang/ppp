@@ -317,7 +317,10 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 
   async function exportPlain() {
     const payload = await collectExport()
-    await shareOrDownload(`ppp-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))
+    if ((await shareOrDownload(`ppp-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))) === 'cancelled') {
+      setStatus('Export cancelled.')
+      return
+    }
     setStatus('Exported. Save it somewhere safe.')
   }
 
@@ -325,7 +328,10 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     const pass = prompt('Choose a passphrase to encrypt this file. You will need it to import.')
     if (!pass) return
     const env = await encryptedExport(pass)
-    await shareOrDownload(`ppp-encrypted-${localToday()}.json`, JSON.stringify(env))
+    if ((await shareOrDownload(`ppp-encrypted-${localToday()}.json`, JSON.stringify(env))) === 'cancelled') {
+      setStatus('Export cancelled.')
+      return
+    }
     setStatus('Encrypted export saved.')
   }
 

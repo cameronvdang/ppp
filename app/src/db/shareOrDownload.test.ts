@@ -34,6 +34,13 @@ describe('shareOrDownload', () => {
     expect(download.anchor.click).not.toHaveBeenCalled()
     expect(download.createObjectURL).not.toHaveBeenCalled()
   })
+  it.each(['ppp-backup-2026-09-11.json', 'ppp-encrypted-2026-09-11.json'])('returns cancelled for the %s backup export', async filename => {
+    const download = downloadEnvironment()
+    vi.stubGlobal('navigator', { canShare: () => true, share: vi.fn(async () => { throw new DOMException('Cancelled', 'AbortError') }) })
+    await expect(shareOrDownload(filename, '{}')).resolves.toBe('cancelled')
+    expect(download.anchor.click).not.toHaveBeenCalled()
+    expect(download.createObjectURL).not.toHaveBeenCalled()
+  })
   it.each([false, true])('downloads when file sharing is unavailable or fails (canShare=%s)', async supported => {
     const { anchor, createObjectURL, revokeObjectURL } = downloadEnvironment()
     vi.stubGlobal('navigator', { canShare: () => supported, share: vi.fn(async () => { throw new Error('Unavailable') }) })
