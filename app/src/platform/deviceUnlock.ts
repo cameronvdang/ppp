@@ -1,4 +1,4 @@
-import { getSetting, removeSetting, setSetting, SK } from '../db/schema'
+import { db, getSetting, removeSetting, setSetting, SK } from '../db/schema'
 
 export type BiometricKind = 'platform' | 'none'
 export type BiometricState = 'available' | 'not-enrolled' | 'unsupported'
@@ -94,8 +94,9 @@ export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
 export async function authenticateWithBiometrics(
   _reason = 'Unlock your private Lunara data',
 ): Promise<BiometricAuthenticationResult> {
-  const stored = await getSetting(SK.deviceUnlockCredential)
-  if (!stored || !(await platformAvailable())) {
+  const [enrollment, preference] = await db.settings.bulkGet([SK.deviceUnlockCredential, SK.biometricLock])
+  const stored = enrollment?.value, enabled = preference?.value
+  if (!stored || enabled !== '1' || !(await platformAvailable())) {
     return { authenticated: false, kind: 'none', errorCode: 'NOT_ENROLLED' }
   }
 
@@ -109,9 +110,12 @@ export async function authenticateWithBiometrics(
       },
     })
     const credential = assertion as PublicKeyCredential | null
+    const [currentEnrollment, currentPreference] = await db.settings.bulkGet([SK.deviceUnlockCredential, SK.biometricLock])
     const authenticated = credential?.type === 'public-key'
       && credential.rawId instanceof ArrayBuffer
       && b64url(credential.rawId) === stored
+      && currentEnrollment?.value === stored
+      && currentPreference?.value === enabled
     return { authenticated, kind: 'platform' }
   } catch (error) {
     const name = error instanceof Error ? error.name : ''

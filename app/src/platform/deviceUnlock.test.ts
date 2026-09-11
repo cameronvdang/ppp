@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getSetting, SK } from '../db/schema'
+import { db, getSetting, setSetting, SK, LunaraDB } from '../db/schema'
 import { authenticateWithBiometrics, enrollDeviceUnlock, getBiometricStatus, removeDeviceUnlock } from './deviceUnlock'
 
 const fakeCredential = { rawId: new Uint8Array([1, 2, 3, 4]).buffer, id: 'AQIDBA', type: 'public-key' }
@@ -53,6 +53,7 @@ describe('deviceUnlock', () => {
   it('authenticates only when the stored credential is asserted', async () => {
     installWebAuthn({ uvpaa: true })
     await enrollDeviceUnlock()
+    await setSetting(SK.biometricLock, '1')
     expect(await authenticateWithBiometrics()).toEqual({ authenticated: true, kind: 'platform' })
     const call = (navigator.credentials.get as any).mock.calls[0][0]
     expect(call.publicKey.userVerification).toBe('required')
@@ -63,6 +64,7 @@ describe('deviceUnlock', () => {
     'rejects a null, wrong-type or wrong-ID assertion: %j', async (getResult) => {
       installWebAuthn({ uvpaa: true, getResult })
       await enrollDeviceUnlock()
+      await setSetting(SK.biometricLock, '1')
       expect((await authenticateWithBiometrics()).authenticated).toBe(false)
     },
   )
@@ -72,8 +74,29 @@ describe('deviceUnlock', () => {
     err.name = 'NotAllowedError'
     installWebAuthn({ uvpaa: true, getError: err })
     await enrollDeviceUnlock()
+    await setSetting(SK.biometricLock, '1')
     expect(await authenticateWithBiometrics()).toEqual({ authenticated: false, kind: 'platform', errorCode: 'USER_CANCEL' })
   })
+
+  it.each(['remove credential', 'replace credential', 'remove flag', 'disable flag'] as const)(
+    'rejects an assertion when another tab performs %s during WebAuthn', async change => {
+      installWebAuthn({ uvpaa: true })
+      await enrollDeviceUnlock()
+      await setSetting(SK.biometricLock, '1')
+      const other = new LunaraDB()
+      vi.mocked(navigator.credentials.get).mockImplementationOnce(async () => {
+        if (change === 'remove credential') await other.settings.delete(SK.deviceUnlockCredential)
+        else if (change === 'replace credential') await other.settings.put({ key: SK.deviceUnlockCredential, value: 'CQ' })
+        else if (change === 'remove flag') await other.settings.delete(SK.biometricLock)
+        else await other.settings.put({ key: SK.biometricLock, value: '0' })
+        return fakeCredential as PublicKeyCredential
+      })
+      try {
+        expect((await authenticateWithBiometrics()).authenticated).toBe(false)
+        expect(navigator.credentials.get).toHaveBeenCalledOnce()
+      } finally { other.close() }
+    },
+  )
 
   it('removeDeviceUnlock forgets the credential', async () => {
     installWebAuthn({ uvpaa: true })
