@@ -326,7 +326,7 @@ export function Today() {
     const pregnancySignals = loggedSignals(data.selectedLog)
     return (
       <div className="page today-page pregnancy-page">
-        <Header date={selectedDate} today={today} phase={data.phase} onCalendar={() => setCalendarOpen(true)} />
+        <Header date={selectedDate} today={today} onCalendar={() => setCalendarOpen(true)} />
         <section className="date-panel" aria-label="Choose a day to review">
           <DateStrip
             selectedDate={selectedDate}
@@ -864,7 +864,7 @@ function Header({
 }: {
   date: string
   today: string
-  phase: PhaseResult
+  phase?: PhaseResult
   onCalendar: () => void
 }) {
   const setTab = useApp((s) => s.setTab)
@@ -892,7 +892,7 @@ function Header({
       <div className="today-heading">
         <span>{relativeLabel}</span>
         <strong>{selected.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</strong>
-        {phase.phase !== 'unknown' && <span className="phase-chip" title={phase.detail}>
+        {phase && phase.phase !== 'unknown' && <span className="phase-chip" title={phase.detail}>
           {phase.label}{(phase.phase === 'follicular' || phase.phase === 'luteal') && ' (estimate)'}{phase.cycleDay ? ` · Day ${phase.cycleDay}` : ''}
         </span>}
       </div>
