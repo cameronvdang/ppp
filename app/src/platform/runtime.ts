@@ -5,6 +5,10 @@ export const nativePlatform = 'web' as const
 
 export async function initializeRuntime(): Promise<void> {
   document.documentElement.dataset.runtime = 'web'
+  if (import.meta.env.PROD) {
+    const { registerSW } = await import('virtual:pwa-register')
+    registerSW({ immediate: true })
+  }
   await startReminderScheduler()
 }
 
