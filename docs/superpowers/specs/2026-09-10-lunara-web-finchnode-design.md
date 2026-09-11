@@ -1,7 +1,7 @@
 # Lunara Web: privacy-first browser app with FinchNode medical records
 
 Date: 2026-09-10
-Status: draft for review
+Status: implemented on `feat/web-app-finchnode` (2026-09-11); reviewed by Codex gpt-6-astra, hardened in Phase 4
 Branch: `feat/web-app-finchnode`
 Upstream: https://github.com/Blueturboguy07/lunara (AGPL-3.0). This fork keeps the
 license, the name, and attribution.
