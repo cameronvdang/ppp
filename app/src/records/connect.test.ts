@@ -11,6 +11,11 @@ import type { RecordsProvider, RecordsSnapshot, ConnectSessionState } from './pr
 const id = 'cs_0123456789abcdef0123'
 const subject = 'u_0123456789abcdef'
 const ret = { isReturn: true, sessionId: null, invalidSession: false }
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>(r => { resolve = r })
+  return { promise, resolve }
+}
 const snapshot: RecordsSnapshot = {
   records: [{ id: 'live:labs:rec_000000000000000000000001', category: 'labs', sourceRecordId: 'lab-source', sourceName: 'Clinic', date: '2026-09-10', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'A1c', value: 6, unit: '%', status: 'final', referenceRange: null, interpretation: null }],
   skipped: 0, additionalItems: 0, sources: [], warnings: [], syncStatus: 'complete', sync: { status: 'complete' }, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], failure: null, consentReceiptIds: [], synthetic: false,
@@ -256,6 +261,40 @@ it('honors Retry-After before fetching a ready snapshot', async () => {
   await startConnection(['labs'], { ...deps, provider: p })
   vi.mocked(p.fetchSnapshot).mockImplementation(async () => { expect(elapsed).toBe(5000); return snapshot })
   await completePendingConnection(ret, { ...deps, provider: p })
+})
+it('does not adopt a replacement generation while an old completed return waits through Retry-After', async () => {
+  const p = provider([{ ...completed, retryAfterSeconds: 5 }])
+  await startConnection(['labs'], { ...deps, provider: p })
+  const paused = deferred<void>(), release = deferred<void>()
+  const old = completePendingConnection(ret, { ...deps, provider: p, sleep: () => { paused.resolve(); return release.promise } })
+  await paused.promise
+  vi.resetModules()
+  const other = await import('./connect'), otherDb = (await import('../db/schema')).db
+  const replacementId = 'cs_ffffffffffffffffffff'
+  const replacement = provider([{ ...completed, id: replacementId, subject: 'u_fedcba9876543210', sync: { status: 'queued' } }])
+  vi.mocked(replacement.startConnect).mockResolvedValue({ sessionId: replacementId, redirectUrl: 'https://connect.test/new', completed: false, subject: null, expiresAt: null })
+  const queued = deferred<void>(), resumeQueued = deferred<void>()
+  let pending: Promise<unknown> | undefined
+  try {
+    await other.cancelConnection()
+    await other.startConnection(['labs'], { ...deps, provider: replacement, randomId: () => 'replacementabcdefghijklmnop' })
+    pending = other.completePendingConnection(ret, { ...deps, provider: replacement, sleep: () => { queued.resolve(); return resumeQueued.promise } })
+    await queued.promise
+    const before = await getConnection()
+    expect(before).toMatchObject({ status: 'pending', pendingSession: { id: replacementId }, subject: 'u_fedcba9876543210', sync: { status: 'queued' } })
+    release.resolve()
+    await old
+    expect(p.fetchSnapshot).not.toHaveBeenCalled()
+    expect(replacement.fetchSnapshot).not.toHaveBeenCalled()
+    expect(await getConnection()).toEqual(before)
+    expect(await listRecords()).toEqual([])
+  } finally {
+    release.resolve()
+    await other.cancelConnection()
+    resumeQueued.resolve()
+    await Promise.all([old, pending])
+    otherDb.close()
+  }
 })
 it('retains cached subject and records on a snapshot failure with only safe copy', async () => {
   const p = await ready(), before = await db.medicalRecords.toArray()

@@ -130,8 +130,8 @@ async function fetchAndCommit(c: RecordsConnection, deps: ConnectDeps, controlle
   }
   return getConnection()
 }
-async function refresh(deps: ConnectDeps): Promise<RecordsConnection> {
-  const c = await getConnection()
+async function refresh(deps: ConnectDeps, captured?: RecordsConnection): Promise<RecordsConnection> {
+  const c = captured ?? await getConnection()
   const existing = refreshes.get(c.generation)
   if (existing) return existing
   const run = () => operation(async controller => {
@@ -181,7 +181,7 @@ export async function startConnection(input: RecordCategory[], deps: ConnectDeps
       try {
         const result = await network(captured, deps, controller, p => p.startConnect(captured.creationAttempt!))
         if (captured.mode === 'demo') {
-          const done = await syncSnapshot(deps)
+          const done = await refresh(deps, captured)
           return done.generation === captured.generation && done.status === 'connected' ? 'connected' : 'error'
         }
         if (!SESSION_ID.test(result.sessionId) || !result.redirectUrl) throw new Error('Invalid connection.')
@@ -229,7 +229,8 @@ async function poll(c: RecordsConnection, deps: ConnectDeps, controller: AbortCo
       if (!await putConnection(patch)) return getConnection()
       if (s.status === 'completed' && ['complete', 'partial'].includes(s.sync.status) && s.subject) {
         if (s.retryAfterSeconds) await pause(s.retryAfterSeconds * 1000, deadline, deps, controller)
-        return syncSnapshot(deps)
+        // Keep the poll's generation and session through Retry-After and snapshot commit.
+        return refresh(deps, c)
       }
       await pause(Math.max(2000, (s.retryAfterSeconds ?? 0) * 1000), deadline, deps, controller)
     } catch (error) {
