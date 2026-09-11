@@ -13,8 +13,9 @@ const subject = 'u_0123456789abcdef'
 const ret = { isReturn: true, sessionId: null, invalidSession: false }
 function deferred<T>() {
   let resolve!: (value: T) => void
-  const promise = new Promise<T>(r => { resolve = r })
-  return { promise, resolve }
+  let reject!: (reason: unknown) => void
+  const promise = new Promise<T>((r, fail) => { resolve = r; reject = fail })
+  return { promise, resolve, reject }
 }
 const snapshot: RecordsSnapshot = {
   records: [{ id: 'live:labs:rec_000000000000000000000001', category: 'labs', sourceRecordId: 'lab-source', sourceName: 'Clinic', date: '2026-09-10', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'A1c', value: 6, unit: '%', status: 'final', referenceRange: null, interpretation: null }],
@@ -296,6 +297,38 @@ it('does not adopt a replacement generation while an old completed return waits 
     otherDb.close()
   }
 })
+it.each(['terminal failure', 'sync failure', 'network error', 'expired error', 'completed', 'queued'] as const)(
+  'ignores a second tab’s delayed %s after the pending session is consumed', async outcome => {
+    const p = provider()
+    await startConnection(['labs'], { ...deps, provider: p })
+    vi.resetModules()
+    const other = await import('./connect'), otherDb = (await import('../db/schema')).db
+    const delayed = provider(), entered = deferred<void>(), response = deferred<ConnectSessionState>()
+    vi.mocked(delayed.getSession).mockImplementationOnce(() => { entered.resolve(); return response.promise })
+    const late = other.completePendingConnection(ret, { ...deps, provider: delayed })
+    try {
+      await entered.promise
+      await completePendingConnection(ret, { ...deps, provider: p })
+      const before = await getConnection(), rows = await db.medicalRecords.toArray()
+      expect(before.status).toBe('connected')
+      expect(before.pendingSession).toBeUndefined()
+      if (outcome === 'network error') response.reject(new Error('Delayed failure'))
+      else if (outcome === 'expired error') response.reject(new RecordsHttpError('Expired', 410, null, 'expired'))
+      else response.resolve({ ...completed,
+        status: outcome === 'terminal failure' ? 'failed' : 'completed',
+        sync: { status: outcome === 'sync failure' ? 'failed' : outcome === 'queued' ? 'queued' : 'complete' },
+      })
+      await late
+      expect(await getConnection()).toEqual(before)
+      expect(await db.medicalRecords.toArray()).toEqual(rows)
+      expect(delayed.fetchSnapshot).not.toHaveBeenCalled()
+    } finally {
+      response.resolve(completed)
+      await late
+      otherDb.close()
+    }
+  },
+)
 it('retains cached subject and records on a snapshot failure with only safe copy', async () => {
   const p = await ready(), before = await db.medicalRecords.toArray()
   vi.mocked(p.fetchSnapshot).mockRejectedValue(new Error('PRIVATE STACK'))

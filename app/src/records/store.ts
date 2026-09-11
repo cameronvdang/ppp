@@ -4,7 +4,7 @@ import { withSealingKey } from '../platform/keyStore'
 import { isRecordCategory, RECORD_CATEGORIES } from './categories'
 import { canonicalizeRelayUrl } from './providers/relay'
 import type { MedicalRecord, RecordCategory, RecordsConnection } from './types'
-export type ConnectionPatch = Partial<Omit<RecordsConnection, 'id' | 'generation'>> & { expectedGeneration: number }
+export type ConnectionPatch = Partial<Omit<RecordsConnection, 'id' | 'generation'>> & { expectedGeneration: number; expectedPendingSessionId?: string }
 export function defaultConnection(): RecordsConnection {
   return { id: 'primary', mode: 'demo', status: 'disconnected', generation: 0, relayBaseUrl: null, categories: [...RECORD_CATEGORIES], grantedCategories: [], availableCategories: [], missingCategories: [], sources: [], consentReceiptIds: [], warnings: [], additionalItems: 0 }
 }
@@ -19,6 +19,7 @@ export function recordsTransaction<T>(run: () => Promise<T>): Promise<T> {
 async function guardedConnection(patch: ConnectionPatch): Promise<RecordsConnection | null> {
   const current = await getConnection()
   if (current.generation !== patch.expectedGeneration || !recordsConsentGranted(await getHealthProfile())) return null
+  if (patch.expectedPendingSessionId !== undefined && current.pendingSession?.id !== patch.expectedPendingSessionId) return null
   if (current.mode === 'live' || patch.mode === 'live') {
     try {
       const saved = canonicalizeRelayUrl(await getSetting(SK.recordsRelayUrl) ?? '')
@@ -28,7 +29,7 @@ async function guardedConnection(patch: ConnectionPatch): Promise<RecordsConnect
   return current
 }
 function mergePatch(current: RecordsConnection, patch: ConnectionPatch): RecordsConnection {
-  const { expectedGeneration: _, ...changes } = patch
+  const { expectedGeneration: _, expectedPendingSessionId: __, ...changes } = patch
   return { ...current, ...changes, id: 'primary', generation: current.generation }
 }
 export function putConnection(patch: ConnectionPatch): Promise<boolean> {

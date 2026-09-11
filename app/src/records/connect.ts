@@ -45,6 +45,7 @@ export function providerFor(connection: RecordsConnection, relay: RelaySettings)
 async function currentFor(captured: RecordsConnection, deps: ConnectDeps): Promise<RecordsConnection> {
   const current = await getConnection()
   if (current.generation !== captured.generation || current.status === 'disconnected' || current.mode !== deps.provider.mode || !await hasRecordsConsent()) throw new StaleOperation()
+  if (captured.pendingSession && current.pendingSession?.id !== captured.pendingSession.id) throw new StaleOperation()
   if (current.mode === 'live') {
     const relay = await loadRelaySettings()
     providerFor(current, relay)
@@ -53,6 +54,7 @@ async function currentFor(captured: RecordsConnection, deps: ConnectDeps): Promi
   // Settings/key reads can yield to another tab. The commit guard repeats these checks too.
   const latest = await getConnection()
   if (latest.generation !== captured.generation || latest.status === 'disconnected' || !await hasRecordsConsent()) throw new StaleOperation()
+  if (captured.pendingSession && latest.pendingSession?.id !== captured.pendingSession.id) throw new StaleOperation()
   return latest
 }
 function stopOldWork(): void { refreshRequest = null; abortRecordsWork() }
@@ -94,12 +96,15 @@ async function pause(ms: number, deadline: number, deps: ConnectDeps, controller
 function safeFailure(failure: SyncFailure | null | undefined, reauthorize = false): SyncFailure | null {
   return failure ? { code: reauthorize ? 'reauthorization_required' : 'sync_failed', message: reauthorize ? REAUTHORIZE : 'Your provider could not finish sharing records.', retryable: failure.retryable === true } : null
 }
+function commitGuard(c: RecordsConnection) {
+  return { expectedGeneration: c.generation, expectedPendingSessionId: c.pendingSession?.id }
+}
 async function persistError(c: RecordsConnection, error: unknown, recoveryAction: RecordsConnection['recoveryAction'], patch: Partial<ConnectionPatch> = {}, message?: string): Promise<RecordsConnection> {
   if (!(error instanceof StaleOperation)) {
     const lastError = message ?? (error instanceof PollTimeout || (error instanceof DOMException && error.name === 'TimeoutError') ? recoveryAction === 'check-again' ? POLL_TIMEOUT : 'The records service did not respond in time. Try again.'
       : error instanceof RecordsHttpError ? error.status === 429 && c.mode === 'demo' ? DEMO_BUSY : friendlyStatus(error.status)
       : 'The records service is unavailable right now.')
-    await putConnection({ ...patch, expectedGeneration: c.generation, status: 'error', lastError, recoveryAction })
+    await putConnection({ ...patch, ...commitGuard(c), status: 'error', lastError, recoveryAction })
   }
   return getConnection()
 }
@@ -117,7 +122,7 @@ async function fetchAndCommit(c: RecordsConnection, deps: ConnectDeps, controlle
     if (!current.subject || !effective.length) return persistError(c, new Error(), 'start-again', { pendingSession: undefined, creationAttempt: undefined }, 'No chosen categories were shared from your provider. Start again to choose categories.')
     const snapshot = await network(c, deps, controller, p => p.fetchSnapshot(current.subject!, effective))
     const scope = intersection(effective, snapshot.grantedCategories)
-    const patch: ConnectionPatch = { expectedGeneration: c.generation, sources: snapshot.sources, warnings: snapshot.warnings, sync: snapshot.sync, syncStatus: snapshot.syncStatus, grantedCategories: scope,
+    const patch: ConnectionPatch = { ...commitGuard(c), sources: snapshot.sources, warnings: snapshot.warnings, sync: snapshot.sync, syncStatus: snapshot.syncStatus, grantedCategories: scope,
       availableCategories: intersection(scope, snapshot.availableCategories), missingCategories: intersection(scope, snapshot.missingCategories), failure: safeFailure(snapshot.failure), consentReceiptIds: snapshot.consentReceiptIds, skipped: snapshot.skipped, additionalItems: snapshot.additionalItems }
     if (snapshot.syncStatus === 'not_started') return persistError(c, new Error(), current.pendingSession ? 'check-again' : 'refresh', patch, 'Your records have not been refreshed yet. Check again shortly.')
     if (!scope.length) return persistError(c, new Error(), 'start-again', { ...patch, pendingSession: undefined, creationAttempt: undefined }, 'No chosen categories were shared from your provider. Start again to choose categories.')
@@ -225,7 +230,7 @@ async function poll(c: RecordsConnection, deps: ConnectDeps, controller: AbortCo
       if (terminal || ['failed', 'reauthorization_required'].includes(s.sync.status)) {
         return persistError(c, new Error(), 'start-again', { ...meta, pendingSession: undefined, creationAttempt: undefined }, s.sync.status === 'reauthorization_required' ? REAUTHORIZE : 'This connection could not finish. Start again to reconnect.')
       }
-      const patch = { ...meta, expectedGeneration: c.generation, ...(s.subject && SUBJECT_ID.test(s.subject) ? { subject: s.subject } : {}) }
+      const patch = { ...meta, ...commitGuard(c), ...(s.subject && SUBJECT_ID.test(s.subject) ? { subject: s.subject } : {}) }
       if (!await putConnection(patch)) return getConnection()
       if (s.status === 'completed' && ['complete', 'partial'].includes(s.sync.status) && s.subject) {
         if (s.retryAfterSeconds) await pause(s.retryAfterSeconds * 1000, deadline, deps, controller)
