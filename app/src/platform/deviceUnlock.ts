@@ -1,4 +1,4 @@
-import { db, getSetting, removeSetting, setSetting, SK } from '../db/schema'
+import { db, getSetting, removeSetting, SK } from '../db/schema'
 
 export type BiometricKind = 'platform' | 'none'
 export type BiometricState = 'available' | 'not-enrolled' | 'unsupported'
@@ -55,6 +55,7 @@ export async function getBiometricStatus(): Promise<BiometricStatus> {
   return { available: true, enrolled, kind: 'platform', state: enrolled ? 'available' : 'not-enrolled' }
 }
 
+/** Create only; Settings persists enrollment after checking the original PIN. */
 export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
   if (!(await platformAvailable())) throw new Error('Device unlock is not available in this browser.')
 
@@ -81,9 +82,7 @@ export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
     throw new Error('No valid device-unlock credential was created.')
   }
 
-  const credentialId = b64url(credential.rawId)
-  await setSetting(SK.deviceUnlockCredential, credentialId)
-  return { credentialId }
+  return { credentialId: b64url(credential.rawId) }
 }
 
 /**

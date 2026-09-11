@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getSetting, setSetting, SK } from '../db/schema'
+import { db, getSetting, setSetting, SK, LunaraDB } from '../db/schema'
 import * as deviceUnlock from '../platform/deviceUnlock'
 import * as notifications from '../platform/notifications'
 import * as secureVault from '../platform/secureVault'
@@ -112,17 +112,18 @@ describe('Settings browser privacy actions', () => {
     vi.unstubAllGlobals()
   })
 
-  it('requires a PIN before starting device enrollment', async () => {
+  it.each([false, true])('requires a persisted PIN before starting device enrollment even with hasPin=%s', async hasPin => {
     const enroll = vi.spyOn(deviceUnlock, 'enrollDeviceUnlock')
-    await expect(setDeviceUnlockEnabled(true, false)).rejects.toThrow('Set a PIN first')
+    await expect(setDeviceUnlockEnabled(true, hasPin)).rejects.toThrow('Set a PIN first')
     expect(enroll).not.toHaveBeenCalled()
     expect(await getSetting(SK.biometricLock)).toBeUndefined()
   })
 
   it('enrolls a new authenticator before enabling the device gate', async () => {
+    await setSetting(SK.pinHash, 'original-pin')
     const enroll = vi.spyOn(deviceUnlock, 'enrollDeviceUnlock').mockImplementation(async () => {
       expect(await getSetting(SK.biometricLock)).toBeUndefined()
-      await setSetting(SK.deviceUnlockCredential, 'enrolled-device')
+      expect(await getSetting(SK.deviceUnlockCredential)).toBeUndefined()
       return { credentialId: 'enrolled-device' }
     })
     const status = vi.spyOn(deviceUnlock, 'getBiometricStatus')
@@ -137,9 +138,39 @@ describe('Settings browser privacy actions', () => {
   })
 
   it('leaves the flag off when device enrollment fails', async () => {
+    await setSetting(SK.pinHash, 'original-pin')
     vi.spyOn(deviceUnlock, 'enrollDeviceUnlock').mockRejectedValue(new Error('Cancelled'))
     await expect(setDeviceUnlockEnabled(true, true)).rejects.toThrow('Cancelled')
     expect(await getSetting(SK.biometricLock)).toBeUndefined()
+  })
+
+  it.each(['wipe', 'remove PIN', 'replace PIN'] as const)('discards suspended WebAuthn enrollment after %s in another tab', async change => {
+    await setSetting(SK.pinHash, 'original-pin')
+    let entered!: () => void, release!: (credential: Credential) => void
+    const waiting = new Promise<void>(resolve => { entered = resolve })
+    const creating = new Promise<Credential>(resolve => { release = resolve })
+    vi.stubGlobal('window', { location: { hostname: 'localhost' } })
+    vi.stubGlobal('PublicKeyCredential', { isUserVerifyingPlatformAuthenticatorAvailable: async () => true })
+    vi.stubGlobal('navigator', { ...globalThis.navigator, credentials: { create: vi.fn(() => { entered(); return creating }) } })
+    const other = new LunaraDB()
+    const enrollment = setDeviceUnlockEnabled(true, true)
+    const rejected = expect(enrollment).rejects.toThrow('Your PIN or local data changed')
+    const credential = { type: 'public-key', id: 'AQIDBA', rawId: new Uint8Array([1, 2, 3, 4]).buffer } as PublicKeyCredential
+    try {
+      await waiting
+      if (change === 'wipe') await wipeLocalData(() => {})
+      else if (change === 'remove PIN') await other.settings.delete(SK.pinHash)
+      else await other.settings.put({ key: SK.pinHash, value: 'replacement-pin' })
+      release(credential)
+      await rejected
+      expect(await getSetting(SK.deviceUnlockCredential)).toBeUndefined()
+      expect(await getSetting(SK.biometricLock)).toBeUndefined()
+      if (change === 'wipe') expect(await db.settings.count()).toBe(0)
+    } finally {
+      release(credential)
+      await enrollment.catch(() => {})
+      other.close()
+    }
   })
 
   it('stops reminders, clears every app table inside vault destruction, then reloads', async () => {

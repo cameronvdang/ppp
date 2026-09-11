@@ -115,8 +115,20 @@ export async function setDeviceUnlockEnabled(enabled: boolean, hasPin: boolean):
     return
   }
   if (!hasPin) throw new Error('Set a PIN first so you always have a fallback.')
-  await enrollDeviceUnlock()
-  await setSetting(SK.biometricLock, '1')
+  const originalPin = await db.settings.get(SK.pinHash)
+  if (!originalPin?.value) throw new Error('Set a PIN first so you always have a fallback.')
+  const { credentialId } = await enrollDeviceUnlock()
+  await db.transaction('rw', db.settings, async () => {
+    // A wipe removes the original PIN row. Verify it before persisting either setting.
+    const currentPin = await db.settings.get(SK.pinHash)
+    if (!currentPin?.value || currentPin.value !== originalPin.value) {
+      throw new Error('Your PIN or local data changed during device enrollment. Set up device unlock again.')
+    }
+    await db.settings.bulkPut([
+      { key: SK.deviceUnlockCredential, value: credentialId },
+      { key: SK.biometricLock, value: '1' },
+    ])
+  })
 }
 
 export function Settings({ onPinPresenceChange, onDeleteAllData }: {

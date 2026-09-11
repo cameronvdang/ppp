@@ -1,9 +1,17 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getSetting, setSetting, SK, LunaraDB } from '../db/schema'
+import { db, getSetting, SK, LunaraDB } from '../db/schema'
 import { authenticateWithBiometrics, enrollDeviceUnlock, getBiometricStatus, removeDeviceUnlock } from './deviceUnlock'
 
 const fakeCredential = { rawId: new Uint8Array([1, 2, 3, 4]).buffer, id: 'AQIDBA', type: 'public-key' }
+
+async function saveEnrollment() {
+  const { credentialId } = await enrollDeviceUnlock()
+  await db.settings.bulkPut([
+    { key: SK.deviceUnlockCredential, value: credentialId },
+    { key: SK.biometricLock, value: '1' },
+  ])
+}
 
 function installWebAuthn(opts: { uvpaa: boolean; createResult?: unknown; getResult?: unknown; getError?: Error }) {
   vi.stubGlobal('window', { location: { hostname: 'localhost' } })
@@ -34,11 +42,14 @@ describe('deviceUnlock', () => {
     expect(await getBiometricStatus()).toMatchObject({ available: false, enrolled: false, kind: 'none', state: 'unsupported' })
   })
 
-  it('enrolls and reports enrolled', async () => {
+  it('creates a credential and leaves persistence to the Settings transaction', async () => {
     installWebAuthn({ uvpaa: true })
     const { credentialId } = await enrollDeviceUnlock()
     expect(credentialId).toBe('AQIDBA')
-    expect(await getSetting(SK.deviceUnlockCredential)).toBe('AQIDBA')
+    expect(await getSetting(SK.deviceUnlockCredential)).toBeUndefined()
+    expect(await getSetting(SK.biometricLock)).toBeUndefined()
+    expect(await getBiometricStatus()).toMatchObject({ available: true, enrolled: false })
+    await saveEnrollment()
     expect(await getBiometricStatus()).toMatchObject({ available: true, enrolled: true, kind: 'platform', state: 'available' })
   })
 
@@ -52,8 +63,7 @@ describe('deviceUnlock', () => {
 
   it('authenticates only when the stored credential is asserted', async () => {
     installWebAuthn({ uvpaa: true })
-    await enrollDeviceUnlock()
-    await setSetting(SK.biometricLock, '1')
+    await saveEnrollment()
     expect(await authenticateWithBiometrics()).toEqual({ authenticated: true, kind: 'platform' })
     const call = (navigator.credentials.get as any).mock.calls[0][0]
     expect(call.publicKey.userVerification).toBe('required')
@@ -63,8 +73,7 @@ describe('deviceUnlock', () => {
   it.each([null, { type: 'password', rawId: fakeCredential.rawId }, { type: 'public-key', rawId: new Uint8Array([9]).buffer }])(
     'rejects a null, wrong-type or wrong-ID assertion: %j', async (getResult) => {
       installWebAuthn({ uvpaa: true, getResult })
-      await enrollDeviceUnlock()
-      await setSetting(SK.biometricLock, '1')
+      await saveEnrollment()
       expect((await authenticateWithBiometrics()).authenticated).toBe(false)
     },
   )
@@ -73,16 +82,14 @@ describe('deviceUnlock', () => {
     const err = new Error('cancelled')
     err.name = 'NotAllowedError'
     installWebAuthn({ uvpaa: true, getError: err })
-    await enrollDeviceUnlock()
-    await setSetting(SK.biometricLock, '1')
+    await saveEnrollment()
     expect(await authenticateWithBiometrics()).toEqual({ authenticated: false, kind: 'platform', errorCode: 'USER_CANCEL' })
   })
 
   it.each(['remove credential', 'replace credential', 'remove flag', 'disable flag'] as const)(
     'rejects an assertion when another tab performs %s during WebAuthn', async change => {
       installWebAuthn({ uvpaa: true })
-      await enrollDeviceUnlock()
-      await setSetting(SK.biometricLock, '1')
+      await saveEnrollment()
       const other = new LunaraDB()
       vi.mocked(navigator.credentials.get).mockImplementationOnce(async () => {
         if (change === 'remove credential') await other.settings.delete(SK.deviceUnlockCredential)
@@ -100,7 +107,7 @@ describe('deviceUnlock', () => {
 
   it('removeDeviceUnlock forgets the credential', async () => {
     installWebAuthn({ uvpaa: true })
-    await enrollDeviceUnlock()
+    await saveEnrollment()
     await removeDeviceUnlock()
     expect(await getBiometricStatus()).toMatchObject({ enrolled: false, state: 'not-enrolled' })
   })
