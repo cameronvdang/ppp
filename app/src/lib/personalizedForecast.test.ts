@@ -11,6 +11,21 @@ describe('computePersonalizedForecast', () => {
     const r = await computePersonalizedForecast('2026-09-11')
     expect(r.prediction.source).toBe('insufficient-data')
     expect(r.prediction.nextPeriodStart).toBeNull()
+    expect(r.periodStarts).toEqual([])
+    expect(r.flowDates).toEqual([])
+  })
+
+  it('returns logged starts and flow dates while keeping the prediction scoped to the selected date', async () => {
+    await db.dailyLogs.bulkPut([
+      { date: '2026-07-01', flow: 'medium' }, { date: '2026-07-02', flow: 'light' },
+      { date: '2026-07-29', flow: 'medium' }, { date: '2026-08-10', digestion: ['nausea'] },
+      { date: '2026-08-26', flow: 'medium' },
+    ])
+    const result = await computePersonalizedForecast('2026-08-10')
+    expect(result.periodStarts).toEqual(['2026-07-01', '2026-07-29', '2026-08-26'])
+    expect(result.flowDates).toEqual(['2026-07-01', '2026-07-02', '2026-07-29', '2026-08-26'])
+    expect(result.prediction.nextPeriodStart).toBe('2026-08-26')
+    expect(result.forecastDiagnostics.completedCycleCount).toBe(1)
   })
 
   it('forecasts from two period starts and suppresses fertility on hormonal contraception', async () => {

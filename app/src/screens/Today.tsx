@@ -9,12 +9,12 @@ import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
 import {
   db,
   getSetting,
-  getPeriodStarts,
   SK,
   type DailyLog,
   type Goal,
 } from '../db/schema'
 import { addDays, daysBetween } from '../engine/cycle'
+import { cyclePhaseFor, type PhaseResult } from '../engine/phase'
 import {
   analyzePatterns,
   type CyclePhase,
@@ -68,6 +68,7 @@ function phaseFor(
   daysToOvulation: number | null,
   uncertaintyDays: number,
   stale = false,
+  cyclePhase?: PhaseResult,
 ): PhaseHero {
   // A months-old period start tells us how long tracking lapsed, not where the
   // cycle is. Ask for a fresh date instead of counting across the gap.
@@ -114,7 +115,9 @@ function phaseFor(
   if (cycleDay) {
     return {
       tone: 'cycle',
-      eyebrow: goal === 'ttc' ? 'Trying to conceive' : 'Your cycle',
+      eyebrow: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
+        ? `${cyclePhase.label} (estimate)`
+        : goal === 'ttc' ? 'Trying to conceive' : 'Your cycle',
       title: `Cycle day ${cycleDay}`,
       body: 'A simple day count from the first day of your most recent logged period.',
     }
@@ -263,9 +266,8 @@ export function Today() {
   })
 
   const data = useLiveQuery(async () => {
-    const [periodStarts, forecastResult, legacyPregnancyLmp, historyLogs, selectedLog] =
+    const [forecastResult, legacyPregnancyLmp, historyLogs, selectedLog] =
       await Promise.all([
-        getPeriodStarts(),
         computePersonalizedForecast(selectedDate),
         getSetting(SK.pregnancyLMP),
         db.dailyLogs
@@ -274,7 +276,8 @@ export function Today() {
           .toArray(),
         db.dailyLogs.get(selectedDate),
       ])
-    const { profile } = forecastResult
+    const { profile, periodStarts, flowDates } = forecastResult
+    const phase = cyclePhaseFor({ date: selectedDate, periodStarts, flowDates, prediction: forecastResult.prediction, eligibility: forecastResult.predictionContext.eligibility })
     const forecastPeriodStarts = periodStarts.filter((date) => date <= selectedDate)
     const recentLogs = historyLogs.filter(
       (log) => log.date >= addDays(selectedDate, -27),
@@ -307,6 +310,7 @@ export function Today() {
       prediction: forecastResult.prediction,
       predictionContext: forecastResult.predictionContext,
       forecastDiagnostics: forecastResult.forecastDiagnostics,
+      phase,
       goal: profile.primaryGoal,
       pregnancy: pregnancyDating ? pregnancyTimeline(pregnancyDating, selectedDate) : null,
       periScore: periWindowSummary(recentLogs, selectedDate).score,
@@ -322,7 +326,7 @@ export function Today() {
     const pregnancySignals = loggedSignals(data.selectedLog)
     return (
       <div className="page today-page pregnancy-page">
-        <Header date={selectedDate} today={today} onCalendar={() => setCalendarOpen(true)} />
+        <Header date={selectedDate} today={today} phase={data.phase} onCalendar={() => setCalendarOpen(true)} />
         <section className="date-panel" aria-label="Choose a day to review">
           <DateStrip
             selectedDate={selectedDate}
@@ -510,6 +514,7 @@ export function Today() {
     daysToOvulation,
     data.prediction.uncertaintyDays,
     stale,
+    data.phase,
   )
   // A negative countdown means the estimate has passed. Saying "in 0 days"
   // reads as "today"; the honest phrasing is how far past the estimate we are.
@@ -622,7 +627,7 @@ export function Today() {
 
   return (
     <div className={`page today-page goal-${data.goal}`}>
-      <Header date={selectedDate} today={today} onCalendar={() => setCalendarOpen(true)} />
+      <Header date={selectedDate} today={today} phase={data.phase} onCalendar={() => setCalendarOpen(true)} />
 
       <section className="date-panel" aria-label="Choose a day to review">
         <DateStrip
@@ -854,10 +859,12 @@ export function Today() {
 function Header({
   date,
   today,
+  phase,
   onCalendar,
 }: {
   date: string
   today: string
+  phase: PhaseResult
   onCalendar: () => void
 }) {
   const setTab = useApp((s) => s.setTab)
@@ -885,6 +892,9 @@ function Header({
       <div className="today-heading">
         <span>{relativeLabel}</span>
         <strong>{selected.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</strong>
+        {phase.phase !== 'unknown' && <span className="phase-chip" title={phase.detail}>
+          {phase.label}{(phase.phase === 'follicular' || phase.phase === 'luteal') && ' (estimate)'}{phase.cycleDay ? ` · Day ${phase.cycleDay}` : ''}
+        </span>}
       </div>
       <button
         type="button"

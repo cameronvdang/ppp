@@ -37,6 +37,8 @@ import {
   TRACKER_GROUPS,
 } from '../db/taxonomy'
 import { formatLong } from '../lib/dates'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
+import { cyclePhaseFor } from '../engine/phase'
 import { nativeTap } from '../platform/runtime'
 import type { TrackerFocus } from '../state/appStore'
 import { Sheet } from './Sheet'
@@ -115,6 +117,10 @@ export function LogSheet({
   onClose: () => void
 }) {
   const existing = useLiveQuery(() => db.dailyLogs.get(date), [date])
+  const phase = useLiveQuery(async () => {
+    const { periodStarts, flowDates, prediction, predictionContext } = await computePersonalizedForecast(date)
+    return cyclePhaseFor({ date, periodStarts, flowDates, prediction, eligibility: predictionContext.eligibility })
+  }, [date])
   const customizationJSON = useLiveQuery(() => getSetting(TRACKER_CUSTOMIZATION_KEY), [])
   const [draft, setDraft] = useState<DailyLog>({ date })
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
@@ -255,6 +261,9 @@ export function LogSheet({
 
   return (
     <Sheet title={formatLong(date)} onClose={onClose}>
+      {phase && <p className="phase-chip log-phase-chip" title={phase.detail}>
+        {phase.label}{(phase.phase === 'follicular' || phase.phase === 'luteal') && ' (estimate)'}{phase.cycleDay ? ` · Day ${phase.cycleDay}` : ''}
+      </p>}
       <div className="field" style={{ order: -2 }}>
         <label htmlFor="tracker-search">Find a tracker</label>
         <input
@@ -327,6 +336,7 @@ export function LogSheet({
       {isVisible('symptoms') && visibleSymptoms.length > 0 && (
         <div id="tracker-symptoms" className="tracker-section" style={sectionStyle('symptoms')}>
           <div className="section-label">Symptoms</div>
+          <p className="muted">Noting symptoms here records them for this day and phase.</p>
           <div className="chip-wrap">
             {visibleSymptoms.map((s) => (
               <button

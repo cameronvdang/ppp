@@ -708,6 +708,28 @@ button.card:active {
   letter-spacing: -0.025em;
 }
 
+.phase-chip,
+.today-heading .phase-chip {
+  margin-top: 8px;
+  padding: 5px 9px;
+  max-width: 100%;
+  border-radius: 12px;
+  background: var(--pink-100);
+  color: var(--ink-650);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: center;
+}
+
+.log-phase-chip {
+  order: -3;
+  align-self: center;
+  margin-top: 0;
+}
+
 .brand-mark {
   position: relative;
   width: 42px;

@@ -8,13 +8,16 @@ export interface PersonalizedForecastResult {
   predictionContext: PersonalizedPrediction
   forecastDiagnostics: CycleForecastDiagnostics
   profile: HealthProfile
+  periodStarts: ISODate[]
+  flowDates: ISODate[]
 }
 
 /** The same selected-date forecast used by Today and local calendar exports. */
 export async function computePersonalizedForecast(date: ISODate): Promise<PersonalizedForecastResult> {
-  const [allStarts, allOvulations, profile, recentLogs] = await Promise.all([
+  const [allStarts, allOvulations, profile, recentLogs, flowDates] = await Promise.all([
     getPeriodStarts(), getOvulations(), getHealthProfile(),
     db.dailyLogs.where('date').between(addDays(date, -27), date, true, true).toArray(),
+    db.dailyLogs.filter(log => log.flow !== undefined).primaryKeys(),
   ])
   const periodStarts = allStarts.filter(value => value <= date)
   const ovulations = allOvulations.filter(value => value <= date)
@@ -40,5 +43,5 @@ export async function computePersonalizedForecast(date: ISODate): Promise<Person
       (item) => item.kind === 'opk-suggestive',
     ),
   })
-  return { prediction: personalized.prediction, predictionContext: personalized, forecastDiagnostics: forecast.diagnostics, profile }
+  return { prediction: personalized.prediction, predictionContext: personalized, forecastDiagnostics: forecast.diagnostics, profile, periodStarts: allStarts, flowDates }
 }
