@@ -1,3 +1,4 @@
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
 import { InstallCard } from '../components/InstallCard'
@@ -6,16 +7,13 @@ import { PppMark } from '../components/PppMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
 import {
   db,
-  getHealthProfile,
   getSetting,
-  getOvulations,
   getPeriodStarts,
   SK,
   type DailyLog,
   type Goal,
 } from '../db/schema'
 import { addDays, daysBetween } from '../engine/cycle'
-import { buildCycleForecast } from '../engine/cycleForecast'
 import {
   analyzePatterns,
   type CyclePhase,
@@ -29,7 +27,6 @@ import {
   type PregnancyDatingResult,
 } from '../engine/pregnancyDating'
 import {
-  applyPredictionContext,
   periodTimingStatus,
 } from '../engine/predictionContext'
 import { localToday } from '../lib/dates'
@@ -251,11 +248,10 @@ export function Today() {
   })
 
   const data = useLiveQuery(async () => {
-    const [periodStarts, ovulations, profile, legacyPregnancyLmp, historyLogs, selectedLog] =
+    const [periodStarts, forecastResult, legacyPregnancyLmp, historyLogs, selectedLog] =
       await Promise.all([
         getPeriodStarts(),
-        getOvulations(),
-        getHealthProfile(),
+        computePersonalizedForecast(selectedDate),
         getSetting(SK.pregnancyLMP),
         db.dailyLogs
           .where('date')
@@ -263,33 +259,11 @@ export function Today() {
           .toArray(),
         db.dailyLogs.get(selectedDate),
       ])
+    const { profile } = forecastResult
     const forecastPeriodStarts = periodStarts.filter((date) => date <= selectedDate)
-    const forecastOvulations = ovulations.filter((date) => date <= selectedDate)
     const recentLogs = historyLogs.filter(
       (log) => log.date >= addDays(selectedDate, -27),
     )
-    const forecast = buildCycleForecast(
-      {
-        periodStarts: forecastPeriodStarts,
-        ovulations: forecastOvulations,
-        today: selectedDate,
-      },
-      {
-        baselineCycleLength: profile.cycle.typicalCycleLength,
-        positiveOpkDates: recentLogs
-          .filter((log) => log.opk === 'positive' && log.date <= selectedDate)
-          .map((log) => log.date),
-        bbtShiftDates: forecastOvulations,
-      },
-    )
-    const rawPrediction = forecast.prediction
-    const personalized = applyPredictionContext(rawPrediction, profile, {
-      completedCycles: forecast.diagnostics.completedCycleCount,
-      bbtShiftEstimateCount: forecastOvulations.length,
-      positiveOpkThisCycle: forecast.diagnostics.evidence.some(
-        (item) => item.kind === 'opk-suggestive',
-      ),
-    })
     const pregnancyLmp = profile.reproductive.pregnancyLmp ?? legacyPregnancyLmp
     const pregnancyDating =
       (profile.reproductive.pregnancyDating
@@ -315,9 +289,9 @@ export function Today() {
       forecastPeriodStarts,
     )
     return {
-      prediction: personalized.prediction,
-      predictionContext: personalized,
-      forecastDiagnostics: forecast.diagnostics,
+      prediction: forecastResult.prediction,
+      predictionContext: forecastResult.predictionContext,
+      forecastDiagnostics: forecastResult.forecastDiagnostics,
       goal: profile.primaryGoal,
       pregnancy: pregnancyDating ? pregnancyTimeline(pregnancyDating, selectedDate) : null,
       periScore: periWindowSummary(recentLogs, selectedDate).score,
