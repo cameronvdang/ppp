@@ -1,0 +1,231 @@
+{
+  "id": "u_0123456789abcdef",
+  "object": "health_record",
+  "categories": [
+    "demographics",
+    "medications",
+    "conditions",
+    "allergies",
+    "labs",
+    "vitals",
+    "immunizations"
+  ],
+  "consent": {
+    "status": "active",
+    "receiptIds": [
+      "rcpt_ABC123"
+    ],
+    "expiresAt": null,
+    "receipts": [
+      {
+        "id": "rcpt_ABC123",
+        "categories": [
+          "demographics",
+          "medications",
+          "conditions",
+          "allergies",
+          "labs",
+          "vitals",
+          "immunizations"
+        ],
+        "source": "epic",
+        "expiresAt": null
+      }
+    ]
+  },
+  "sources": [
+    {
+      "system": "epic",
+      "organization": "Example Medical Center",
+      "lastSyncedAt": "2026-09-10T12:00:00Z"
+    }
+  ],
+  "data": {
+    "demographics": {
+      "id": "rec_000000000000000000000001",
+      "resourceType": "Patient",
+      "sourceRecordId": "provider-1",
+      "source": "epic",
+      "sourceName": "Example Medical Center",
+      "codes": [],
+      "sourceUpdatedAt": null,
+      "syncedAt": "2026-09-10T12:00:00Z",
+      "name": "Alex Example",
+      "birthDate": "1988-04-17",
+      "gender": "female",
+      "address": null,
+      "phone": null,
+      "email": null
+    },
+    "medications": [
+      {
+        "id": "rec_000000000000000000000002",
+        "resourceType": "MedicationRequest",
+        "sourceRecordId": "provider-2",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z",
+        "name": "Example medication",
+        "dosage": "One tablet",
+        "frequency": "Daily",
+        "status": "active",
+        "startDate": "2026-01-01",
+        "endDate": null,
+        "prescriber": null,
+        "reason": null
+      }
+    ],
+    "conditions": [
+      {
+        "id": "rec_000000000000000000000003",
+        "resourceType": "Condition",
+        "sourceRecordId": "provider-3",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z",
+        "name": "Example condition",
+        "status": "active",
+        "verificationStatus": "confirmed",
+        "severity": null,
+        "onsetDate": "2021-03-12",
+        "recordedDate": null
+      }
+    ],
+    "allergies": [
+      {
+        "id": "rec_000000000000000000000004",
+        "resourceType": "AllergyIntolerance",
+        "sourceRecordId": "provider-4",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z",
+        "substance": "Example substance",
+        "reaction": "Rash",
+        "severity": "mild",
+        "status": "active",
+        "verificationStatus": "confirmed",
+        "recordedDate": null
+      }
+    ],
+    "labs": [
+      {
+        "id": "rec_000000000000000000000005",
+        "resourceType": "Observation",
+        "sourceRecordId": "provider-5",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z",
+        "name": "Example lab",
+        "value": 6.4,
+        "unit": "%",
+        "status": "final",
+        "date": "2026-09-10",
+        "referenceRange": null,
+        "interpretation": null
+      }
+    ],
+    "vitals": [
+      {
+        "id": "rec_000000000000000000000006",
+        "resourceType": "Observation",
+        "sourceRecordId": "provider-6",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z",
+        "name": "Blood pressure",
+        "value": "124/78",
+        "unit": "mmHg",
+        "status": "final",
+        "date": "2026-09-10",
+        "referenceRange": null,
+        "interpretation": null
+      }
+    ],
+    "immunizations": [],
+    "medicationAdministrations": [
+      {
+        "id": "rec_000000000000000000000007",
+        "resourceType": "MedicationAdministration",
+        "sourceRecordId": "provider-7",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z"
+      },
+      {
+        "id": "rec_000000000000000000000008",
+        "resourceType": "MedicationAdministration",
+        "sourceRecordId": "provider-8",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z"
+      }
+    ],
+    "medicationDispenses": [
+      {
+        "id": "rec_000000000000000000000009",
+        "resourceType": "MedicationDispense",
+        "sourceRecordId": "provider-9",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z"
+      }
+    ],
+    "diagnosticReports": [
+      {
+        "id": "rec_00000000000000000000000a",
+        "resourceType": "DiagnosticReport",
+        "sourceRecordId": "provider-10",
+        "source": "epic",
+        "sourceName": "Example Medical Center",
+        "codes": [],
+        "sourceUpdatedAt": null,
+        "syncedAt": "2026-09-10T12:00:00Z"
+      }
+    ]
+  },
+  "meta": {
+    "preparedAt": "2026-09-11T00:00:00Z",
+    "schemaVersion": 1,
+    "syncStatus": "partial",
+    "dataAsOf": "2026-09-10T12:00:00Z",
+    "lastSuccessfulSyncAt": "2026-09-10T12:00:00Z",
+    "availableCategories": [
+      "demographics",
+      "medications",
+      "conditions",
+      "allergies",
+      "labs",
+      "vitals"
+    ],
+    "missingCategories": [
+      "immunizations"
+    ],
+    "warnings": [
+      {
+        "code": "category_unavailable",
+        "message": "Immunizations were not available from this source.",
+        "category": "immunizations",
+        "retryable": false
+      }
+    ],
+    "sources": [],
+    "changeCursor": "cur_1",
+    "disclaimer": "Fictional contract fixture. Not for clinical use."
+  }
+}
