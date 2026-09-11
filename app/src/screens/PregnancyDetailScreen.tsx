@@ -200,9 +200,9 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
                 <h2
                   style={{
                     marginTop: 7,
-                    fontFamily: "'Iowan Old Style', Charter, Georgia, serif",
+                    fontFamily: 'var(--font-display)',
                     fontSize: 25,
-                    fontWeight: 600,
+                    fontWeight: 'var(--weight-display)',
                   }}
                 >
                   What is taking shape

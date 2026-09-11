@@ -1,7 +1,7 @@
 .lunara-crescent {
   display: block;
   flex: 0 0 auto;
-  color: var(--rose-600);
+  color: var(--red-600);
   overflow: visible;
 }
 
@@ -10,13 +10,13 @@
   height: 42px;
   display: grid;
   place-items: center;
-  color: var(--rose-600);
+  color: var(--red-600);
   background:
     radial-gradient(circle at 34% 24%, rgba(255, 255, 255, 0.88), transparent 42%),
-    var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.14);
+    var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 14%, transparent);
   border-radius: 15px;
-  box-shadow: 0 6px 18px rgba(184, 62, 88, 0.09);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--red-700) 9%, transparent);
   transition:
     color 160ms var(--ease-soft),
     transform 160ms var(--ease-spring),
@@ -29,9 +29,9 @@
 }
 
 .lunara-brand-button:active {
-  color: var(--rose-700);
+  color: var(--red-700);
   transform: scale(0.94);
-  box-shadow: 0 3px 10px rgba(184, 62, 88, 0.08);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--red-700) 8%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {

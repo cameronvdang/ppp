@@ -12,8 +12,8 @@
   color: var(--ink-900);
   font-family: var(--font-sans);
   background:
-    radial-gradient(circle at 96% -4%, rgba(246, 180, 189, 0.29), transparent 28%),
-    radial-gradient(circle at -8% 82%, rgba(202, 231, 225, 0.42), transparent 31%),
+    radial-gradient(circle at 96% -4%, color-mix(in srgb, var(--red-300) 29%, transparent), transparent 28%),
+    radial-gradient(circle at -8% 82%, color-mix(in srgb, var(--pink-300) 42%, transparent), transparent 31%),
     var(--paper-100);
 }
 
@@ -27,9 +27,9 @@
   grid-template-columns: 42px minmax(0, 1fr) 42px;
   align-items: center;
   gap: 10px;
-  background: rgba(251, 247, 240, 0.91);
+  background: color-mix(in srgb, var(--pink-50) 91%, transparent);
   border-bottom: 1px solid var(--line-soft);
-  box-shadow: 0 8px 26px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   backdrop-filter: blur(18px) saturate(1.08);
   -webkit-backdrop-filter: blur(18px) saturate(1.08);
 }
@@ -41,7 +41,7 @@
   min-width: 42px;
   padding: 0;
   color: var(--ink-800);
-  background: rgba(255, 253, 249, 0.72);
+  background: color-mix(in srgb, var(--pink-50) 72%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 15px;
   box-shadow: none;
@@ -69,9 +69,9 @@
 }
 
 .assistant-overlay .assistant-settings-button.is-active {
-  color: var(--rose-700);
-  background: var(--rose-100);
-  border-color: var(--rose-200);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: var(--red-200);
 }
 
 .assistant-overlay .assistant-head .back-btn:active,
@@ -95,7 +95,7 @@
 }
 
 .assistant-title .lunara-crescent {
-  color: var(--rose-600);
+  color: var(--red-600);
 }
 
 .assistant-kicker {
@@ -144,10 +144,10 @@
   margin: 9px auto 0;
   flex: 0 0 auto;
   overflow: hidden;
-  background: rgba(255, 254, 251, 0.91);
+  background: color-mix(in srgb, var(--pink-50) 91%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 19px;
-  box-shadow: 0 10px 28px rgba(75, 45, 50, 0.065);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink-900) 6.5%, transparent);
   backdrop-filter: blur(15px);
   -webkit-backdrop-filter: blur(15px);
   transition:
@@ -156,8 +156,8 @@
 }
 
 .assistant-context-panel.is-open {
-  border-color: rgba(47, 133, 132, 0.2);
-  box-shadow: 0 15px 35px rgba(75, 45, 50, 0.09);
+  border-color: color-mix(in srgb, var(--red-600) 20%, transparent);
+  box-shadow: 0 15px 35px color-mix(in srgb, var(--ink-900) 9%, transparent);
 }
 
 .assistant-context-summary {
@@ -178,9 +178,9 @@
   height: 36px;
   display: grid;
   place-items: center;
-  color: var(--teal-700);
-  background: var(--teal-100);
-  border: 1px solid rgba(47, 133, 132, 0.1);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 10%, transparent);
   border-radius: 12px;
 }
 
@@ -219,34 +219,34 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 8px;
   font-weight: 850;
   letter-spacing: 0.04em;
   white-space: nowrap;
   text-transform: uppercase;
-  background: var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.11);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 11%, transparent);
   border-radius: 999px;
 }
 
 .assistant-overlay .privacy-pill i {
   width: 5px;
   height: 5px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
-  box-shadow: 0 0 0 3px rgba(234, 96, 121, 0.1);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--period) 10%, transparent);
 }
 
 .assistant-overlay .privacy-pill.local {
-  color: var(--teal-700);
-  background: var(--teal-100);
-  border-color: rgba(47, 133, 132, 0.12);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 12%, transparent);
 }
 
 .assistant-overlay .privacy-pill.local i {
-  background: var(--teal-500);
-  box-shadow: 0 0 0 3px rgba(69, 162, 159, 0.1);
+  background: var(--fertile);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--fertile) 10%, transparent);
 }
 
 .assistant-context-chevron {
@@ -319,7 +319,7 @@
   gap: 12px;
   color: var(--ink-800);
   text-align: left;
-  background: rgba(247, 240, 232, 0.68);
+  background: color-mix(in srgb, var(--pink-100) 68%, transparent);
   border: 1px solid transparent;
   border-radius: 13px;
   transition:
@@ -333,8 +333,8 @@
 }
 
 .assistant-overlay .consent-row.selected {
-  background: rgba(229, 242, 238, 0.88);
-  border-color: rgba(47, 133, 132, 0.17);
+  background: color-mix(in srgb, var(--pink-100) 88%, transparent);
+  border-color: color-mix(in srgb, var(--red-600) 17%, transparent);
 }
 
 .assistant-overlay .consent-row > span:first-child {
@@ -365,8 +365,8 @@
   height: 22px;
   flex: 0 0 auto;
   display: block;
-  background: rgba(82, 57, 65, 0.11);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  background: color-mix(in srgb, var(--ink-900) 11%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 999px;
   transition:
     background 180ms var(--ease-soft),
@@ -381,13 +381,13 @@
   height: 14px;
   background: var(--surface-raised);
   border-radius: 50%;
-  box-shadow: 0 2px 6px rgba(75, 45, 50, 0.16);
+  box-shadow: 0 2px 6px color-mix(in srgb, var(--ink-900) 16%, transparent);
   transition: transform 190ms var(--ease-spring);
 }
 
 .assistant-overlay .consent-row.selected .toggle-dot {
-  background: var(--teal-600);
-  border-color: var(--teal-600);
+  background: var(--red-600);
+  border-color: var(--red-600);
 }
 
 .assistant-overlay .consent-row.selected .toggle-dot i {
@@ -440,13 +440,13 @@
   margin-bottom: 14px;
   display: grid;
   place-items: center;
-  color: var(--rose-600);
+  color: var(--red-600);
   background:
     radial-gradient(circle at 32% 25%, rgba(255, 255, 255, 0.82), transparent 36%),
-    var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.12);
+    var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
   border-radius: 23px;
-  box-shadow: 0 13px 28px rgba(184, 62, 88, 0.1);
+  box-shadow: 0 13px 28px color-mix(in srgb, var(--red-700) 10%, transparent);
 }
 
 .assistant-orb::before,
@@ -454,7 +454,7 @@
   content: '';
   position: absolute;
   pointer-events: none;
-  border: 1px solid rgba(214, 75, 104, 0.13);
+  border: 1px solid color-mix(in srgb, var(--red-600) 13%, transparent);
   border-radius: 50%;
 }
 
@@ -465,7 +465,7 @@
 
 .assistant-orb::after {
   inset: 7px -9px;
-  border-color: rgba(47, 133, 132, 0.13);
+  border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
   transform: rotate(17deg);
 }
 
@@ -478,7 +478,7 @@
   height: 7px;
   background: var(--yellow-500);
   border-radius: 50%;
-  box-shadow: -59px 48px 0 -1px var(--teal-500);
+  box-shadow: -59px 48px 0 -1px var(--fertile);
 }
 
 .assistant-orb .lunara-crescent {
@@ -489,7 +489,7 @@
 
 .assistant-empty-kicker {
   margin-bottom: 7px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 8px;
   font-weight: 900;
   letter-spacing: 0.12em;
@@ -537,10 +537,10 @@
   font-weight: 700;
   line-height: 1.35;
   text-align: left;
-  background: rgba(255, 254, 251, 0.87);
+  background: color-mix(in srgb, var(--pink-50) 87%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 15px;
-  box-shadow: 0 6px 18px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   transition:
     color 160ms var(--ease-soft),
     background 160ms var(--ease-soft),
@@ -549,9 +549,9 @@
 }
 
 .assistant-overlay .starter-list button:active {
-  color: var(--teal-700);
-  background: var(--teal-100);
-  border-color: rgba(47, 133, 132, 0.16);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 16%, transparent);
   transform: scale(0.985);
 }
 
@@ -566,11 +566,11 @@
   padding: 7px;
   justify-self: end;
   fill: none;
-  stroke: var(--rose-600);
+  stroke: var(--red-600);
   stroke-width: 1.75;
   stroke-linecap: round;
   stroke-linejoin: round;
-  background: var(--rose-100);
+  background: var(--pink-100);
   border-radius: 10px;
 }
 
@@ -586,10 +586,10 @@
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
-  background: rgba(255, 254, 251, 0.94);
+  background: color-mix(in srgb, var(--pink-50) 94%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 18px 18px 18px 6px;
-  box-shadow: 0 7px 20px rgba(75, 45, 50, 0.045);
+  box-shadow: 0 7px 20px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
   -webkit-user-select: text;
   user-select: text;
   animation: assistant-message-in 230ms var(--ease-out) both;
@@ -597,13 +597,13 @@
 
 .assistant-overlay .chat-bubble.user {
   align-self: flex-end;
-  color: #fffaf7;
+  color: var(--pink-50);
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.1), transparent 42%),
-    var(--rose-600);
-  border-color: rgba(142, 39, 62, 0.12);
+    var(--red-600);
+  border-color: color-mix(in srgb, var(--red-700) 12%, transparent);
   border-radius: 18px 18px 6px;
-  box-shadow: 0 8px 21px rgba(214, 75, 104, 0.14);
+  box-shadow: 0 8px 21px color-mix(in srgb, var(--red-600) 14%, transparent);
 }
 
 .chat-bubble-mark {
@@ -612,8 +612,8 @@
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  color: var(--teal-700);
-  background: var(--teal-100);
+  color: var(--red-700);
+  background: var(--pink-100);
   border-radius: 8px;
 }
 
@@ -632,7 +632,7 @@
   width: 4px;
   height: 4px;
   margin-left: -4px;
-  background: var(--teal-500);
+  background: var(--fertile);
   border-radius: 50%;
   animation: assistant-thinking 1s ease-in-out infinite;
 }
@@ -657,15 +657,15 @@
 }
 
 .assistant-overlay .assistant-notice {
-  color: var(--teal-700);
-  background: rgba(229, 242, 238, 0.9);
-  border: 1px solid rgba(47, 133, 132, 0.12);
+  color: var(--red-700);
+  background: color-mix(in srgb, var(--pink-100) 90%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
 }
 
 .assistant-overlay .assistant-error {
-  color: #9c3434;
-  background: rgba(252, 232, 230, 0.94);
-  border: 1px solid rgba(201, 71, 71, 0.13);
+  color: var(--red-700);
+  background: color-mix(in srgb, var(--pink-100) 94%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-500) 13%, transparent);
 }
 
 /* Docked composer: the WebView resize keeps this immediately above keyboard. */
@@ -676,9 +676,9 @@
   width: 100%;
   padding: 8px 14px max(9px, calc(var(--safe-bottom) + 7px));
   flex: 0 0 auto;
-  background: rgba(251, 247, 240, 0.94);
+  background: color-mix(in srgb, var(--pink-50) 94%, transparent);
   border-top: 1px solid var(--line-soft);
-  box-shadow: 0 -11px 28px rgba(75, 45, 50, 0.045);
+  box-shadow: 0 -11px 28px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
   backdrop-filter: blur(20px) saturate(1.07);
   -webkit-backdrop-filter: blur(20px) saturate(1.07);
 }
@@ -693,22 +693,22 @@
   grid-template-columns: minmax(0, 1fr) 42px;
   align-items: end;
   gap: 7px;
-  background: rgba(255, 254, 251, 0.96);
+  background: color-mix(in srgb, var(--pink-50) 96%, transparent);
   border: 1px solid var(--line-medium);
   border-radius: 18px;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 7px 20px rgba(75, 45, 50, 0.045);
+    0 7px 20px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
   transition:
     border-color 160ms var(--ease-soft),
     box-shadow 160ms var(--ease-soft);
 }
 
 .assistant-compose-row:focus-within {
-  border-color: rgba(214, 75, 104, 0.42);
+  border-color: color-mix(in srgb, var(--red-600) 42%, transparent);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.8),
-    0 0 0 3px rgba(214, 75, 104, 0.08);
+    0 0 0 3px color-mix(in srgb, var(--red-600) 8%, transparent);
 }
 
 .assistant-overlay .assistant-compose textarea {
@@ -719,7 +719,7 @@
   overflow-x: hidden;
   overflow-y: auto;
   color: var(--ink-900);
-  caret-color: var(--rose-600);
+  caret-color: var(--red-600);
   font-family: var(--font-sans);
   font-size: 16px;
   line-height: 1.35;
@@ -739,11 +739,11 @@
   height: 42px;
   display: grid;
   place-items: center;
-  color: #fffaf7;
-  background: var(--rose-600);
-  border: 1px solid rgba(142, 39, 62, 0.12);
+  color: var(--pink-50);
+  background: var(--red-600);
+  border: 1px solid color-mix(in srgb, var(--red-700) 12%, transparent);
   border-radius: 14px;
-  box-shadow: 0 7px 16px rgba(214, 75, 104, 0.18);
+  box-shadow: 0 7px 16px color-mix(in srgb, var(--red-600) 18%, transparent);
   transition:
     color 160ms var(--ease-soft),
     background 160ms var(--ease-soft),
@@ -812,7 +812,7 @@
 }
 
 .assistant-setup-intro .eyebrow {
-  color: var(--rose-600);
+  color: var(--red-600);
 }
 
 .assistant-setup-intro h3 {
@@ -876,7 +876,7 @@
 .assistant-overlay .ai-setup-card .text-button {
   width: fit-content;
   min-height: 32px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 9px;
 }
 
@@ -893,7 +893,7 @@
   min-height: 42px;
   display: flex;
   align-items: center;
-  color: var(--ink-700);
+  color: var(--ink-650);
   font-weight: 800;
   cursor: pointer;
 }
@@ -911,7 +911,7 @@
 .assistant-overlay button:focus-visible,
 .assistant-overlay textarea:focus-visible,
 .assistant-overlay input:focus-visible {
-  outline: 2px solid rgba(47, 133, 132, 0.65);
+  outline: 2px solid color-mix(in srgb, var(--red-600) 65%, transparent);
   outline-offset: 2px;
 }
 
@@ -1044,7 +1044,7 @@
   overflow-x: auto;
   color: var(--ink-900);
   font-size: 13px;
-  background: rgba(43, 32, 36, 0.06);
+  background: color-mix(in srgb, var(--ink-950) 6%, transparent);
   border-radius: 10px;
 }
 

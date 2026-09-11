@@ -263,8 +263,8 @@ export function Graphs() {
             >
               <defs>
                 <linearGradient id="bbt-area" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--teal-500)" stopOpacity=".24" />
-                  <stop offset="100%" stopColor="var(--teal-500)" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--chart-bbt)" stopOpacity=".24" />
+                  <stop offset="100%" stopColor="var(--chart-bbt)" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <path className="bbt-grid-line" d="M16 20H284M16 61H284M16 102H284" />

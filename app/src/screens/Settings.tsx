@@ -523,7 +523,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     <div className="page">
       <h1>Settings</h1>
       {status && (
-        <div className="card" style={{ background: 'var(--rose-100)', fontSize: 14 }}>
+        <div className="card" style={{ background: 'var(--pink-100)', fontSize: 14 }}>
           {status}
         </div>
       )}
@@ -532,7 +532,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         {(Object.keys(GOAL_LABELS) as Goal[]).map((g) => (
           <button key={g} className="setting-row" onClick={() => setGoal(g)}>
             <span>{GOAL_LABELS[g]}</span>
-            <span style={{ color: 'var(--rose-500)' }}>{s.goal === g ? '●' : '○'}</span>
+            <span style={{ color: 'var(--period)' }}>{s.goal === g ? '●' : '○'}</span>
           </button>
         ))}
       </Section>

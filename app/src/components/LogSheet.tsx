@@ -272,7 +272,7 @@ export function LogSheet({
         style={{
           order: -1,
           background: draft.checkInComplete
-            ? 'linear-gradient(135deg, var(--teal-100), var(--surface-raised))'
+            ? 'linear-gradient(135deg, var(--pink-100), var(--surface-raised))'
             : undefined,
         }}
       >
