@@ -6,18 +6,21 @@
 
 **Architecture:** The React/Vite/Dexie product layer stays. `src/native/*` (Capacitor bridges) is replaced by `src/platform/*` web adapters with the same exported names. A new `src/records/*` module talks to FinchNode's demo API directly or to a self-hosted relay Worker, normalizes records into one model, and stores them sealed in Dexie. A PWA service worker precaches the shell only.
 
-**Tech Stack:** React 18, Vite 6, TypeScript 5.6, Dexie 4, zustand 5, vitest 2, `@fontsource/aileron`, `vite-plugin-pwa` ^1.3, `fake-indexeddb` ^6.2 (tests), Cloudflare Workers (wrangler 3) for the relay.
+**Tech Stack:** React 18, Vite 6, TypeScript 5.9.3, Dexie 4, zustand 5, vitest 2, `@fontsource/aileron`, `vite-plugin-pwa` ^1.3, `fake-indexeddb` ^6.2 (tests), Cloudflare Workers (wrangler 3) for the relay.
 
 **Spec:** `docs/superpowers/specs/2026-09-10-lunara-web-finchnode-design.md`
 
 ## Global Constraints
 
 - Node 24 / pnpm 9 workspace. Run app commands as `pnpm --filter @lunara/app <script>` from the repo root, or from `app/`.
-- Baseline must never regress: `pnpm --filter @lunara/app test` (186 tests, estimate audit at zero violations), `npx tsc --noEmit` in `app/`, `npx vite build` in `app/`.
-- Vitest runs in `environment: 'node'`; tests that need IndexedDB import `'fake-indexeddb/auto'` at the top; tests that need `window`/`navigator` stub them on `globalThis`.
+- Baseline must never regress: `pnpm --filter @lunara/app test` (existing behavior tests pass; estimate audit at zero violations), `npx tsc --noEmit` in `app/`, `npx vite build` in `app/`.
+- Vitest runs in `environment: 'node'`; tests that need IndexedDB import `'fake-indexeddb/auto'` at the top; tests that need `window`/`navigator` use `vi.stubGlobal` and restore with `vi.unstubAllGlobals()` in `afterEach`; advance asynchronous timer paths with `await vi.advanceTimersByTimeAsync(...)`.
 - Exported function names in `src/platform/*` must match the old `src/native/*` names listed in spec A1 so call sites change only their import path.
 - No new network destinations beyond spec section 8. No analytics, no CDN scripts, no cookies.
-- Never cache `api.finchnode.com` or the relay in the service worker.
+- Never cache FinchNode, relay, AI, backup or same-origin API traffic in the service worker; test the emitted worker as well as serialized callbacks.
+- Live v1 is single-owner with a dedicated FinchNode application and a required high-entropy relay token. Secrets go in Wrangler secrets, never vars. Missing config → 503; missing/wrong token → 401 before upstream calls.
+- Canonical relay URL bindings, nonempty category boundaries, consent and a persisted connection generation guard every network operation and asynchronous commit. Generation checks happen inside the same Dexie transaction as writes and cover all tabs; do not add BroadcastChannel.
+- Medical-record bodies and vault secrets are sealed; indexes, connection metadata, existing logs and profiles remain plaintext. Exports contain opened records and canonical profile/regimen/adherence tables, with all security settings excluded.
 - FinchNode API keys never appear in browser code, tests, or docs (use `ck_test_placeholder` in examples).
 - Copy style: plain sentences, no exclamation marks, no medical claims. Records copy always says "from your provider", never "diagnosis".
 - Commit after every task with the trailer `Co-Authored-By: Claude Fable 5.1 <noreply@anthropic.com>`.
@@ -169,7 +172,7 @@ export async function open<T>(key: CryptoKey, blob: SealedBlob): Promise<T> {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd app && npx vitest run src/crypto/sealed.test.ts`
-Expected: 3 passed.
+Expected: all stated behaviors pass.
 
 - [ ] **Step 5: Commit**
 
@@ -183,11 +186,12 @@ git commit -m "Add key-based AES-GCM sealing primitive"
 **Files:**
 - Create: `app/src/platform/keyStore.ts`
 - Test: `app/src/platform/keyStore.test.ts`
+- Create: `app/src/platform/__tests__/lifecycleLocks.ts` (test-only shared LockManager)
 - Modify: `app/package.json` (devDependency `fake-indexeddb: ^6.2.5`)
 
 **Interfaces:**
 - Consumes: `generateSealingKey` from Task 1.
-- Produces: `getSealingKey(): Promise<CryptoKey>` (creates on first call, memoized per page), `deleteKeyStore(): Promise<void>` (deletes the whole `lunara-keys` database and clears the memo), `KEY_DB_NAME = 'lunara-keys'`.
+- Produces: `getSealingKey(): Promise<CryptoKey>` (creates on first call, memoized per page), `deleteKeyStore(): Promise<void>` (deletes the whole `lunara-keys` database and clears the memo), `KEY_DB_NAME = 'lunara-keys'`, `withVaultLifecycle<T>(mode: 'shared' | 'exclusive', run: () => Promise<T>): Promise<T>`, `withSealingKey<T>(run: (key: CryptoKey) => Promise<T>): Promise<T>`, `destroyVaultStorage(beforeDelete: () => Promise<void>): Promise<void>`. Shared/exclusive Web Locks named `lunara-vault-lifecycle` serialize destruction against all vault/record sealing and commits across tabs. Tests install a shared in-memory LockManager using `vi.stubGlobal('navigator', { locks })`; independent clients must share it. If `navigator.locks` is unavailable (older Safari), `withVaultLifecycle` runs `run()` uncoordinated: the insert-if-absent transaction still prevents duplicate keys, and only destruction-during-seal loses coordination.
 
 - [ ] **Step 1: Add fake-indexeddb**
 
@@ -195,15 +199,56 @@ Run: `cd app && pnpm add -D fake-indexeddb@^6.2.5`
 
 - [ ] **Step 2: Write the failing test**
 
+First create the shared test lock helper. All independent module clients in a test use the same manager; it allows parallel shared holders but waits for them before an exclusive request. Restore globals after each test.
+
+```ts
+// app/src/platform/__tests__/lifecycleLocks.ts
+import { vi } from 'vitest'
+
+export function installLifecycleLocks(): void {
+  type Job = { mode: 'shared' | 'exclusive'; start(): void }
+  const names = new Map<string, { active: number; exclusive: boolean; jobs: Job[] }>()
+  const locks = {
+    request<T>(name: string, options: { mode: 'shared' | 'exclusive' }, run: () => Promise<T>): Promise<T> {
+      const state = names.get(name) ?? { active: 0, exclusive: false, jobs: [] }
+      names.set(name, state)
+      const pump = () => {
+        while (state.jobs.length && !state.exclusive) {
+          const next = state.jobs[0]
+          if (next.mode === 'exclusive' && state.active > 0) break
+          state.jobs.shift()
+          state.active += 1
+          state.exclusive = next.mode === 'exclusive'
+          next.start()
+        }
+      }
+      return new Promise<T>((resolve, reject) => {
+        state.jobs.push({ mode: options.mode, start: () => {
+          Promise.resolve().then(run).then(resolve, reject).finally(() => {
+            state.active -= 1
+            state.exclusive = false
+            pump()
+          })
+        } })
+        pump()
+      })
+    },
+  }
+  vi.stubGlobal('navigator', { ...globalThis.navigator, locks })
+}
+```
+
 ```ts
 // app/src/platform/keyStore.test.ts
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { installLifecycleLocks } from './__tests__/lifecycleLocks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { open, seal } from '../crypto/sealed'
 import { deleteKeyStore, getSealingKey } from './keyStore'
 
 describe('keyStore', () => {
   beforeEach(async () => {
+    installLifecycleLocks()
     await deleteKeyStore()
   })
 
@@ -231,7 +276,12 @@ describe('keyStore', () => {
     await expect(open(await getSealingKey(), blob)).rejects.toThrow()
   })
 })
+
+afterEach(() => vi.unstubAllGlobals())
+
 ```
+
+Add two independent-client tests (use `vi.resetModules()` between dynamic imports, retaining both module references, and the shared test LockManager). Start both `getSealingKey()` calls concurrently, seal with either result, reset both memos and verify both ciphertexts open with the persisted winner. For blocked deletion, keep a raw `indexedDB.open(KEY_DB_NAME)` handle that deliberately ignores versionchange; assert `deleteKeyStore()` rejects with "Close other Lunara tabs and try again." and never reports success. Close that raw handle and await the deletion request's eventual completion before cleanup. Reset module memos and restore globals in `afterEach`.
 
 - [ ] **Step 3: Run test to verify it fails**
 
@@ -249,37 +299,49 @@ const STORE = 'keys'
 const MAIN_KEY = 'sealing-v1'
 
 let memo: Promise<CryptoKey> | null = null
+const handles = new Set<IDBDatabase>()
+
+export function withVaultLifecycle<T>(mode: 'shared' | 'exclusive', run: () => Promise<T>): Promise<T> {
+  const locks = globalThis.navigator?.locks
+  if (!locks) return run() // older Safari: uncoordinated but functional
+  return locks.request('lunara-vault-lifecycle', { mode }, run)
+}
+
+export function withSealingKey<T>(run: (key: CryptoKey) => Promise<T>): Promise<T> {
+  return withVaultLifecycle('shared', async () => run(await getSealingKey()))
+}
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(KEY_DB_NAME, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      const db = req.result
+      db.onversionchange = () => { memo = null; db.close(); handles.delete(db) }
+      resolve(db)
+    }
     req.onerror = () => reject(req.error)
   })
 }
 
-function idb<T>(db: IDBDatabase, mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest<T>): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, mode)
-    const req = run(tx.objectStore(STORE))
-    tx.oncomplete = () => resolve(req.result)
-    tx.onerror = () => reject(tx.error)
-    tx.onabort = () => reject(tx.error)
-  })
-}
-
 async function loadOrCreate(): Promise<CryptoKey> {
+  // Candidate creation must not suspend an IndexedDB transaction.
+  const candidate = await generateSealingKey()
   const db = await openDb()
-  try {
-    const existing = await idb<CryptoKey | undefined>(db, 'readonly', (s) => s.get(MAIN_KEY))
-    if (existing) return existing
-    const key = await generateSealingKey()
-    await idb(db, 'readwrite', (s) => s.put(key, MAIN_KEY))
-    return key
-  } finally {
-    db.close()
-  }
+  // Keep the memo's handle open so another tab's destruction invalidates it.
+  handles.add(db)
+  return new Promise<CryptoKey>((resolve, reject) => {
+    const tx = db.transaction(STORE, 'readwrite')
+    const store = tx.objectStore(STORE)
+    const read = store.get(MAIN_KEY)
+    let winner: CryptoKey
+    read.onsuccess = () => {
+      winner = read.result ?? candidate
+      if (!read.result) store.add(candidate, MAIN_KEY)
+    }
+    tx.oncomplete = () => resolve(winner)
+    tx.onerror = tx.onabort = () => { db.close(); handles.delete(db); reject(tx.error) }
+  })
 }
 
 /** The browser-managed sealing key. Never leaves IndexedDB as bytes. */
@@ -291,31 +353,43 @@ export function getSealingKey(): Promise<CryptoKey> {
   return memo
 }
 
-export function deleteKeyStore(): Promise<void> {
-  memo = null
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.deleteDatabase(KEY_DB_NAME)
-    req.onsuccess = () => resolve()
-    req.onerror = () => reject(req.error)
-    req.onblocked = () => resolve()
+export function destroyVaultStorage(beforeDelete: () => Promise<void>): Promise<void> {
+  return withVaultLifecycle('exclusive', async () => {
+    memo = null
+    for (const db of handles) db.close()
+    handles.clear()
+    // Other clients close and drop their memo on versionchange.
+    await beforeDelete()
+    await new Promise<void>((resolve, reject) => {
+      const req = indexedDB.deleteDatabase(KEY_DB_NAME)
+      req.onsuccess = () => resolve()
+      req.onerror = () => reject(req.error)
+      req.addEventListener('blocked', () => reject(new Error('Close other Lunara tabs and try again.')))
+    })
   })
+}
+
+export function deleteKeyStore(): Promise<void> {
+  return destroyVaultStorage(async () => {})
 }
 
 /** Test-only: forget the memoized key without touching IndexedDB. */
 export function __resetMemoForTests(): void {
   memo = null
+  for (const db of handles) db.close()
+  handles.clear()
 }
 ```
 
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `cd app && npx vitest run src/platform/keyStore.test.ts`
-Expected: 3 passed.
+Expected: all stated behaviors pass.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add app/package.json pnpm-lock.yaml app/src/platform/keyStore.ts app/src/platform/keyStore.test.ts
+git add app/package.json pnpm-lock.yaml app/src/platform/keyStore.ts app/src/platform/keyStore.test.ts app/src/platform/__tests__/lifecycleLocks.ts
 git commit -m "Add browser key store backed by a non-extractable CryptoKey"
 ```
 
@@ -326,15 +400,16 @@ git commit -m "Add browser key store backed by a non-extractable CryptoKey"
 - Test: `app/src/platform/secureVault.test.ts`
 
 **Interfaces:**
-- Consumes: `getSealingKey`, `deleteKeyStore` (Task 2); `seal`, `open` (Task 1).
-- Produces (same names as `native/secureVault.ts`): `SECURE_SECRET_KEYS` (adds `recordsRelayToken: 'records-relay-token'`), `secureVaultStatus(): Promise<SecureVaultStatus>` where `SecureVaultStatus = { available: true; persistence: 'indexeddb-webcrypto'; hardwareBacked: false; platform: 'web' }`, `setSecureSecret(key, value)`, `getSecureSecret(key): Promise<string | null>`, `deleteSecureSecret(key)`, `clearSecureSecrets()`, `currentVaultPlatform(): 'web'`.
+- Consumes: `withSealingKey`, `withVaultLifecycle`, `destroyVaultStorage` (Task 2); `seal`, `open` (Task 1).
+- Produces (same names as `native/secureVault.ts`): `SECURE_SECRET_KEYS` (adds `recordsRelayToken: 'records-relay-token'`), `secureVaultStatus(): Promise<SecureVaultStatus>` where `SecureVaultStatus = { available: true; persistence: 'indexeddb-webcrypto'; hardwareBacked: false; platform: 'web' }`, `setSecureSecret(key, value)`, `getSecureSecret(key): Promise<string | null>`, `deleteSecureSecret(key)`, `clearSecureSecrets()`, `destroySecureVault(clearAppData?: () => Promise<void>): Promise<void>`, `currentVaultPlatform(): 'web'`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
 // app/src/platform/secureVault.test.ts
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it } from 'vitest'
+import { installLifecycleLocks } from './__tests__/lifecycleLocks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { deleteKeyStore } from './keyStore'
 import {
   clearSecureSecrets,
@@ -346,6 +421,7 @@ import {
 
 describe('web secure vault', () => {
   beforeEach(async () => {
+    installLifecycleLocks()
     await clearSecureSecrets()
     await deleteKeyStore()
   })
@@ -381,14 +457,17 @@ describe('web secure vault', () => {
       req.onsuccess = () => {
         const tx = req.result.transaction('secrets')
         const get = tx.objectStore('secrets').get('anthropic-api-key')
-        get.onsuccess = () => resolve(get.result)
-        get.onerror = () => reject(get.error)
+        tx.oncomplete = () => { req.result.close(); resolve(get.result) }
+        tx.onerror = tx.onabort = () => { req.result.close(); reject(tx.error) }
       }
       req.onerror = () => reject(req.error)
     })
     expect(JSON.stringify(raw)).not.toContain('sk-ant-visible')
   })
 })
+
+afterEach(() => vi.unstubAllGlobals())
+
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -429,7 +508,10 @@ function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1)
     req.onupgradeneeded = () => req.result.createObjectStore(STORE)
-    req.onsuccess = () => resolve(req.result)
+    req.onsuccess = () => {
+      req.result.onversionchange = () => req.result.close()
+      resolve(req.result)
+    }
     req.onerror = () => reject(req.error)
   })
 }
@@ -456,34 +538,37 @@ export async function secureVaultStatus(): Promise<SecureVaultStatus> {
 export async function setSecureSecret(key: string, value: string): Promise<void> {
   assertValidKey(key)
   if (typeof value !== 'string') throw new Error('Secret value must be a string.')
-  const blob = await seal(await getSealingKey(), value)
-  await withStore('readwrite', (s) => s.put(blob, key))
+  await withSealingKey(async (sealingKey) => {
+    const blob = await seal(sealingKey, value)
+    await withStore('readwrite', (s) => s.put(blob, key))
+  })
 }
 
 export async function getSecureSecret(key: string): Promise<string | null> {
   assertValidKey(key)
-  const blob = await withStore<SealedBlob | undefined>('readonly', (s) => s.get(key))
-  if (!blob) return null
-  try {
-    return await open<string>(await getSealingKey(), blob)
-  } catch {
-    return null // key store was wiped; the sealed value is unrecoverable
-  }
+  return withSealingKey(async (sealingKey) => {
+    const blob = await withStore<SealedBlob | undefined>('readonly', (s) => s.get(key))
+    if (!blob) return null
+    try { return await open<string>(sealingKey, blob) }
+    catch { return null }
+  })
 }
 
 export async function deleteSecureSecret(key: string): Promise<void> {
   assertValidKey(key)
-  await withStore('readwrite', (s) => s.delete(key))
+  await withVaultLifecycle('shared', () => withStore('readwrite', (s) => s.delete(key)))
 }
 
 export async function clearSecureSecrets(): Promise<void> {
-  await withStore('readwrite', (s) => s.clear())
+  await withVaultLifecycle('shared', () => withStore('readwrite', (s) => s.clear()))
 }
 
 /** Full wipe used by "Delete all data": secrets and the key that seals them. */
-export async function destroySecureVault(): Promise<void> {
-  await clearSecureSecrets()
-  await deleteKeyStore()
+export async function destroySecureVault(clearAppData: () => Promise<void> = async () => {}): Promise<void> {
+  await destroyVaultStorage(async () => {
+    await clearAppData()
+    await withStore('readwrite', (s) => s.clear())
+  })
 }
 
 export function currentVaultPlatform(): SecureVaultStatus['platform'] {
@@ -494,7 +579,7 @@ export function currentVaultPlatform(): SecureVaultStatus['platform'] {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd app && npx vitest run src/platform/secureVault.test.ts`
-Expected: 4 passed.
+Expected: all stated behaviors pass. Also suspend a vault seal/write, request destruction from an independent client, and verify the exclusive lifecycle waits for that shared operation, then clears it; no old memo or ciphertext can survive. Use Task 2's shared LockManager in this test suite too.
 
 - [ ] **Step 5: Commit**
 
@@ -525,19 +610,19 @@ import { authenticateWithBiometrics, enrollDeviceUnlock, getBiometricStatus, rem
 const fakeCredential = { rawId: new Uint8Array([1, 2, 3, 4]).buffer, id: 'AQIDBA', type: 'public-key' }
 
 function installWebAuthn(opts: { uvpaa: boolean; getResult?: unknown; getError?: Error }) {
-  ;(globalThis as any).window = { location: { hostname: 'localhost' } }
-  ;(globalThis as any).PublicKeyCredential = {
+  vi.stubGlobal('window', { location: { hostname: 'localhost' } })
+  vi.stubGlobal('PublicKeyCredential', {
     isUserVerifyingPlatformAuthenticatorAvailable: async () => opts.uvpaa,
-  }
-  ;(globalThis as any).navigator = {
+  })
+  vi.stubGlobal('navigator', {
     credentials: {
       create: vi.fn(async () => fakeCredential),
       get: vi.fn(async () => {
         if (opts.getError) throw opts.getError
-        return opts.getResult ?? fakeCredential
+        return 'getResult' in opts ? opts.getResult : fakeCredential
       }),
     },
-  }
+  })
 }
 
 describe('deviceUnlock', () => {
@@ -545,9 +630,7 @@ describe('deviceUnlock', () => {
     await db.settings.clear()
   })
   afterEach(() => {
-    delete (globalThis as any).PublicKeyCredential
-    delete (globalThis as any).navigator
-    delete (globalThis as any).window
+    vi.unstubAllGlobals()
   })
 
   it('is unsupported without a platform authenticator', async () => {
@@ -571,6 +654,14 @@ describe('deviceUnlock', () => {
     expect(call.publicKey.userVerification).toBe('required')
     expect(call.publicKey.allowCredentials[0].id).toBeInstanceOf(ArrayBuffer)
   })
+
+  it.each([null, { type: 'password', rawId: fakeCredential.rawId }, { type: 'public-key', rawId: new Uint8Array([9]).buffer }])(
+    'rejects a null, wrong-type or wrong-ID assertion: %j', async (getResult) => {
+      installWebAuthn({ uvpaa: true, getResult })
+      await enrollDeviceUnlock()
+      expect((await authenticateWithBiometrics()).authenticated).toBe(false)
+    },
+  )
 
   it('maps user cancellation to USER_CANCEL', async () => {
     const err = new Error('cancelled')
@@ -669,7 +760,8 @@ export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
 
 /**
  * A local gate, not proof of identity to a server: the assertion is not
- * signature-verified. It holds the same trust level as the PIN.
+ * signature-verified. It holds the same trust level as the PIN and does not
+ * cryptographically protect the stored encryption key.
  */
 export async function authenticateWithBiometrics(_reason = 'Unlock your private Lunara data'): Promise<BiometricAuthenticationResult> {
   const stored = await getSetting(SK.deviceUnlockCredential)
@@ -683,7 +775,11 @@ export async function authenticateWithBiometrics(_reason = 'Unlock your private 
         timeout: 60_000,
       },
     })
-    return { authenticated: Boolean(assertion), kind: 'platform' }
+    const credential = assertion as PublicKeyCredential | null
+    const authenticated = credential?.type === 'public-key'
+      && credential.rawId instanceof ArrayBuffer
+      && b64url(credential.rawId) === stored
+    return { authenticated, kind: 'platform' }
   } catch (error) {
     const name = error instanceof Error ? error.name : ''
     return { authenticated: false, kind: 'platform', errorCode: name === 'NotAllowedError' ? 'USER_CANCEL' : 'FAILED' }
@@ -698,7 +794,7 @@ export async function removeDeviceUnlock(): Promise<void> {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `cd app && npx vitest run src/platform/deviceUnlock.test.ts`
-Expected: 5 passed.
+Expected: all stated behaviors pass.
 
 - [ ] **Step 5: Commit**
 
@@ -716,7 +812,8 @@ git commit -m "Add WebAuthn device unlock as the web biometric gate"
 **Interfaces:**
 - Consumes: `materializeReminderRequests`, `MaterializedReminderRequest`, `MaterializeReminderOptions`, `ReminderPermission`, `ReminderPlan` from `engine/reminders.ts` (existing).
 - Produces (same names as `native/notifications.ts`): `notificationPermission(request?: boolean): Promise<ReminderPermission>`, `scheduleDailyReminder(time: string): Promise<void>`, `cancelDailyReminder(): Promise<void>`, `pendingDailyReminder(): Promise<boolean>`, `syncReminderPlans(plans, options): Promise<MaterializedReminderRequest[]>`, `cancelMaterializedReminders(): Promise<void>`, `listenForReminderActions(listener): Promise<{ remove(): void } | undefined>`, plus pure helper `msUntilNextOccurrence(time: string, now: Date): number` (exported for tests) and `pendingInSessionTimers(): number`.
-- Behaviour: timers are `setTimeout`s held in a module map; firing calls `showReminder(title, body)` which uses `navigator.serviceWorker?.ready → registration.showNotification` when available, else `new Notification(...)` when `Notification.permission === 'granted'`, else no-op. Daily reminder re-arms itself for the next day after firing. Materialized requests schedule only those with `fireAt` within the next 24 h (cap 64).
+- Produces also `startReminderScheduler(): Promise<void>`, `refreshReminderScheduler(): Promise<void>`, `stopReminderScheduler(): Promise<void>`. Start is idempotent per page, loads saved preferences without asking permission, materializes the next 24 h (cap 64), repeats every 60 minutes and on visibility becoming visible. Subscribe to persisted preference changes with Dexie liveQuery so other tabs also cancel on disable/wipe. Stable notification `tag = reminderId:occurrenceKey` deduplicates the same occurrence across tabs; daily tags include the occurrence date. Stop removes interval, listener and subscription, invalidates pending delivery, and cancels timers before wipe. Keep the existing public reminder functions.
+- Delivery rechecks granted permission, uses `getRegistration()` with a 2-second bounded wait (including a hung lookup), and falls back to `new Notification` if permitted. Never use an unbounded worker-ready promise. Cancel timers on denied/disabled preferences; rescheduling slides the window beyond the first day. Use asynchronous timer advancement in tests.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -738,15 +835,14 @@ describe('in-session reminders', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-09-11T08:00:00'))
-    ;(globalThis as any).Notification = Object.assign(vi.fn(), { permission: 'granted', requestPermission: vi.fn(async () => 'granted') })
-    ;(globalThis as any).navigator = {}
+    vi.stubGlobal('Notification', Object.assign(vi.fn(), { permission: 'granted', requestPermission: vi.fn(async () => 'granted') }))
+    vi.stubGlobal('navigator', {})
   })
   afterEach(async () => {
     await cancelDailyReminder()
     await cancelMaterializedReminders()
     vi.useRealTimers()
-    delete (globalThis as any).Notification
-    delete (globalThis as any).navigator
+    vi.unstubAllGlobals()
   })
 
   it('computes the delay to the next HH:MM, rolling to tomorrow when passed', () => {
@@ -765,13 +861,15 @@ describe('in-session reminders', () => {
   it('fires the daily reminder at the requested time and re-arms', async () => {
     await scheduleDailyReminder('08:05')
     expect(await pendingDailyReminder()).toBe(true)
-    vi.advanceTimersByTime(5 * 60_000)
+    await vi.advanceTimersByTimeAsync(5 * 60_000)
     expect((globalThis as any).Notification).toHaveBeenCalledWith('Lunara', expect.objectContaining({ body: expect.any(String) }))
     expect(await pendingDailyReminder()).toBe(true)
   })
 
   it('rejects malformed times and unsupported permission', async () => {
-    await expect(scheduleDailyReminder('25:99')).rejects.toThrow(/HH:MM/)
+    for (const time of ['25:99', '9:00', '09:0', '09:00:00', ' 09:00']) {
+      await expect(scheduleDailyReminder(time)).rejects.toThrow(/HH:MM/)
+    }
     ;(globalThis as any).Notification.permission = 'denied'
     ;(globalThis as any).Notification.requestPermission = vi.fn(async () => 'denied')
     await expect(scheduleDailyReminder('09:00')).rejects.toThrow(/permission/)
@@ -784,7 +882,7 @@ describe('in-session reminders', () => {
       { id: 2, reminderId: 'r1', occurrenceKey: 'b', kind: 'water', route: 'today', state: 'scheduled', title: 'Lunara', body: 'Sip', fireAt: new Date(base + 30 * 60 * 60_000).toISOString() } as any,
     ])
     expect(pendingInSessionTimers()).toBe(1)
-    vi.advanceTimersByTime(60_000)
+    await vi.advanceTimersByTimeAsync(60_000)
     expect((globalThis as any).Notification).toHaveBeenCalledTimes(1)
   })
 })
@@ -806,12 +904,17 @@ import {
   type ReminderPermission,
   type ReminderPlan,
 } from '../engine/reminders'
+import { liveQuery } from 'dexie'
+import { db, getSetting, SK } from '../db/schema'
+import { localToday } from '../lib/dates'
+import { parseReminderPreferences, REMINDER_SETTINGS_KEY } from '../engine/reminderPreferences'
 
 const DAILY_KEY = 'daily'
 const WINDOW_MS = 24 * 60 * 60_000
 const MAX_TIMERS = 64
 const timers = new Map<string, ReturnType<typeof setTimeout>>()
 let dailyTime: string | null = null
+let deliveryGeneration = 0
 
 type NotificationCtor = { new (title: string, options?: { body?: string; tag?: string }): unknown; permission: string; requestPermission(): Promise<string> }
 function notificationApi(): NotificationCtor | undefined {
@@ -827,23 +930,25 @@ export function msUntilNextOccurrence(time: string, now: Date): number {
 }
 
 function validTime(time: string): boolean {
-  const [hour, minute] = time.split(':').map(Number)
-  return Number.isInteger(hour) && Number.isInteger(minute) && hour >= 0 && hour <= 23 && minute >= 0 && minute <= 59
+  return /^(?:[01]\d|2[0-3]):[0-5]\d$/.test(time)
 }
 
 async function showReminder(title: string, body: string, tag: string): Promise<void> {
-  const sw = (globalThis as { navigator?: { serviceWorker?: { ready?: Promise<{ showNotification(t: string, o: object): Promise<void> }> } } }).navigator?.serviceWorker
-  if (sw?.ready) {
-    try {
-      const reg = await sw.ready
-      await reg.showNotification(title, { body, tag })
-      return
-    } catch {
-      /* fall through */
-    }
-  }
+  const generation = deliveryGeneration
+  if ((await notificationPermission(false)) !== 'granted') return
+  const sw = globalThis.navigator?.serviceWorker
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const reg = sw ? await Promise.race([
+      sw.getRegistration(),
+      new Promise<undefined>((resolve) => { timer = setTimeout(() => resolve(undefined), 2_000) }),
+    ]) : undefined
+    if (generation !== deliveryGeneration || (await notificationPermission(false)) !== 'granted') return
+    if (reg) { await reg.showNotification(title, { body, tag, renotify: false }); return }
+  } catch { /* use the permitted fallback */ }
+  finally { if (timer !== undefined) clearTimeout(timer) }
   const N = notificationApi()
-  if (N && N.permission === 'granted') new N(title, { body, tag })
+  if (generation === deliveryGeneration && N?.permission === 'granted') new N(title, { body, tag })
 }
 
 export async function notificationPermission(request = false): Promise<ReminderPermission> {
@@ -860,8 +965,9 @@ function armDaily(): void {
   timers.set(
     DAILY_KEY,
     setTimeout(() => {
-      void showReminder('Lunara', 'A gentle moment to check in with yourself.', 'lunara-daily')
-      armDaily()
+      void showReminder('Lunara', 'A gentle moment to check in with yourself.', `lunara-daily:${localToday()}:${dailyTime}`)
+      if (notificationApi()?.permission === 'granted') armDaily()
+      else void cancelDailyReminder()
     }, delay),
   )
 }
@@ -875,6 +981,7 @@ export async function scheduleDailyReminder(time: string): Promise<void> {
 }
 
 export async function cancelDailyReminder(): Promise<void> {
+  deliveryGeneration += 1
   const t = timers.get(DAILY_KEY)
   if (t) clearTimeout(t)
   timers.delete(DAILY_KEY)
@@ -886,6 +993,7 @@ export async function pendingDailyReminder(): Promise<boolean> {
 }
 
 export async function cancelMaterializedReminders(): Promise<void> {
+  deliveryGeneration += 1
   for (const [key, t] of timers) {
     if (key === DAILY_KEY) continue
     clearTimeout(t)
@@ -894,8 +1002,9 @@ export async function cancelMaterializedReminders(): Promise<void> {
 }
 
 /** In-session only: fires while a Lunara tab is open. Documented in Settings. */
-export async function scheduleMaterializedReminders(requests: MaterializedReminderRequest[]): Promise<void> {
+export async function scheduleMaterializedReminders(requests: MaterializedReminderRequest[], stillCurrent: () => boolean = () => true): Promise<void> {
   await cancelMaterializedReminders()
+  if (!stillCurrent()) return
   const now = Date.now()
   const due = requests
     .map((r) => ({ r, delay: Date.parse(r.fireAt) - now }))
@@ -911,10 +1020,61 @@ export async function scheduleMaterializedReminders(requests: MaterializedRemind
   }
 }
 
-export async function syncReminderPlans(plans: ReminderPlan[], options: MaterializeReminderOptions): Promise<MaterializedReminderRequest[]> {
+export async function syncReminderPlans(plans: ReminderPlan[], options: MaterializeReminderOptions, stillCurrent: () => boolean = () => true): Promise<MaterializedReminderRequest[]> {
   const requests = materializeReminderRequests(plans, { ...options, limit: Math.min(MAX_TIMERS, options.limit ?? MAX_TIMERS) })
-  if ((await notificationPermission(false)) === 'granted') await scheduleMaterializedReminders(requests)
+  const permission = await notificationPermission(false)
+  if (!stillCurrent()) return []
+  if (permission === 'granted') await scheduleMaterializedReminders(requests, stillCurrent)
+  else { await cancelDailyReminder(); await cancelMaterializedReminders() }
   return requests
+}
+
+let schedulerRunning = false
+let schedulerGeneration = 0
+let hourly: ReturnType<typeof setInterval> | undefined
+let settingsSubscription: { unsubscribe(): void } | undefined
+const visible = () => { if (document.visibilityState === 'visible') void refreshReminderScheduler() }
+
+export async function refreshReminderScheduler(): Promise<void> {
+  const generation = ++schedulerGeneration
+  const [raw, legacyTime, permission] = await Promise.all([
+    getSetting(REMINDER_SETTINGS_KEY), getSetting(SK.reminderTime), notificationPermission(false),
+  ])
+  if (!schedulerRunning || generation !== schedulerGeneration) return
+  if ((!raw && !legacyTime) || permission !== 'granted') {
+    await cancelDailyReminder(); await cancelMaterializedReminders(); return
+  }
+  const prefs = parseReminderPreferences(raw, {
+    timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    startDate: localToday(), permission, legacyTime,
+  })
+  // Current browser permission controls delivery; do not prompt at startup.
+  const plans = prefs.plans.map((plan) => ({ ...plan, permission }))
+  await cancelDailyReminder()
+  if (!schedulerRunning || generation !== schedulerGeneration) return
+  await syncReminderPlans(plans, { now: new Date(), horizonDays: 1, limit: MAX_TIMERS },
+    () => schedulerRunning && generation === schedulerGeneration)
+}
+
+export async function startReminderScheduler(): Promise<void> {
+  if (schedulerRunning) return
+  schedulerRunning = true
+  document.addEventListener('visibilitychange', visible)
+  hourly = setInterval(() => { void refreshReminderScheduler() }, 60 * 60_000)
+  settingsSubscription = liveQuery(() => db.settings.bulkGet([REMINDER_SETTINGS_KEY, SK.reminderTime]))
+    .subscribe(() => { void refreshReminderScheduler() })
+  await refreshReminderScheduler()
+}
+
+export async function stopReminderScheduler(): Promise<void> {
+  schedulerRunning = false
+  schedulerGeneration += 1
+  if (hourly !== undefined) clearInterval(hourly)
+  document.removeEventListener('visibilitychange', visible)
+  settingsSubscription?.unsubscribe()
+  settingsSubscription = undefined
+  await cancelDailyReminder()
+  await cancelMaterializedReminders()
 }
 
 export interface NativeReminderAction { action: 'open' | 'complete' | 'snooze'; reminderId: string; occurrenceKey: string; route: string }
@@ -930,8 +1090,10 @@ export function pendingInSessionTimers(): number {
 
 - [ ] **Step 4: Run test to verify it passes**
 
+Add fake-indexeddb and a stubbed document to scheduler tests. Persist real preferences using `defaultReminderPreferences`/`serializeReminderPreferences`, enable a daily plan and verify: startup schedules without `requestPermission`; advancing more than 24 h delivers the next occurrence; two independent module clients use identical tags and the fake notification center retains one notification per occurrence; preference disable or permission denial cancels; visible refresh rematerializes; absent/rejected/hung `getRegistration()` falls back by 2 seconds; stop/wipe during a delayed lookup emits nothing. Stop the scheduler in cleanup before restoring timers/globals. Guard scheduler commits and delivery after every async boundary with the scheduler/delivery generation, including a preference change racing permission reads; current settings must still enable the occurrence when delivered.
+
 Run: `cd app && npx vitest run src/platform/notifications.test.ts`
-Expected: 5 passed.
+Expected: startup, rolling window, permission, tag dedupe, bounded fallback and wipe behaviors pass.
 
 - [ ] **Step 5: Commit**
 
@@ -944,11 +1106,11 @@ git commit -m "Add in-session web reminders replacing Capacitor local notificati
 
 **Files:**
 - Create: `app/src/platform/runtime.ts`, `app/src/platform/reportExport.ts` (+ move `reportExport.test.ts`), `app/src/lib/healthImport.ts`
-- Modify: `app/src/main.tsx`, `app/src/App.tsx`, `app/src/components/{AssistantScreen,DoctorReport,LogSheet,PinLock}.tsx`, `app/src/screens/{CycleReportScreen,Onboarding,Settings,Today}.tsx`, `app/src/screens/Settings.test.ts`, `app/src/lib/providerFetch.ts`, `app/package.json`, `pnpm-workspace.yaml`
+- Modify: `app/src/main.tsx`, `app/src/App.tsx`, `app/src/components/{AssistantScreen,DoctorReport,LogSheet,PinLock}.tsx`, `app/src/screens/{CycleReportScreen,Onboarding,Settings,Today}.tsx`, `app/src/screens/Settings.test.ts`, `app/src/styles/{app,reports}.css`, `app/src/components/PinLock.test.ts`, `app/src/App.test.ts`, `app/src/lib/providerFetch.ts`, `app/package.json`, `pnpm-workspace.yaml`
 - Delete: `app/src/native/`, `app/ios/`, `app/android/`, `app/capacitor.config.ts`, `workers/oauth-callback/`, `docs/NATIVE_ARCHITECTURE.md`
 
 **Interfaces:**
-- `platform/runtime.ts` produces: `export const isNative = false as const`, `export const nativePlatform = 'web' as const`, `initializeRuntime(): Promise<void>` (sets `document.documentElement.dataset.runtime = 'web'`), `initializeNativeRuntime = initializeRuntime` (alias so main.tsx compiles before it is edited), `nativeTap(): Promise<void>` (calls `navigator.vibrate?.(10)`).
+- `platform/runtime.ts` produces: `export const isNative = false as const`, `export const nativePlatform = 'web' as const`, `initializeRuntime(): Promise<void>` (sets `document.documentElement.dataset.runtime = 'web'`, then starts reminders without prompting), `initializeNativeRuntime = initializeRuntime` (alias so main.tsx compiles before it is edited), `nativeTap(): Promise<void>` (calls `navigator.vibrate?.(10)`).
 - `platform/reportExport.ts` produces the same `exportCurrentReport(jobName?, deps?)` with `native` forced false; keep `ReportExportDependencies` type so the moved test compiles.
 - `lib/healthImport.ts` produces: `HealthSample`, `HealthDataType`, `SUPPORTED_HEALTH_DATA_TYPES`, `groupHealthSamples`, `groupHealthSamplesWithProvenance`, `applyHealthSamples`, `GroupedHealthDay`, `HealthImportApplyResult` (copy the type definitions for `HealthSample`/`HealthDataType` from `native/health.ts` into this file; drop everything that touched the bridge).
 
@@ -956,11 +1118,14 @@ git commit -m "Add in-session web reminders replacing Capacitor local notificati
 
 ```ts
 // app/src/platform/runtime.ts
+import { startReminderScheduler } from './notifications'
+
 export const isNative = false as const
 export const nativePlatform = 'web' as const
 
 export async function initializeRuntime(): Promise<void> {
   document.documentElement.dataset.runtime = 'web'
+  await startReminderScheduler()
 }
 
 /** Alias kept for one commit so existing imports compile during the switch. */
@@ -978,7 +1143,6 @@ export async function nativeTap(): Promise<void> {
 ```ts
 // app/src/platform/reportExport.ts
 export interface ReportExportDependencies {
-  native?: boolean
   browserPrint?: () => void
 }
 
@@ -992,33 +1156,72 @@ export async function exportCurrentReport(
 }
 ```
 
-Move `app/src/native/reportExport.test.ts` to `app/src/platform/reportExport.test.ts`; delete the test cases that assert the native bridge path and keep the browser-print cases (adjust imports).
+Move `app/src/native/reportExport.test.ts` to `app/src/platform/reportExport.test.ts`. Remove native cases; rewrite the retained browser test to supply only `{ browserPrint }`, removing its bridge mock and assertion. Keep the dependency type with only `browserPrint?: () => void`.
 
 `app/src/lib/healthImport.ts`: copy `native/healthImport.ts`, remove the imports from `./health` and `./runtime`, paste in the `HealthDataType`, `SUPPORTED_HEALTH_DATA_TYPES`, `HealthSample` definitions from `native/health.ts`, delete `importAppleHealthPeriodHistory`, `unavailablePeriodResult`, `healthImportProvider`, `AppleHealthPeriodImportResult`. Keep `groupHealthSamplesWithProvenance`, `groupHealthSamples`, `applyHealthSamples`.
 
 - [ ] **Step 2: Repoint imports**
 
 - `main.tsx`: `import { initializeRuntime } from './platform/runtime'`, call `void initializeRuntime()`, delete the service-worker unregister block.
-- `App.tsx`: delete the two `@capacitor` imports, the `isNative` import, and the `NativeApp.addListener('appStateChange', …)` effect. Replace with:
+- `App.tsx`: remove Capacitor imports/listener and split the old flags effect. Profile/consent updates only update profile-derived UI and PIN presence; the initial lock runs once when ready flips. Add `useRef` imports and use:
   ```ts
+  const hasPinRef = useRef(false)
+  const initialLockDone = useRef(false)
+  hasPinRef.current = flags?.hasPin ?? hasPinRef.current
   useEffect(() => {
-    function onVisibility() {
-      if (document.visibilityState === 'hidden') {
-        void getSetting(SK.pinHash).then((pin) => { if (pin) setLocked(true) })
-      }
+    if (flags === undefined) return
+    setOnboarded(flags.ob)
+    setReady(true)
+  }, [flags])
+  useEffect(() => {
+    if (!ready || initialLockDone.current) return
+    initialLockDone.current = true
+    if (hasPinRef.current) setLocked(true)
+  }, [ready, setLocked])
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden' && hasPinRef.current) setLocked(true)
     }
     document.addEventListener('visibilitychange', onVisibility)
     return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [setLocked])
   ```
-- `AssistantScreen.tsx`, `Onboarding.tsx`: `'../native/secureVault'` → `'../platform/secureVault'`.
+  Remove the old `if (flags.hasPin) setLocked(true)` from the flags effect; later flags/profile object changes never lock the session. PIN creation/removal handlers update presence explicitly as needed.
+
+- `AssistantScreen.tsx`, `Onboarding.tsx`: `'../native/secureVault'` → `'../platform/secureVault'`. In AssistantScreen and Settings replace every persistence comparison with `'memory'` and its branches with the browser-vault label; the new type has no memory variant.
 - `DoctorReport.tsx`, `CycleReportScreen.tsx`: `'../native/reportExport'` → `'../platform/reportExport'`.
 - `LogSheet.tsx`: `'../native/runtime'` → `'../platform/runtime'`.
-- `PinLock.tsx`: `'../native/biometrics'` → `'../platform/deviceUnlock'`; the `biometricKind === 'face'` branches become a single label "Unlock with device".
-- `Onboarding.tsx`: remove the `HealthAuthorization`, `importAppleHealthPeriodHistory`, `nativePlatform` imports and the Apple Health import step/UI they power (search for `importApplePeriods`/`healthImport` usages in the file; remove those step ids from the step queue and their render branches).
+- `PinLock.tsx`: repoint to platform/deviceUnlock and use "Unlock with device". Maintain a lock generation ref. Increment on hidden/re-lock and unmount (including a hide while already locked), reset partial PIN entry on re-lock, and capture the generation before PIN hashing or WebAuthn. Only call setLocked(false) if that generation is still current and `document.visibilityState === 'visible'`. Skip automatic WebAuthn while hidden. Tests may extract pure lock helpers: (1) unlock, write a profile/medical-records consent update, and stay unlocked; (2) suspend PIN hashing and, separately, WebAuthn success, hide/re-lock, resolve each, and assert still locked with cleared partial entry. Test hidden mounting starts no automatic assertion.
+- `Onboarding.tsx`: remove no StepIds. Keep `cycle-history` and the body-measurement `biometrics` step. Remove only the Apple Health subsection inside cycle-history, `importApplePeriodsDuringOnboarding`, its four health-import state variables, `onboardingHealthPermission`, and import-only helpers/imports (`HealthAuthorization`, `importAppleHealthPeriodHistory`, `nativePlatform`, `recentCycleLength`, `getPeriodStarts`, `toEpochDay` when otherwise unused). Use default healthData permission and a not-requested health-import ledger entry; Task 18 adds medical-records consent.
 - `Today.tsx`: remove the widget import and the `publishWidgetSnapshot` effect (lines ~320–390); keep any snapshot computation only if something else uses it, otherwise delete it.
 - `Settings.test.ts`: import `HealthSample`, `groupHealthSamples`, `groupHealthSamplesWithProvenance` from `'../lib/healthImport'`.
-- `Settings.tsx`: repoint `biometrics → platform/deviceUnlock`, `notifications → platform/notifications`, `runtime → platform/runtime`, `secureVault → platform/secureVault`; delete the `health`, `healthImport`, `widgets` imports and every UI/handler that used them (`syncHealthData`, `importApplePeriods`, `recordHealthImportDecision`, the `health`/`widget` state, the "Health data" card, the widget status row). The biometric toggle calls `enrollDeviceUnlock()` on enable and `removeDeviceUnlock()` on disable. The vault label reads `Browser-managed key (WebCrypto in IndexedDB)`. Add the honest copy from spec A2 under the vault row and the in-session reminder copy from spec A4 under the reminders section.
+- `Settings.tsx`: repoint biometrics, notifications, runtime and secureVault to platform modules. Remove `profileHealthPermission`, health/widget state and initialization results, `syncHealthData`, `recordHealthImportDecision`, `importApplePeriods`, their imports and the complete "Device health & native services" section. Remove native gating from device unlock and reminders. Show the unlock toggle when the platform authenticator is available. Enabling requires a PIN, calls `enrollDeviceUnlock()` before any enrolled check, then saves `SK.biometricLock`. Disabling or removing the PIN clears the flag and credential. Run permission, scheduling, cancellation and notification-consent updates through the existing reminder handler; remove its web branch forcing not-requested, use the web permission result, and call `refreshReminderScheduler()` after saved preferences change. Replace all native-only status messages. Replace all persistence-versus-memory branches with "Browser-managed key (WebCrypto in IndexedDB)" and the honest key/screen-gate copy; add in-session reminder limitations.
+- In this task's existing Settings wipe handler, call `stopReminderScheduler()` first and `destroySecureVault()` before reporting success. Propagate blocked-delete failures and show exactly "Close other Lunara tabs and try again." Task 17 extends this same handler with connection-generation invalidation before abort/clear; it must preserve the nonpersonal generation tombstone. Pass the app-table clear as destroySecureVault's callback so the exclusive vault lifecycle covers app clearing and key destruction; do not nest a second lifecycle lock. No sealed write can cross destruction. Replace the old db.delete()/unconditional reload sequence: clear tables transactionally, catch failures in the wipe handler, and reload/report success only after destruction succeeds. Task 17 preserves the generation tombstone rather than deleting the whole Dexie database. Do not postpone vault destruction to Task 21.
+- DoctorReport and CycleReportScreen: add an explicit `<div className="print-root">…report content…</div>` wrapper. Disable export while requested report data loads or failed. Add the following print rules after existing print declarations in reports.css; ancestors remain only as structural containers so hidden siblings take no space:
+  ```css
+  @media print {
+    #root:has(.print-root) *:not(.print-root):not(.print-root *):not(:has(.print-root)) {
+      display: none !important;
+    }
+    #root:has(.print-root), #root :has(.print-root), .print-root {
+      display: block !important;
+      position: static !important;
+      inset: auto !important;
+      transform: none !important;
+      animation: none !important;
+      width: auto !important;
+      height: auto !important;
+      min-height: 0 !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    #root .no-print, #root .sheet-backdrop, #root .dialog-scrim {
+      display: none !important;
+    }
+  }
+  ```
+  Keep report controls outside the wrapper or mark no-print. Verify underlying main/screens and unchecked sensitive sections are absent in portrait and landscape print previews.
+
 - `lib/providerFetch.ts`: reduce to `export const providerFetch: typeof fetch = (input, init) => fetch(input, init)` with the existing doc comment trimmed to the browser case.
 
 - [ ] **Step 3: Delete the native layer and dependencies**
@@ -1032,7 +1235,7 @@ In `app/package.json` remove every `@capacitor/*` dependency and devDependency a
 - [ ] **Step 4: Verify**
 
 Run from repo root: `pnpm --filter @lunara/app test && cd app && npx tsc --noEmit && npx vite build`
-Expected: all tests pass (186 + the new platform tests minus the removed native bridge cases), no type errors, build succeeds. `grep -r "@capacitor\|native/" app/src` returns nothing.
+Expected: all retained and new behavior tests pass, no type errors, build succeeds. `grep -r "@capacitor\|native/" app/src` returns nothing.
 
 - [ ] **Step 5: Commit**
 
@@ -1048,14 +1251,14 @@ git commit -m "Replace Capacitor native layer with web platform adapters"
 - Modify: `app/vite.config.ts`, `app/index.html`, `app/package.json`, `app/src/platform/runtime.ts`, `app/src/vite-env.d.ts`
 
 **Interfaces:**
-- `pwa.config.ts` produces `export const NEVER_CACHE_HOSTS = ['api.finchnode.com']` and `export const pwaOptions: Partial<VitePWAOptions>`.
+- `pwa.config.ts` produces `export const pwaOptions: Partial<VitePWAOptions>`.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
 // app/pwa.config.test.ts
-import { describe, expect, it } from 'vitest'
-import { NEVER_CACHE_HOSTS, pwaOptions } from './pwa.config'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import { pwaOptions } from './pwa.config'
 
 describe('pwa config', () => {
   it('registers with autoUpdate and a standalone manifest', () => {
@@ -1063,14 +1266,26 @@ describe('pwa config', () => {
     expect(pwaOptions.manifest).toMatchObject({ name: 'Lunara', display: 'standalone' })
   })
 
-  it('never caches record or relay traffic', () => {
+  afterEach(() => vi.unstubAllGlobals())
+  it('serialized matchers keep every sensitive destination network-only', () => {
+    vi.stubGlobal('self', { location: { origin: 'https://app.test' } })
     const routes = pwaOptions.workbox?.runtimeCaching ?? []
-    for (const host of NEVER_CACHE_HOSTS) {
-      const match = routes.find((r) => typeof r.urlPattern === 'function' && r.urlPattern({ url: new URL(`https://${host}/x`) } as any))
-      expect(match?.handler).toBe('NetworkOnly')
+    expect(routes.length).toBeGreaterThan(0)
+    expect(routes.every((r) => r.handler === 'NetworkOnly')).toBe(true)
+    for (const url of [
+      'https://api.finchnode.com/demo/v1/x', 'https://arbitrary-relay.test/v1/x',
+      'https://api.openai.com/v1/x', 'https://backup.test/x',
+      'https://app.test/api/x', 'https://app.test/v1/users/u_x/records',
+    ]) {
+      const match = routes.some((route) => {
+        if (typeof route.urlPattern !== 'function') return false
+        // Evaluate without the config module closure, just as generated SW code runs.
+        const matcher = new Function(`return (${route.urlPattern.toString()})`)()
+        return matcher({ url: new URL(url) })
+      })
+      expect(match).toBe(true)
     }
-    expect(routes.some((r) => r.handler === 'CacheFirst' || r.handler === 'StaleWhileRevalidate')).toBe(false)
-    expect(pwaOptions.workbox?.navigateFallbackDenylist?.some((re) => re.test('/?records=return&session=cs_1'))).toBe(false)
+    expect(pwaOptions.workbox?.navigateFallbackDenylist?.some((re) => re.test('/?records=return'))).toBe(false)
   })
 })
 ```
@@ -1087,9 +1302,6 @@ Run: `cd app && pnpm add -D vite-plugin-pwa@^1.3.0`
 ```ts
 // app/pwa.config.ts
 import type { VitePWAOptions } from 'vite-plugin-pwa'
-
-/** Hosts whose responses must never touch the cache: they carry health records. */
-export const NEVER_CACHE_HOSTS = ['api.finchnode.com']
 
 export const pwaOptions: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
@@ -1110,15 +1322,19 @@ export const pwaOptions: Partial<VitePWAOptions> = {
   },
   workbox: {
     globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
-    navigateFallbackDenylist: [],
+    navigateFallbackDenylist: [/^\/(?:api|v1)\//],
     runtimeCaching: [
       {
-        urlPattern: ({ url }) => NEVER_CACHE_HOSTS.includes(url.hostname),
+        urlPattern: ({ url }) => url.hostname === 'api.finchnode.com',
         handler: 'NetworkOnly',
       },
       {
         // Any cross-origin request (relay, AI provider, backup) is network-only.
-        urlPattern: ({ url }) => typeof self !== 'undefined' && url.origin !== self.location.origin,
+        urlPattern: ({ url }) => url.origin !== self.location.origin,
+        handler: 'NetworkOnly',
+      },
+      {
+        urlPattern: ({ url }) => url.origin === self.location.origin && /^\/(?:api|v1)\//.test(url.pathname),
         handler: 'NetworkOnly',
       },
     ],
@@ -1145,7 +1361,7 @@ export const pwaOptions: Partial<VitePWAOptions> = {
 - [ ] **Step 4: Verify**
 
 Run: `cd app && npx vitest run pwa.config.test.ts && npx tsc --noEmit && npx vite build && ls dist/sw.js dist/manifest.webmanifest`
-Expected: tests pass, build emits `sw.js` and `manifest.webmanifest`.
+Expected: tests pass and build emits the worker/manifest. Run `grep -q 'NetworkOnly' dist/sw.js && grep -q 'api\.finchnode\.com' dist/sw.js` and require both the strategy name and hostname in the emitted worker; verify it contains the self-contained hostname check, not a module-scoped constant reference. In a production preview, make FinchNode, arbitrary relay, AI, backup and same-origin API requests with the worker controlling the page; inspect CacheStorage to ensure none of their responses are stored. Navigate to `/?records=return` and verify only the precached app shell serves the navigation, with no session-specific cache entry. A source-callback-only test is insufficient.
 
 - [ ] **Step 5: Commit**
 
@@ -1163,7 +1379,7 @@ git commit -m "Add PWA service worker with network-only record traffic and secur
 
 - [ ] **Step 1: Rewrite README**
 
-Structure: title + one-line description; "Fork notice" (upstream link, AGPL, what changed: web-first, FinchNode records, Aileron, palette); "Run it" (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm preview`; deploy `app/dist` to any static host; `_headers` note); "Privacy" (link `PRIVACY.md`, three bullets: local-first, opt-in transfers, encrypted at rest); "Medical records" placeholder paragraph that Task 24 completes; "Develop" (`pnpm test`, estimate audit note); "Structure" (`app/`, `workers/backup`, `workers/reminders`, `workers/records-relay` (added in Phase 3)); "AI companion" section kept; Disclaimer; License.
+Structure: title + one-line description; "Fork notice" (upstream link, AGPL, what changed: web-first, FinchNode records, Aileron, palette); "Run it" (`pnpm install`, `pnpm dev`, `pnpm build`, `pnpm preview`; deploy `app/dist` to any static host; `_headers` note); "Privacy" (link `PRIVACY.md`, three bullets: local-first, opt-in transfers, sealed record bodies and vault secrets (plaintext indexes/connection metadata/logs/profiles)); "Medical records" placeholder paragraph that Task 23 completes; "Develop" (`pnpm test`, estimate audit note); "Structure" (`app/`, `workers/backup`, `workers/reminders`, `workers/records-relay` (added in Phase 3)); "AI companion" section kept; Disclaimer; License.
 
 - [ ] **Step 2: Capability boundary doc**
 
@@ -1183,7 +1399,7 @@ git commit -m "Document the web-first build and its capability boundary"
 ### Task 9: Aileron typeface
 
 **Files:**
-- Modify: `app/package.json`, `app/src/main.tsx`, `app/src/styles/tokens.css` (typography block only)
+- Modify: `app/package.json`, `app/src/main.tsx`, `app/src/styles/tokens.css` (typography block), `app/src/styles/app.css`, `app/src/styles/health.css`
 
 - [ ] **Step 1: Install and import**
 
@@ -1210,7 +1426,7 @@ In `tokens.css` replace the `--font-display`, `--font-sans`, `--tracking-tight` 
   --weight-display: 800;
 ```
 
-Search `app.css` and the other style files for `font-family: var(--font-display)` rules that set `font-weight: 700` on headings and change those to `var(--weight-display)`; leave body weights alone.
+Set display-heading rules, including current weight-500 `.page h1`, `.page h2` and `.overlay-head h2`, to `var(--weight-display)`. Replace direct Avenir/Iowan font declarations in health.css with the font tokens. Leave body weights alone. Inspect final computed font family and weight; a token test cannot verify the cascade.
 
 - [ ] **Step 3: Verify**
 
@@ -1343,6 +1559,7 @@ Replace everything from `/* Core palette */` through the `--card` alias with:
   --fertile: var(--red-300);
   --phase-follicular: var(--pink-300);
   --phase-luteal: var(--pink-400);
+  --chart-bbt: var(--red-800);
   --danger: var(--red-800);
   --warning: #C9862B;
   --success: #5E8C6A;
@@ -1413,7 +1630,7 @@ and the `html` background to `var(--pink-100)`.
 
 - [ ] **Step 2: Map cycle semantics**
 
-In `CycleRing.tsx` and the phase/marker rules in `app.css` (search `period`, `fertile`, `ovulation`, `luteal`, `follicular` class names) use `var(--period)`, `var(--fertile)`, `var(--phase-follicular)`, `var(--phase-luteal)`. Inline TSX references to `--teal-500`/`--teal-100` become `--fertile`/`--pink-100`; `--rose-500`/`--rose-700`/`--coral-400` become `--period`/`--red-700`/`--red-400`. Primary buttons (`.cta`, `button.primary`, or whatever `app.css` names them) use `background: var(--cta-bg); color: var(--cta-fg)`.
+In `CycleRing.tsx` and the phase/marker rules in `app.css` (search `period`, `fertile`, `ovulation`, `luteal`, `follicular` class names) use `var(--period)`, `var(--fertile)`, `var(--phase-follicular)`, `var(--phase-luteal)`. Inline TSX references to `--teal-500`/`--teal-100` become `--fertile`/`--pink-100`; `--rose-500`/`--rose-700`/`--coral-400` become `--period`/`--red-700`/`--red-400`. Target `.cta` and the effective override `.page.onboarding .ob-shell-footer .cta` with `background: var(--cta-bg); color: var(--cta-fg)`, preserving secondary, yellow and disabled variants. Update `.phase-fertile`, `.phase-ovulation`, `.cal-day.*`, `.date-cell.*`, `.bbt-line`, `.bbt-point`, and health.css's local palette variables and literal gradients; use separate dark `--chart-bbt` for the BBT series. Inspect computed styles for all these selectors and button variants, since token tests alone do not verify the cascade.
 
 - [ ] **Step 3: Verify visually and mechanically**
 
@@ -1431,13 +1648,13 @@ git commit -m "Apply the pink and red semantic tokens across the UI"
 
 **Files:**
 - Create: `app/src/styles/desktop.css`
-- Modify: `app/src/main.tsx` (import it last), `app/src/components/TabBar.tsx` (no logic change; add `data-layout` hook only if needed)
+- Modify: `app/src/main.tsx` (import it last), `app/src/components/TabBar.tsx`, overlay render sites in `App.tsx` and health dialogs (scrims inside root)
 
 - [ ] **Step 1: Write the stylesheet**
 
 ```css
 /* Desktop shell: rail navigation and a centred reading column. */
-@media (min-width: 900px) {
+@media screen and (min-width: 900px) {
   :root {
     --content-width: 760px;
     --rail-width: 220px;
@@ -1450,6 +1667,7 @@ git commit -m "Apply the pink and red semantic tokens across the UI"
   main {
     order: 2;
     flex: 1;
+    min-width: 0;
     padding-top: 32px;
     padding-bottom: 48px;
   }
@@ -1466,7 +1684,10 @@ git commit -m "Apply the pink and red semantic tokens across the UI"
     padding: 28px 12px;
   }
 
+  .page { max-width: var(--content-width); margin-inline: auto; }
+
   .tabbar-inner {
+    display: flex;
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
@@ -1490,11 +1711,13 @@ git commit -m "Apply the pink and red semantic tokens across the UI"
   }
 
   .overlay,
-  .sheet {
+  .sheet,
+  .health-overlay {
     left: 50%;
     right: auto;
     width: min(680px, calc(100vw - 48px));
     transform: translateX(-50%);
+    animation: none; /* old fill-mode: both animations override centering */
     border-radius: var(--radius-large);
     box-shadow: var(--shadow-float);
     max-height: calc(100vh - 48px);
@@ -1502,28 +1725,27 @@ git commit -m "Apply the pink and red semantic tokens across the UI"
     bottom: auto;
   }
 
-  body::after {
-    content: '';
-    position: fixed;
-    inset: 0;
-    pointer-events: none;
-    background: rgba(58, 34, 38, 0.18);
-    opacity: 0;
-    transition: opacity 160ms var(--ease-soft);
+  .overlay-body, .sheet-body, .health-scroll {
+    overflow-y: auto;
+    min-height: 0;
   }
 
-  body:has(.overlay, .sheet)::after {
-    opacity: 1;
+  #root > .dialog-scrim {
+    position: fixed;
+    inset: 0;
+    background: rgba(58, 34, 38, 0.18);
+    z-index: 99;
   }
+  .overlay, .sheet, .health-overlay { z-index: 100; }
 }
 ```
 
-Adjust selectors to match the real class names in `app.css` (verify `.tabbar`, `.tabbar-inner`, `.tabbar-item`, `.is-active`, `.overlay`, `.sheet` exist; if a sheet uses a wrapper class, target that).
+Reuse `.sheet-backdrop` instead of adding a second Sheet scrim. Render other `.dialog-scrim` elements inside `#root` as siblings below their dialogs, with their existing dismissal handlers; ensure the scrim is below the matching dialog in the actual stacking context. Keep overflow scrolling in the three body containers. Keep desktop.css last among screen styles; Task 20 imports records.css before it. Print resets from Task 6 apply only at print time and must win over existing print declarations.
 
 - [ ] **Step 2: Verify at two widths**
 
 Run the preview as in Task 11; view at 390px and 1280px wide.
-Expected: phone layout unchanged under 900px; rail + centred column above.
+Expected: phone layout under 900px; flex column rail and centered `.page` above. Verify long-dialog scrolling, scrim clicks/stacking, no animation centering jump, and portrait/landscape print isolation. Task 20 expands the mobile grid to five columns.
 
 - [ ] **Step 3: Commit**
 
@@ -1554,7 +1776,7 @@ export type RecordsMode = 'demo' | 'live'
 export interface RecordCoding { system: string | null; code: string | null; display: string | null }
 
 interface Base<C extends RecordCategory> {
-  /** `${mode}:${category}:${sourceRecordId}`; stable across refreshes. */
+  /** Live: `${mode}:${category}:${upstream rec_… ID}`; demo: FHIR resource ID. */
   id: string
   category: C
   sourceRecordId: string | null
@@ -1573,27 +1795,47 @@ export interface AllergyRecord extends Base<'allergies'> { substance: string; re
 export interface ImmunizationRecord extends Base<'immunizations'> { name: string; code: string | null; status: string | null; manufacturer: string | null; lotNumber: string | null }
 export type MedicalRecord = DemographicRecord | MedicationRecord | ConditionRecord | ObservationRecord | AllergyRecord | ImmunizationRecord
 
-export interface NormalizeResult { records: MedicalRecord[]; skipped: number }
+export interface NormalizeResult { records: MedicalRecord[]; skipped: number; additionalItems: number }
 
 export interface RecordsSource { system: string; organization: string | null; lastSyncedAt: string | null }
 export interface RecordsWarning { code: string; message: string; category?: RecordCategory | null }
 export type ConnectionStatus = 'disconnected' | 'pending' | 'connected' | 'error'
+export type SyncStatus = 'not_started' | 'queued' | 'syncing' | 'complete' | 'partial' | 'failed' | 'reauthorization_required'
+export interface SyncFailure { code: string; message: string; retryable: boolean }
+export interface SyncDetails {
+  sync: { status: SyncStatus }
+  grantedCategories: RecordCategory[]
+  availableCategories: RecordCategory[]
+  missingCategories: RecordCategory[]
+  failure: SyncFailure | null
+}
 
 export interface RecordsConnection {
   id: 'primary'
   mode: RecordsMode
   status: ConnectionStatus
+  generation: number
+  relayBaseUrl: string | null
+  importedAt?: string
   categories: RecordCategory[]
   subject?: string
   pendingSession?: { id: string; externalId: string; categories: RecordCategory[]; startedAt: string }
   sources: RecordsSource[]
   consentReceiptIds: string[]
+  creationAttempt?: { externalId: string; categories: RecordCategory[]; returnUrl: string }
+  grantedCategories: RecordCategory[]
+  availableCategories: RecordCategory[]
+  missingCategories: RecordCategory[]
+  sync?: { status: SyncStatus }
+  failure?: SyncFailure | null
+  additionalItems: number
   connectedAt?: string
   lastSyncAt?: string
   syncStatus?: 'complete' | 'partial' | 'not_started'
   warnings: RecordsWarning[]
   skipped?: number
   lastError?: string
+  recoveryAction?: 'start-again' | 'check-again' | 'refresh'
 }
 ```
 
@@ -1604,7 +1846,17 @@ export const RECORD_CATEGORIES: readonly RecordCategory[] = ['demographics', 'me
 export const CATEGORY_LABELS: Record<RecordCategory, string> = { demographics: 'About you', medications: 'Medications', conditions: 'Conditions', allergies: 'Allergies', labs: 'Lab results', vitals: 'Vital signs', immunizations: 'Immunizations' }
 export function isRecordCategory(value: unknown): value is RecordCategory { return typeof value === 'string' && (RECORD_CATEGORIES as readonly string[]).includes(value) }
 export function normalizeCategories(input: readonly unknown[]): RecordCategory[] { return RECORD_CATEGORIES.filter((c) => input.includes(c)) }
-export function recordId(mode: 'demo' | 'live', category: RecordCategory, sourceRecordId: string | null, fallback: string): string { return `${mode}:${category}:${sourceRecordId ?? fallback}` }
+/** Use normalization only for trusted category intersections, never relay input validation. */
+export function requireCategories(input: unknown): RecordCategory[] {
+  if (!Array.isArray(input) || input.length === 0 || !input.every(isRecordCategory) || new Set(input).size !== input.length) {
+    throw new Error('Choose at least one supported category without duplicates.')
+  }
+  return input
+}
+export function recordId(mode: 'demo' | 'live', category: RecordCategory, upstreamId: string): string {
+  if (!upstreamId || (mode === 'live' && !/^rec_[a-f0-9]{24}$/.test(upstreamId))) throw new Error('Invalid stable record ID.')
+  return `${mode}:${category}:${upstreamId}`
+}
 ```
 
 - [ ] **Step 1: Write the failing test**
@@ -1612,7 +1864,7 @@ export function recordId(mode: 'demo' | 'live', category: RecordCategory, source
 ```ts
 // app/src/records/categories.test.ts
 import { describe, expect, it } from 'vitest'
-import { isRecordCategory, normalizeCategories, RECORD_CATEGORIES, recordId } from './categories'
+import { isRecordCategory, normalizeCategories, requireCategories, RECORD_CATEGORIES, recordId } from './categories'
 
 describe('categories', () => {
   it('lists the seven v1 categories in display order', () => {
@@ -1622,16 +1874,20 @@ describe('categories', () => {
     expect(normalizeCategories(['labs', 'encounters', 'medications', 42])).toEqual(['medications', 'labs'])
     expect(isRecordCategory('claims')).toBe(false)
   })
-  it('builds stable ids with a fallback', () => {
-    expect(recordId('demo', 'labs', 'obs-1', 'x')).toBe('demo:labs:obs-1')
-    expect(recordId('live', 'labs', null, 'h123')).toBe('live:labs:h123')
+  it.each([undefined, [], ['labs', 'labs'], ['claims']])('rejects invalid outbound categories: %j', (input) => {
+    expect(() => requireCategories(input)).toThrow()
+  })
+  it('requires stable live IDs and keeps demo FHIR IDs', () => {
+    expect(recordId('demo', 'labs', 'obs-1')).toBe('demo:labs:obs-1')
+    expect(recordId('live', 'labs', 'rec_000000000000000000000001')).toBe('live:labs:rec_000000000000000000000001')
+    expect(() => recordId('live', 'labs', '')).toThrow(/stable/)
   })
 })
 ```
 
 - [ ] **Step 2: Run, implement (files above), run again**
 
-Run: `cd app && npx vitest run src/records/categories.test.ts` → FAIL, then PASS (3 tests).
+Run: `cd app && npx vitest run src/records/categories.test.ts` → FAIL, then PASS for category ordering, validation and stable identity.
 
 - [ ] **Step 3: Commit**
 
@@ -1647,17 +1903,17 @@ git commit -m "Add the medical record model and category constants"
 - Test: `app/src/records/normalize/fhir.test.ts`
 
 **Interfaces:**
-- Produces: `normalizeFhirRecordMap(recordMap: Record<string, unknown[]>, opts: { mode: 'demo' | 'live'; syncedAt: string; synthetic: boolean; sourceName: string | null }): NormalizeResult`, plus exported per-resource helpers `fhirText(codeable)`, `fhirCodings(codeable)`, `fhirDate(resource)`.
+- Produces: `normalizeFhirRecordMap(recordMap: Record<string, unknown[]>, opts: { mode: 'demo' | 'live'; syncedAt: string; synthetic: boolean; sourceName: string | null; categories: readonly RecordCategory[] }): NormalizeResult`, plus exported per-resource helpers `fhirText(codeable)`, `fhirCodings(codeable)`, `fhirDate(resource)`.
 - Mapping rules:
   - `Patient` → `demographics`: `name` = official name `${given.join(' ')} ${family}`, `birthDate`, `gender`, `address` = `city, state postalCode` joined from `address[0]`, `phone`/`email` from `telecom` by `system`.
   - `MedicationRequest` / `MedicationStatement` → `medications`: `name` = `medicationCodeableConcept.text ?? coding.display`, `dosage` = `dosageInstruction[0].text ?? dosage[0].text`, `status`, `startDate` = `authoredOn ?? effectivePeriod.start ?? effectiveDateTime`, `endDate` = `effectivePeriod.end`, `prescriber` = `requester.display`, `reason` = `reasonCode[0].text`.
   - `Condition` → `conditions`: `name` = `code.text ?? code.coding.display`, `status` = `clinicalStatus.coding[0].code`, `verificationStatus` = `verificationStatus.coding[0].code`, `severity` = `severity.text ?? severity.coding.display`, `onsetDate` = `onsetDateTime ?? onsetPeriod.start`, `recordedDate`.
   - `AllergyIntolerance` → `allergies`: `substance` = `code.text ?? code.coding.display`, `reaction` = `reaction[0].manifestation[0].text ?? …coding.display`, `severity` = `reaction[0].severity ?? criticality`, `status` = `clinicalStatus.coding[0].code`, `verificationStatus`, `recordedDate`.
-  - `Observation` → `labs` when `category[].coding[].code === 'laboratory'`, `vitals` when `'vital-signs'`; anything else → skipped. `value`: `valueQuantity.value` (number) or `valueString`/`valueCodeableConcept.text`; if `component[]` exists, `value` = components joined `"${v}/${v}"` for two numeric components (blood pressure) else `"name: v"` pairs joined by `, `; `unit` = `valueQuantity.unit ?? component[0].valueQuantity.unit`; `referenceRange` = `referenceRange[0].text ?? "${low}–${high} ${unit}"`; `interpretation` = `interpretation[0].text ?? coding.display`; `date` = `effectiveDateTime ?? effectivePeriod.start ?? issued`.
+  - `Observation` → `labs` when `category[].coding[].code === 'laboratory'`, `vitals` when `'vital-signs'`; anything else → skipped. `value`: `valueQuantity.value` (number) or `valueString`/`valueCodeableConcept.text`; if `component[]` exists, locate systolic LOINC `8480-6` and diastolic `8462-4` by code and format `systolic/diastolic` only if both are finite numbers with compatible units (`mmHg`/UCUM `mm[Hg]`). Otherwise render labeled `"name: value unit"` pairs, including unrelated two-component observations; `unit` = `valueQuantity.unit ?? component[0].valueQuantity.unit`; `referenceRange` uses explicit text when present, otherwise both finite bounds as `low–high unit`, low-only as `≥ low unit`, high-only as `≤ high unit`, or null; never interpolate undefined; `interpretation` = `interpretation[0].text ?? coding.display`; `date` = `effectiveDateTime ?? effectivePeriod.start ?? issued`.
   - `DiagnosticReport` → `labs`: `name` = `code.text`, `value` = `conclusion ?? null`, `date` = `effectiveDateTime ?? issued`.
   - `Immunization` → `immunizations`: `name` = `vaccineCode.text ?? coding.display`, `code` = `vaccineCode.coding[0].code`, `status`, `date` = `occurrenceDateTime`, `manufacturer` = `manufacturer.display`, `lotNumber`.
   - Any other `resourceType`, or a resource missing a usable name/substance → `skipped += 1`.
-  - `sourceRecordId` = resource `id`; `sourceName` = `meta.source ?? opts.sourceName`.
+  - `sourceRecordId` = resource `id`; `sourceName` = `meta.source ?? opts.sourceName`. Skip/count malformed resources or missing usable IDs/dates safely (missing date becomes null, not a skipped otherwise valid record). Drop any category outside opts.categories; `additionalItems` counts unsupported extra arrays, separately from skipped malformed supported records. FHIR DiagnosticReport inside the selected labs map remains the mapped lab conclusion; the excluded live `data.diagnosticReports` array is a different input shape.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1666,8 +1922,9 @@ git commit -m "Add the medical record model and category constants"
 import { describe, expect, it } from 'vitest'
 import fixture from '../__fixtures__/demo-records.json'
 import { normalizeFhirRecordMap } from './fhir'
+import { RECORD_CATEGORIES } from '../categories'
 
-const opts = { mode: 'demo' as const, syncedAt: '2026-09-11T00:00:00Z', synthetic: true, sourceName: 'Northstar Health' }
+const opts = { mode: 'demo' as const, syncedAt: '2026-09-11T00:00:00Z', synthetic: true, sourceName: 'Northstar Health', categories: RECORD_CATEGORIES }
 
 describe('normalizeFhirRecordMap', () => {
   const { records, skipped } = normalizeFhirRecordMap(fixture.record as Record<string, unknown[]>, opts)
@@ -1702,8 +1959,28 @@ describe('normalizeFhirRecordMap', () => {
     const a1c = records.find((r) => r.id === 'demo:labs:observation-demo-a1c')!
     expect(a1c).toMatchObject({ category: 'labs', name: 'Hemoglobin A1c', value: 6.4, unit: '%', date: '2026-07-18T15:30:00Z' })
     const bp = records.find((r) => r.category === 'vitals')!
-    expect(String((bp as any).value)).toMatch(/^\d+\/\d+$/)
+    expect((bp as any).value).toBe('124/78')
     expect((bp as any).unit).toBe('mmHg')
+  })
+
+  it('identifies BP by LOINC after component order is reversed', () => {
+    const reversed = structuredClone(fixture.record) as any
+    reversed.vitals[0].component.reverse()
+    expect(normalizeFhirRecordMap(reversed, opts).records.find((r) => r.category === 'vitals')).toMatchObject({ value: '124/78', unit: 'mmHg' })
+  })
+
+  it('keeps unrelated components labeled and one-sided ranges readable', () => {
+    const observation = { resourceType: 'Observation', id: 'other', code: { text: 'Other measurements' }, category: [{ coding: [{ code: 'laboratory' }] }], component: [
+      { code: { text: 'A', coding: [{ system: 'http://loinc.org', code: '1111-1' }] }, valueQuantity: { value: 2, unit: 'u' } },
+      { code: { text: 'B', coding: [{ system: 'http://loinc.org', code: '2222-2' }] }, valueQuantity: { value: 3, unit: 'u' } },
+    ] }
+    for (const [range, expected] of [[{ low: { value: 1, unit: 'u' } }, '≥ 1 u'], [{ high: { value: 4, unit: 'u' } }, '≤ 4 u']] as const) {
+      const record = normalizeFhirRecordMap({ labs: [{ ...observation, referenceRange: [range] }] }, opts).records[0] as any
+      expect(record.value).toBe('A: 2 u, B: 3 u')
+      expect(record.referenceRange).toBe(expected)
+      expect(record.date).toBeNull()
+    }
+    expect(normalizeFhirRecordMap({ labs: [null, {}, 42] }, opts).records).toEqual([])
   })
 
   it('skips unknown resource types and observations without a category', () => {
@@ -1717,12 +1994,12 @@ describe('normalizeFhirRecordMap', () => {
 })
 ```
 
-Add `"resolveJsonModule": true` to `app/tsconfig.json` `compilerOptions` if missing.
+Use locked TypeScript 5.9.3. Add `resolveJsonModule: true` and set `lib` to `['ES2024', 'DOM', 'DOM.Iterable']` in compilerOptions; keep existing target/module settings. Include tsconfig.json in this task's modified files.
 
 - [ ] **Step 2: Run to verify it fails, implement `fhir.ts` per the mapping rules, run to verify it passes**
 
-Run: `cd app && npx vitest run src/records/normalize/fhir.test.ts`
-Expected: 5 passed. (`Object.groupBy` exists in Node 24; if the TS lib complains, add `"lib": ["ES2024", "DOM", "DOM.Iterable"]` to `tsconfig.json`.)
+Run: `cd app && npx vitest run src/records/normalize/fhir.test.ts && npx tsc --noEmit`
+Expected: fixture mapping, exact/reversed BP, incompatible-unit handling, labeled components, one-sided ranges, malformed resources and missing dates pass; no type errors. Add an incompatible-unit BP case that must stay labeled.
 
 - [ ] **Step 3: Commit**
 
@@ -1738,12 +2015,14 @@ git commit -m "Normalize FHIR R4 resources from the FinchNode demo API"
 - Test: `app/src/records/normalize/finchnode.test.ts`
 
 **Interfaces:**
-- Produces: `normalizeFinchnodeHealthRecord(record: FinchnodeHealthRecord, opts: { syncedAt: string }): NormalizeResult & { sources: RecordsSource[]; warnings: RecordsWarning[]; syncStatus: 'complete' | 'partial' | 'not_started'; consentReceiptIds: string[] }` and the input type `FinchnodeHealthRecord` typed loosely from the vendored OpenAPI (`id`, `categories`, `consent.receiptIds`, `sources[]`, `data.{demographics, medications, conditions, labs, vitals, allergies, immunizations}`, `meta.{syncStatus, warnings, sources, availableCategories, missingCategories}`).
-- Mapping: each FinchNode record already has the target field names; copy them, set `id = recordId('live', category, rec.id, rec.sourceRecordId ?? index)`, `date` = category-specific (`medications.startDate`, `conditions.onsetDate ?? recordedDate`, `labs/vitals.date`, `allergies.recordedDate`, `immunizations.date`, `demographics.birthDate`), `codes = rec.codes ?? []`, `sourceName = rec.sourceName ?? rec.source`, `synthetic: false`. `demographics` may be a single object with optional `records[]`: emit the object (and each of `records[]` if present). Missing arrays are treated as empty; a record without `name`/`substance` is skipped.
+- Produces `normalizeFinchnodeHealthRecord(record: FinchnodeHealthRecord, opts: { syncedAt: string; categories: readonly RecordCategory[] }): NormalizeResult & SyncDetails & { sources: RecordsSource[]; warnings: RecordsWarning[]; syncStatus: 'complete' | 'partial' | 'not_started'; consentReceiptIds: string[] }`. Validate the input fields from the vendored HealthRecord schema; use unknown values at the untrusted boundary instead of spreading upstream objects. Preserve meta.availableCategories/missingCategories and meta.syncStatus; set `sync.status` from meta.syncStatus, `grantedCategories` to opts.categories ∩ record.categories, and failure to null (the snapshot schema has no failure field; session/HTTP failures are handled separately).
+- Require live IDs matching `^rec_[a-f0-9]{24}$`, and use `recordId('live', category, rec.id)` as local identity. Preserve separate nullable sourceRecordId. Skip/count records without a stable ID or usable name/substance; never use array index fallback. Validate every category field explicitly, filling absent nullable fields with null. Dates use medications.startDate, conditions.onsetDate ?? recordedDate, labs/vitals.date, allergies.recordedDate, immunizations.date, demographics.birthDate. Validate codes individually; sourceName uses a valid string sourceName/source only; synthetic is false.
+- Observation values: finite number, string or null directly; convert other JSON to deterministic safe display text (`JSON.stringify` for objects/arrays, string for booleans), with failed/nonfinite conversion becoming null. Render as text, never HTML. Demographics null produces no rows; object-only produces a valid row; nested records are normalized separately and deduplicated by upstream ID (prefer the nested row on duplicate). Never persist the nested records array inside a row. Missing arrays are empty. Drop records outside opts.categories before returning; neither malformed extras nor upstream categories can broaden the selection.
+- Open-question decision: do not display live `medicationAdministrations`, `medicationDispenses`, `diagnosticReports`, encounters, appointments, careTeam, documents, clinicalNotes or claims arrays in v1. Sum their received array lengths (including nested claims arrays) into `additionalItems`, separate from `skipped`. Persist only that count and display "n additional items from your provider are not shown yet" on the source card. This does not change Task 14's FHIR DiagnosticReport mapping inside selected demo labs.
 
 - [ ] **Step 1: Write the fixture**
 
-`finchnode-health-record.json`: hand-write one `HealthRecord` following the vendored schema with `id: "u_0123456789abcdef"`, `categories` = all seven, `consent.receiptIds: ["rcpt_ABC123"]`, `sources: [{ system: "epic", organization: "Example Medical Center", lastSyncedAt: "2026-09-10T12:00:00Z" }]`, `data` with one record per category (ids `rec_` + 24 hex), `meta.syncStatus: "partial"`, `meta.warnings: [{ code: "category_unavailable", message: "Immunizations were not available from this source.", category: "immunizations", retryable: false }]`, `meta.missingCategories: ["immunizations"]`, `meta.changeCursor: "cur_1"`, `meta.disclaimer: "…"`. Fill every required field from the schema with plausible values (nulls where allowed).
+`finchnode-health-record.json`: hand-write one `HealthRecord` following the vendored schema with `id: "u_0123456789abcdef"`, `categories` = all seven, `consent.receiptIds: ["rcpt_ABC123"]`, `sources: [{ system: "epic", organization: "Example Medical Center", lastSyncedAt: "2026-09-10T12:00:00Z" }]`, `data` with one record in each of the six available categories, `immunizations: []` (ids `rec_` + 24 hex), `meta.syncStatus: "partial"`, `meta.warnings: [{ code: "category_unavailable", message: "Immunizations were not available from this source.", category: "immunizations", retryable: false }]`, `meta.availableCategories` = the six other categories, `meta.missingCategories: ["immunizations"]`, `meta.changeCursor: "cur_1"`, `meta.disclaimer: "…"`. Fill every required field from the schema, including consent.receipts and metadata, with plausible values (nulls where allowed). Add two medicationAdministrations, one medicationDispense and one diagnosticReport as unsupported-array fixtures; expect six displayed records and additionalItems = 4, with no immunization record contradicting missingCategories.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1752,12 +2031,15 @@ git commit -m "Normalize FHIR R4 resources from the FinchNode demo API"
 import { describe, expect, it } from 'vitest'
 import fixture from '../__fixtures__/finchnode-health-record.json'
 import { normalizeFinchnodeHealthRecord } from './finchnode'
+import { RECORD_CATEGORIES } from '../categories'
 
 describe('normalizeFinchnodeHealthRecord', () => {
-  const out = normalizeFinchnodeHealthRecord(fixture as any, { syncedAt: '2026-09-11T00:00:00Z' })
+  const out = normalizeFinchnodeHealthRecord(fixture as any, { syncedAt: '2026-09-11T00:00:00Z', categories: RECORD_CATEGORIES })
 
-  it('copies normalized records with live ids and no synthetic flag', () => {
-    expect(out.records.length).toBeGreaterThanOrEqual(7)
+  it('validates normalized records with stable live ids and no synthetic flag', () => {
+    expect(out.records).toHaveLength(6)
+    expect(out.records.some((r) => r.category === 'immunizations')).toBe(false)
+    expect(out.additionalItems).toBe(4)
     expect(out.records.every((r) => r.id.startsWith('live:') && r.synthetic === false)).toBe(true)
     const med = out.records.find((r) => r.category === 'medications') as any
     expect(med.name).toBeTruthy()
@@ -1771,13 +2053,33 @@ describe('normalizeFinchnodeHealthRecord', () => {
     expect(out.warnings[0]).toMatchObject({ code: 'category_unavailable', category: 'immunizations' })
   })
 
-  it('handles demographics as an object with nested records', () => {
-    const demo = out.records.filter((r) => r.category === 'demographics')
-    expect(demo.length).toBeGreaterThanOrEqual(1)
+  it('handles explicit null, object-only and duplicate nested demographics', () => {
+    const person = fixture.data.demographics
+    const normalize = (demographics: unknown) => normalizeFinchnodeHealthRecord(
+      { ...fixture, data: { demographics } } as any,
+      { syncedAt: '2026-09-11T00:00:00Z', categories: ['demographics'] },
+    ).records
+    expect(normalize(null)).toEqual([])
+    expect(normalize(person)).toHaveLength(1)
+    const nested = normalize({ ...person, records: [person, { ...person, id: 'rec_ffffffffffffffffffffffff' }] })
+    expect(nested).toHaveLength(2)
+    expect(nested.every((r) => !('records' in r))).toBe(true)
+  })
+
+  it('converts object observations and skips unstable IDs', () => {
+    const lab = fixture.data.labs[0]
+    const result = normalizeFinchnodeHealthRecord({ ...fixture, data: { labs: [
+      { ...lab, value: { amount: 3, qualifier: 'estimated' } },
+      { ...lab, id: null }, { ...lab, id: 'not-stable' },
+    ] } } as any, { syncedAt: 'now', categories: ['labs'] })
+    expect(result.records).toHaveLength(1)
+    expect((result.records[0] as any).value).toBe('{"amount":3,"qualifier":"estimated"}')
+    expect(result.skipped).toBe(2)
+    expect(result.records[0].sourceRecordId).toBe(lab.sourceRecordId)
   })
 
   it('tolerates missing arrays and skips nameless records', () => {
-    const r = normalizeFinchnodeHealthRecord({ ...fixture, data: { medications: [{ id: 'rec_000000000000000000000000' }] } } as any, { syncedAt: 'now' })
+    const r = normalizeFinchnodeHealthRecord({ ...fixture, data: { medications: [{ id: 'rec_000000000000000000000000' }] } } as any, { syncedAt: 'now', categories: RECORD_CATEGORIES })
     expect(r.records).toHaveLength(0)
     expect(r.skipped).toBe(1)
   })
@@ -1786,7 +2088,7 @@ describe('normalizeFinchnodeHealthRecord', () => {
 
 - [ ] **Step 3: Run to verify it fails, implement, run to verify it passes**
 
-Run: `cd app && npx vitest run src/records/normalize/finchnode.test.ts` → 4 passed.
+Run: `cd app && npx vitest run src/records/normalize/finchnode.test.ts` → all stated behaviors pass.
 
 - [ ] **Step 4: Commit**
 
@@ -1805,11 +2107,11 @@ git commit -m "Normalize FinchNode health-record snapshots"
 
 ```ts
 // app/src/records/providers/types.ts
-import type { NormalizeResult, RecordCategory, RecordsMode, RecordsSource, RecordsWarning } from '../types'
+import type { NormalizeResult, RecordCategory, RecordsMode, RecordsSource, RecordsWarning, SyncDetails } from '../types'
 export interface ConnectStart { sessionId: string; redirectUrl: string | null; expiresAt: string | null; completed: boolean; subject: string | null }
 export type SessionStatus = 'pending' | 'collect-consented' | 'system-selected' | 'completed' | 'abandoned' | 'canceled' | 'expired' | 'failed'
-export interface ConnectSessionState { id: string; status: SessionStatus; subject: string | null; grantedCategories: RecordCategory[]; warnings: RecordsWarning[]; expiresAt: string | null }
-export interface RecordsSnapshot extends NormalizeResult { sources: RecordsSource[]; warnings: RecordsWarning[]; syncStatus: 'complete' | 'partial' | 'not_started'; consentReceiptIds: string[]; synthetic: boolean }
+export interface ConnectSessionState extends SyncDetails { id: string; status: SessionStatus; subject: string | null; warnings: RecordsWarning[]; expiresAt: string | null; retryAfterSeconds?: number | null }
+export interface RecordsSnapshot extends NormalizeResult, SyncDetails { sources: RecordsSource[]; warnings: RecordsWarning[]; syncStatus: 'complete' | 'partial' | 'not_started'; consentReceiptIds: string[]; synthetic: boolean }
 export interface RecordsProvider {
   mode: RecordsMode
   startConnect(input: { categories: RecordCategory[]; returnUrl: string; externalId: string }): Promise<ConnectStart>
@@ -1822,18 +2124,29 @@ export class RecordsHttpError extends Error { constructor(message: string, publi
 ```ts
 // app/src/records/providers/http.ts
 import { RecordsHttpError } from './types'
-export interface HttpDeps { fetch?: typeof fetch }
+export interface HttpDeps { fetch?: typeof fetch; signal?: AbortSignal; timeoutMs?: number; onResponse?: (headers: Headers) => void }
 /** JSON fetch that never leaks response bodies into thrown messages. */
 export async function requestJson<T>(url: string, init: RequestInit & HttpDeps = {}): Promise<T> {
-  const doFetch = init.fetch ?? fetch
-  const res = await doFetch(url, { ...init, headers: { accept: 'application/json', ...(init.headers ?? {}) } })
+  const { fetch: doFetch = fetch, timeoutMs = 10_000, signal, onResponse, ...request } = init
+  const deadline = AbortSignal.timeout(timeoutMs)
+  const res = await doFetch(url, {
+    ...request, signal: signal ? AbortSignal.any([signal, deadline]) : deadline,
+    headers: { accept: 'application/json', ...(request.headers ?? {}) },
+    credentials: 'omit', cache: 'no-store', redirect: 'error',
+  })
+  onResponse?.(res.headers)
   if (!res.ok) {
     let code: string | null = null
     try { code = ((await res.json()) as { error?: { code?: string } }).error?.code ?? null } catch { /* ignore */ }
     const retry = res.headers.get('retry-after')
-    throw new RecordsHttpError(friendlyStatus(res.status), res.status, retry ? Number(retry) || null : null, code)
+    throw new RecordsHttpError(friendlyStatus(res.status), res.status, parseRetryAfter(retry), code)
   }
   return (await res.json()) as T
+}
+export function parseRetryAfter(value: string | null): number | null {
+  if (value === null) return null
+  const seconds = /^\d+$/.test(value) ? Number(value) : (Date.parse(value) - Date.now()) / 1_000
+  return Number.isFinite(seconds) ? Math.max(0, Math.ceil(seconds)) : null
 }
 export function friendlyStatus(status: number): string {
   if (status === 429) return 'The records service is busy. Try again in a minute.'
@@ -1844,8 +2157,10 @@ export function friendlyStatus(status: number): string {
 }
 ```
 
-- `demo.ts` exports `DEMO_BASE_URL = 'https://api.finchnode.com/demo/v1'`, `DEMO_PATIENT_ID = 'patient-demo-001'`, `createDemoProvider(deps?: HttpDeps): RecordsProvider`. `startConnect` → `POST ${base}/connect/sessions` JSON `{ external_user_id: externalId, categories }`; returns `{ sessionId: body.id ?? 'demo-session', redirectUrl: null, expiresAt: null, completed: true, subject: DEMO_PATIENT_ID }`. `getSession` → resolves `{ id, status: 'completed', subject: DEMO_PATIENT_ID, grantedCategories: [], warnings: [], expiresAt: null }` without a network call. `fetchSnapshot` → `GET ${base}/patients/${subject}/records?categories=${categories.join(',')}` then `normalizeFhirRecordMap(body.record, { mode: 'demo', syncedAt: new Date().toISOString(), synthetic: true, sourceName: 'Northstar Health (FinchNode sample)' })` and returns `{ ...result, sources: [{ system: body.source ?? 'finchnode-demo', organization: 'Northstar Health (sample)', lastSyncedAt: syncedAt }], warnings: [], syncStatus: 'complete', consentReceiptIds: [], synthetic: true }`.
-- `relay.ts` exports `createRelayProvider(config: { baseUrl: string; token: string | null }, deps?: HttpDeps): RecordsProvider`. Base URL is trimmed of trailing slashes and must start with `https://` or `http://localhost`/`http://127.0.0.1` (throw otherwise). Header `X-Lunara-Relay-Token` when token set. `startConnect` → `POST ${base}/v1/connect/sessions` `{ categories, returnUrl, externalId }` → `{ sessionId: body.id, redirectUrl: body.url, expiresAt: body.expiresAt, completed: false, subject: null }`. `getSession` → `GET ${base}/v1/connect/sessions/${id}` → map `status`, `subject`, `sync.grantedCategories` (filtered by `normalizeCategories`), `sync.warnings`, `expiresAt`. `fetchSnapshot` → `GET ${base}/v1/users/${subject}/records?categories=…` → `normalizeFinchnodeHealthRecord(body, { syncedAt })` and `synthetic: false`.
+- `demo.ts`: export `DEMO_BASE_URL = 'https://api.finchnode.com/demo/v1'`, `DEMO_PATIENT_ID = 'patient-demo-001'`, `createDemoProvider(deps?: HttpDeps): RecordsProvider`. Validate nonempty unique supported categories for creation and reads. POST `{ external_user_id: externalId, categories }`; return the completed ConnectStart with DEMO_PATIENT_ID. Retain categories for the local completed getSession result (granted/available = requested; missing = []; sync.status = complete; failure = null). GET `/patients/${subject}/records?categories=…` always includes the validated effective filter. Pass it as opts.categories to normalizeFhirRecordMap, and enforce it again on the result. Return complete RecordsSnapshot with sync.status complete, requested granted/available categories, missing [], failure null, synthetic true and the sample source. Map demo 429 to "FinchNode's sample API is busy, try again in a minute" and retain Retry-After.
+- `relay.ts`: `createRelayProvider(config: { baseUrl: string; token: string }, deps?: HttpDeps): RecordsProvider`. Parse base with `new URL`; allow HTTPS or HTTP only when hostname is exactly localhost/127.0.0.1. Reject credentials, query and fragment; strip trailing slashes to canonicalize. Require a nonempty token and send X-Lunara-Relay-Token on every request. The caller verifies the vault token's relayBaseUrl matches this URL. Export/reuse the pure URL canonicalizer for Settings/import. Reject credential-bearing or non-HTTPS Hosted Connect redirect URLs before navigation.
+- Relay POST `/v1/connect/sessions` sends `{ categories, returnUrl, externalId }` and maps id/url/expiresAt to ConnectStart. GET `/v1/connect/sessions/${id}` validates the session ID and preserves sync.status, sync.grantedCategories, sync.availableCategories, sync.missingCategories, sync.failure, warnings and expiresAt in ConnectSessionState. Filter received category metadata only to supported categories, never replace an empty grant with selected/all categories. Expose successful response Retry-After through HttpDeps.onResponse (already removed from fetch init by the helper), so polling respects it as well as error Retry-After.
+- Relay GET `/v1/users/${subject}/records?categories=…` validates subject and the nonempty effective category list, passes opts.categories to normalizeFinchnodeHealthRecord, and returns synthetic false with all snapshot completeness metadata. `RecordsSnapshot.sync.status` comes from meta.syncStatus; failure is null because this response schema lacks it, while the orchestrator retains/checks session failure before reads. No normalizer may return an unselected category. Use the same request deadline/abort helper for creation, polls and snapshots; polling clips per-request timeout to its remaining overall deadline.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1866,11 +2181,11 @@ describe('demo provider', () => {
   it('simulates a completed connect session', async () => {
     const fetch = fakeFetch((url, init) => {
       expect(url).toBe(`${DEMO_BASE_URL}/connect/sessions`)
-      expect(JSON.parse(String(init?.body))).toEqual({ external_user_id: 'ext_1', categories: ['labs'] })
+      expect(JSON.parse(String(init?.body))).toEqual({ external_user_id: 'abcdefghijklmnop', categories: ['labs'] })
       return { body: { id: 'demo_cs_1', status: 'completed' } }
     })
     const p = createDemoProvider({ fetch })
-    expect(await p.startConnect({ categories: ['labs'], returnUrl: 'http://localhost/', externalId: 'ext_1' })).toMatchObject({ completed: true, subject: DEMO_PATIENT_ID, redirectUrl: null })
+    expect(await p.startConnect({ categories: ['labs'], returnUrl: 'http://localhost/', externalId: 'abcdefghijklmnop' })).toMatchObject({ completed: true, subject: DEMO_PATIENT_ID, redirectUrl: null })
   })
 
   it('fetches and normalizes the synthetic snapshot', async () => {
@@ -1880,12 +2195,13 @@ describe('demo provider', () => {
     })
     const snap = await createDemoProvider({ fetch }).fetchSnapshot(DEMO_PATIENT_ID, ['labs', 'vitals'])
     expect(snap.synthetic).toBe(true)
-    expect(snap.records.length).toBeGreaterThan(0)
+    expect(snap.records).toHaveLength(4) // three labs and one vital in the demo fixture
+    expect(new Set(snap.records.map((r) => r.category))).toEqual(new Set(['labs', 'vitals']))
     expect(snap.sources[0].organization).toContain('Northstar')
   })
 
   it('turns 429 into a friendly retryable error', async () => {
-    const fetch = fakeFetch(() => ({ status: 429, headers: { 'retry-after': '30' }, body: { error: { code: 'rate_limited' } } }))
+    const fetch = fakeFetch(() => ({ status: 429, headers: { 'retry-after': '30' }, body: { error: { type: 'api_error', code: 'rate_limited', message: 'Busy', requestId: 'req_demo' } } }))
     await expect(createDemoProvider({ fetch }).fetchSnapshot(DEMO_PATIENT_ID, ['labs'])).rejects.toMatchObject({ status: 429, retryAfterSeconds: 30, code: 'rate_limited' })
   })
 })
@@ -1901,24 +2217,36 @@ const ok = (body: unknown) => new Response(JSON.stringify(body), { status: 200, 
 
 describe('relay provider', () => {
   it('rejects insecure relay urls', () => {
-    expect(() => createRelayProvider({ baseUrl: 'http://relay.example.com', token: null })).toThrow(/https/)
+    expect(() => createRelayProvider({ baseUrl: 'http://relay.example.com', token: 'tok' })).toThrow(/https/)
+  })
+
+  it.each(['http://localhost.evil', 'http://127.0.0.1.evil', 'https://user:pass@relay.test', 'https://relay.test/?token=x', 'https://relay.test/#x'])(
+    'rejects hostile or credential-bearing base %s', (baseUrl) => {
+      expect(() => createRelayProvider({ baseUrl, token: 'tok' })).toThrow()
+    },
+  )
+  it('requires a token before requesting anything', () => {
+    const fetch = vi.fn()
+    expect(() => createRelayProvider({ baseUrl: 'https://relay.test', token: '' }, { fetch })).toThrow(/token/i)
+    expect(fetch).not.toHaveBeenCalled()
   })
 
   it('starts a hosted connect session with the token header', async () => {
     const fetch = vi.fn(async (url: string, init: RequestInit) => {
       expect(url).toBe('https://relay.example.com/v1/connect/sessions')
       expect(new Headers(init.headers).get('x-lunara-relay-token')).toBe('tok')
-      expect(JSON.parse(String(init.body))).toEqual({ categories: ['labs'], returnUrl: 'https://app/?records=return', externalId: 'ext_1' })
+      expect(init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
+      expect(JSON.parse(String(init.body))).toEqual({ categories: ['labs'], returnUrl: 'https://app/?records=return', externalId: 'abcdefghijklmnop' })
       return ok({ id: 'cs_0123456789abcdef0123', url: 'https://connect.finchnode.com/s/1', expiresAt: '2026-09-12T00:00:00Z', status: 'pending' })
     }) as unknown as typeof fetch
     const p = createRelayProvider({ baseUrl: 'https://relay.example.com/', token: 'tok' }, { fetch })
-    expect(await p.startConnect({ categories: ['labs'], returnUrl: 'https://app/?records=return', externalId: 'ext_1' })).toEqual({ sessionId: 'cs_0123456789abcdef0123', redirectUrl: 'https://connect.finchnode.com/s/1', expiresAt: '2026-09-12T00:00:00Z', completed: false, subject: null })
+    expect(await p.startConnect({ categories: ['labs'], returnUrl: 'https://app/?records=return', externalId: 'abcdefghijklmnop' })).toEqual({ sessionId: 'cs_0123456789abcdef0123', redirectUrl: 'https://connect.finchnode.com/s/1', expiresAt: '2026-09-12T00:00:00Z', completed: false, subject: null })
   })
 
   it('reads session state', async () => {
-    const fetch = vi.fn(async () => ok({ id: 'cs_1', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'complete', grantedCategories: ['labs', 'claims'], warnings: [] } })) as unknown as typeof fetch
-    const s = await createRelayProvider({ baseUrl: 'https://r', token: null }, { fetch }).getSession('cs_1')
-    expect(s).toMatchObject({ status: 'completed', subject: 'u_0123456789abcdef', grantedCategories: ['labs'] })
+    const fetch = vi.fn(async () => ok({ id: 'cs_0123456789abcdef0123', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'queued', grantedCategories: ['labs', 'claims'], availableCategories: [], missingCategories: ['labs'], failure: null, warnings: [] } })) as unknown as typeof fetch
+    const s = await createRelayProvider({ baseUrl: 'https://r', token: 'tok' }, { fetch }).getSession('cs_0123456789abcdef0123')
+    expect(s).toMatchObject({ status: 'completed', subject: 'u_0123456789abcdef', sync: { status: 'queued' }, grantedCategories: ['labs'], availableCategories: [], missingCategories: ['labs'], failure: null })
   })
 
   it('fetches and normalizes a live snapshot', async () => {
@@ -1926,8 +2254,10 @@ describe('relay provider', () => {
       expect(url).toBe('https://r/v1/users/u_0123456789abcdef/records?categories=labs,vitals')
       return ok(fixture)
     }) as unknown as typeof fetch
-    const snap = await createRelayProvider({ baseUrl: 'https://r', token: null }, { fetch }).fetchSnapshot('u_0123456789abcdef', ['labs', 'vitals'])
+    const snap = await createRelayProvider({ baseUrl: 'https://r', token: 'tok' }, { fetch }).fetchSnapshot('u_0123456789abcdef', ['labs', 'vitals'])
     expect(snap.synthetic).toBe(false)
+    expect(snap.records).toHaveLength(2)
+    expect(new Set(snap.records.map((r) => r.category))).toEqual(new Set(['labs', 'vitals']))
     expect(snap.consentReceiptIds).toEqual(['rcpt_ABC123'])
   })
 })
@@ -1935,7 +2265,9 @@ describe('relay provider', () => {
 
 - [ ] **Step 2: Run to verify they fail, implement the four files, run to verify they pass**
 
-Run: `cd app && npx vitest run src/records/providers` → 7 passed.
+Add tests for non-HTTPS/credential-bearing Hosted Connect redirects; empty, duplicate and unsupported filters on both providers (fetch never called); exact localhost acceptance; deadline/abort handling; Retry-After seconds and dates on successful polls/errors. Use full upstream error envelopes `{ error: { type, code, message, requestId } }` in fixtures.
+
+Run: `cd app && npx vitest run src/records/providers` → all provider, category and HTTP boundary behaviors pass.
 
 - [ ] **Step 3: Commit**
 
@@ -1947,7 +2279,7 @@ git commit -m "Add FinchNode demo and relay record providers"
 ### Task 17: Sealed records store (Dexie v4)
 
 **Files:**
-- Modify: `app/src/db/schema.ts` (version 4 + tables + `SK.recordsRelayUrl`)
+- Modify: `app/src/db/schema.ts` (version 4 + tables + `SK.recordsRelayUrl`, medical-records ConsentPurpose used by commit guards), `app/src/screens/Settings.tsx` (extend Task 6 wipe invalidation)
 - Create: `app/src/records/store.ts`
 - Test: `app/src/records/store.test.ts`
 
@@ -1955,21 +2287,33 @@ git commit -m "Add FinchNode demo and relay record providers"
 - `schema.ts` adds:
   ```ts
   export interface SealedRecordRow { id: string; category: RecordCategory; date: string | null; sealed: SealedBlob }
-  medicalRecords!: Table<SealedRecordRow, string>
-  recordsConnection!: Table<RecordsConnection, string>
-  this.version(4).stores({ ...all v3 tables..., medicalRecords: 'id, category, date', recordsConnection: 'id' })
+  // Add class properties to LunaraDB:
+  // medicalRecords!: Table<SealedRecordRow, string>
+  // recordsConnection!: Table<RecordsConnection, string>
+  // Append this.version(4).stores(v4Stores) after existing versions in its constructor.
+  const v4Stores = {
+    dailyLogs: 'date', cycles: 'startDate', settings: 'key', contentBookmarks: 'slug',
+    healthProfiles: 'id', regimenRecords: 'id, method, startDate, [method+startDate]',
+    missedDoseEvents: 'id, regimenId, date, [regimenId+date]',
+    medicalRecords: 'id, category, date', recordsConnection: 'id',
+  }
   ```
   and `SK.recordsRelayUrl: 'recordsRelayUrl'`.
-- `store.ts` produces: `getConnection(): Promise<RecordsConnection>` (default disconnected object when absent), `putConnection(patch: Partial<RecordsConnection>): Promise<RecordsConnection>`, `putSnapshot(records: MedicalRecord[], categories: RecordCategory[], connectionPatch: Partial<RecordsConnection>): Promise<void>` (one `rw` transaction on both tables: delete rows whose `category` is in `categories`, `bulkPut` sealed rows, merge the connection patch), `listRecords(category?: RecordCategory): Promise<MedicalRecord[]>` (opened, sorted by `date` desc with nulls last), `countByCategory(): Promise<Record<RecordCategory, number>>`, `clearRecords(): Promise<void>` (both tables). Sealing uses `getSealingKey()` from Task 2; sealing/opening happens outside the Dexie transaction (compute sealed rows first, then run the transaction; on read, fetch rows then open).
-- `defaultConnection(): RecordsConnection` = `{ id: 'primary', mode: 'demo', status: 'disconnected', categories: [...RECORD_CATEGORIES], sources: [], consentReceiptIds: [], warnings: [] }`.
+- `store.ts` produces `getConnection(): Promise<RecordsConnection>` (read-only; absent row returns default without writing), `putConnection(patch: ConnectionPatch): Promise<boolean>`, `putSnapshot(records: MedicalRecord[], categoriesToReplace: RecordCategory[], patch: ConnectionPatch): Promise<boolean>`, `listRecords(category?)`, `countByCategory()`, `clearRecords(): Promise<void>`, and `defaultConnection(): RecordsConnection`. `ConnectionPatch = Partial<Omit<RecordsConnection, 'id' | 'generation'>> & { expectedGeneration: number }`; strip expectedGeneration before storage. Async updates must use guarded putConnection/putSnapshot, never raw state writes.
+- `defaultConnection` is `{ id: 'primary', mode: 'demo', status: 'disconnected', generation: 0, relayBaseUrl: null, categories: [...RECORD_CATEGORIES], grantedCategories: [], availableCategories: [], missingCategories: [], sources: [], consentReceiptIds: [], warnings: [], additionalItems: 0 }`. `clearRecords` increments the current generation in a transaction, clears rows and replaces the connection with a disconnected default carrying the new generation. Retain this nonpersonal tombstone even through full wipe so an old generation cannot be reused. `getConnection` and liveQuery never bootstrap a row.
+- Acquire Task 2's shared vault lifecycle for key access, sealing and commit. Prepare sealed rows before opening the Dexie transaction; list fetches rows and decrypts outside transactions under the same shared lifecycle. `putSnapshot` uses one rw transaction including medicalRecords, recordsConnection, healthProfiles and settings. Re-read the current connection and latest medical-records consent inside that transaction. If generation differs from expectedGeneration or consent is no longer granted, return false with no writes, including error/connection writes. Also reject live writes with a stale relay binding. Otherwise delete categoriesToReplace, bulkPut only records in that list, and merge patch. `putConnection` uses the same transaction guard for metadata/error commits. No WebCrypto await inside a transaction.
+- For complete snapshots categoriesToReplace = selected ∩ granted. For partial, use effective ∩ meta.availableCategories, retaining every missing category's prior rows as "not refreshed". For not_started, write no record rows and no completed-import time; use only guarded metadata state. Delete consent-removed categories in the transaction changing the local selection. Validate category boundaries again before persistence. Task 19 computes replacement sets; the store never infers them from which records happened to arrive.
+- Add a synchronous-in-transaction transition helper for deliberate begin/cancel/disconnect/wipe changes: read current row, increment generation, update consent/connection and optionally clear rows in one Dexie transaction. This path is distinct from guarded async completion writes; start still requires granted consent inside the transaction. Add medical-records to ConsentPurpose here so these guards typecheck; Task 18 adds ledger initialization and transfer support.
+- Extend the Task 6 Settings wipe now: stop scheduler first, transactionally increment generation, remove personal connection state and consent, then abort requests/polls and clear data/vault in destroySecureVault's clearAppData callback under the exclusive lifecycle lock. No late result may recreate records/errors. Record clearing inside wipe preserves the tombstone and does not call guarded putSnapshot. Cancel/disconnect similarly invalidate before aborting. Tasks 18 and 19 reuse these primitives.
 
 - [ ] **Step 1: Write the failing test**
 
 ```ts
 // app/src/records/store.test.ts
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { db } from '../db/schema'
+import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db, putHealthProfile } from '../db/schema'
 import { deleteKeyStore } from '../platform/keyStore'
 import type { MedicalRecord } from './types'
 import { clearRecords, countByCategory, getConnection, listRecords, putConnection, putSnapshot } from './store'
@@ -1979,8 +2323,10 @@ const med = (id: string): MedicalRecord => ({ id: `demo:medications:${id}`, cate
 
 describe('records store', () => {
   beforeEach(async () => {
+    installLifecycleLocks()
     await clearRecords()
     await deleteKeyStore()
+    await putHealthProfile({ privacy: { consentLedger: [{ purpose: 'medical-records', state: 'granted', version: 1, decidedAt: '2026-09-11T00:00:00Z' }] } })
   })
 
   it('starts disconnected with all categories selected', async () => {
@@ -1988,7 +2334,7 @@ describe('records store', () => {
   })
 
   it('stores sealed rows and reads them back sorted by date', async () => {
-    await putSnapshot([lab('a', '2026-02-01'), lab('b', null), lab('c', '2026-03-01')], ['labs'], { status: 'connected', mode: 'demo' })
+    await putSnapshot([lab('a', '2026-02-01'), lab('b', null), lab('c', '2026-03-01')], ['labs'], { status: 'connected', mode: 'demo', expectedGeneration: (await getConnection()).generation })
     const raw = await db.medicalRecords.toArray()
     expect(JSON.stringify(raw)).not.toContain('Lab a')
     expect(raw[0].sealed.v).toBe(1)
@@ -1998,100 +2344,154 @@ describe('records store', () => {
   })
 
   it('refresh replaces only the refreshed categories', async () => {
-    await putSnapshot([lab('a', '2026-02-01'), med('m1')], ['labs', 'medications'], {})
-    await putSnapshot([lab('z', '2026-04-01')], ['labs'], {})
+    await putSnapshot([lab('a', '2026-02-01'), med('m1')], ['labs', 'medications'], { expectedGeneration: (await getConnection()).generation })
+    await putSnapshot([lab('z', '2026-04-01')], ['labs'], { expectedGeneration: (await getConnection()).generation })
     expect(await countByCategory()).toMatchObject({ labs: 1, medications: 1 })
     expect((await listRecords('labs'))[0].sourceRecordId).toBe('z')
   })
 
-  it('clearRecords empties both tables', async () => {
-    await putSnapshot([med('m1')], ['medications'], { status: 'connected' })
-    await putConnection({ subject: 'u_x' })
+  it('clearRecords empties records and keeps a disconnected generation tombstone', async () => {
+    await putSnapshot([med('m1')], ['medications'], { status: 'connected', expectedGeneration: (await getConnection()).generation })
+    await putConnection({ subject: 'u_x', expectedGeneration: (await getConnection()).generation })
     await clearRecords()
     expect(await db.medicalRecords.count()).toBe(0)
     expect((await getConnection()).status).toBe('disconnected')
   })
 })
+
+afterEach(() => vi.unstubAllGlobals())
+
 ```
 
 - [ ] **Step 2: Run to verify it fails, implement schema v4 + `store.ts`, run to verify it passes**
 
-Run: `cd app && npx vitest run src/records/store.test.ts src/db` → store tests 4 passed; existing schema tests still pass.
+Add these behavior tests with real fake-indexeddb/Dexie databases:
+
+- Open an actual version-3 database using all seven historical table definitions; insert representative rows into dailyLogs, settings, contentBookmarks, healthProfiles, regimenRecords, missedDoseEvents and cycles. Close it, reopen with v4 and assert every existing row survives and both new tables exist. Do not merely open the current schema on a blank database.
+- Subscribe liveQuery(getConnection) on a database with no connection row; assert emission of the default, zero recordsConnection writes (instrument hooks) and no feedback loop. Unsubscribe/close in cleanup.
+- Seed labs plus medications, apply a partial snapshot replacing only available labs, and assert missing medications remain byte-for-byte. Apply a complete empty labs snapshot and assert labs clear; a not_started result leaves rows and lastSyncAt unchanged.
+- Capture a generation, suspend sealing, clear/disconnect/wipe from an independent Dexie client, then release sealing; for wipe, start its promise, wait only for generation invalidation, release the suspended seal, then await both operations (destruction waits on the shared lifecycle). putSnapshot and an error putConnection with the old generation return false and neither records nor error state reappear. Repeat with consent revoked without a generation change to prove the transaction consent check independently. Use the shared vault lifecycle test LockManager.
+
+Run: `cd app && npx vitest run src/records/store.test.ts src/db && npx tsc --noEmit` → migration, no-write reads, replacement and invalidation behaviors pass.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/db/schema.ts app/src/records/store.ts app/src/records/store.test.ts
+git add app/src/db/schema.ts app/src/records/store.ts app/src/records/store.test.ts app/src/screens/Settings.tsx
 git commit -m "Store medical records sealed at rest in Dexie v4"
 ```
 
 ### Task 18: Consent purpose and export/import v2
 
 **Files:**
-- Modify: `app/src/db/schema.ts` (`ConsentPurpose` union), `app/src/db/transfer.ts`
+- Modify: `app/src/db/schema.ts` (ConsentPurpose already extended in Task 17), `app/src/db/transfer.ts`, `app/src/screens/Onboarding.tsx` (ledger seeding)
 - Test: `app/src/db/transfer.test.ts` (new)
 
 **Interfaces:**
-- `ConsentPurpose` gains `'medical-records'`. `createDefaultHealthProfile` is unchanged (ledger entries are added when decided).
-- `transfer.ts`: `ExportPayload` becomes `{ app: 'lunara'; v: 2; exportedAt; dailyLogs; settings; contentBookmarks; medicalRecords: MedicalRecord[]; recordsConnection: Omit<RecordsConnection, 'pendingSession'> | null }`. `collectExport()` opens records via `listRecords()` and reads the connection via `getConnection()` (drop `pendingSession`; `null` when `status === 'disconnected'`). `applyImport(payload: ExportPayload | LegacyExportPayloadV1)` accepts `v: 1` (no records) and `v: 2` (calls `putSnapshot(records, categoriesPresent, connection ?? {})` when records exist). `SECRET_KEYS` also excludes `SK.recordsRelayUrl`? No: the relay URL is not secret; keep it exportable. The relay token lives in the vault and is never exported.
+- Task 17 adds `'medical-records'` to ConsentPurpose for its guard. In this task, seed a not-requested medical-records entry from Onboarding using the existing ledger conventions. A restored ledger from the user's own export is their decision; do not replace granted consent with a different authorization rule.
+- `ExportPayloadV2` contains `{ app: 'lunara'; v: 2; exportedAt; dailyLogs; settings; contentBookmarks; healthProfiles; regimenRecords; missedDoseEvents; medicalRecords: MedicalRecord[]; recordsConnection: Omit<RecordsConnection, 'pendingSession' | 'creationAttempt'> | null }`. Validate all table arrays and record/connection fields, app and supported version before any write. Keep accepting v1 without new tables. `collectExport` opens records, exports the actual connection even when it is disconnected but has a viewable snapshot, drops pending/creation state, and returns null for an absent/logically empty generation tombstone. Never drop a connection merely because medicalRecords is empty.
+- Exclude from both exported and imported settings:
+  ```ts
+  const SECRET_KEYS = new Set<string>([
+    SK.pinSalt, SK.pinHash, SK.aiKey, 'recoveryCode',
+    SK.biometricLock, SK.deviceUnlockCredential,
+  ])
+  ```
+  Never serialize vault values, raw keys or relay credentials. Validate/canonicalize an exportable SK.recordsRelayUrl without credentials; importing it never activates a connection or reuses a token for another endpoint.
+- Validate the whole payload first. Under the shared vault lifecycle, seal imported medical rows before any Dexie transaction. Use ONE rw transaction with every imported table: dailyLogs, settings, contentBookmarks, healthProfiles, regimenRecords, missedDoseEvents, medicalRecords and recordsConnection (plus any existing transfer-owned table). Do not call putSnapshot or any WebCrypto operation inside that transaction. Preserve existing legacy merge semantics for legacy tables. V1 preserves existing medical rows and connection (except the mandatory disconnect if importing a changed relay setting). V2 clears and replaces the entire medical snapshot, including `[]`, and the entire logical connection, including null; replace canonical profile/regimen/adherence tables including empty arrays. Throwing inside the transaction rolls back all imported table changes.
+- Imported non-null connections get importedAt, a fresh local generation, no pendingSession/creationAttempt and status disconnected; keep subject, sources, category metadata and records for local viewing. Null yields a fresh disconnected generation tombstone with no imported identifying metadata. Explicit start can use the restored granted ledger; importing itself performs no network operation. Refresh requires an enabled connection, granted consent, subject, current canonical relayBaseUrl equality and a matching saved token. Changing/importing a different relay URL invalidates the existing live generation, disables refresh while preserving records, and deletes the old endpoint's token from the vault after the settings transaction; if token cleanup fails, report it and leave the connection disabled. A stale token envelope cannot be used because its binding differs.
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing tests**
 
 ```ts
 // app/src/db/transfer.test.ts
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it } from 'vitest'
-import { deleteKeyStore } from '../platform/keyStore'
-import { clearRecords, getConnection, listRecords, putSnapshot } from '../records/store'
+import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db, SK, getSetting } from './schema'
+import { clearRecords, defaultConnection, getConnection, listRecords } from '../records/store'
 import type { MedicalRecord } from '../records/types'
-import { db } from './schema'
-import { applyImport, collectExport } from './transfer'
+import { applyImport, collectExport, type ExportPayloadV2 } from './transfer'
 
-const cond: MedicalRecord = { id: 'live:conditions:rec_1', category: 'conditions', sourceRecordId: 'rec_1', sourceName: 'Clinic', date: '2021-03-12', codes: [], syncedAt: 'now', synthetic: false, name: 'Example condition', status: 'active', verificationStatus: 'confirmed', severity: null, onsetDate: '2021-03-12', recordedDate: null }
+const cond: MedicalRecord = { id: 'live:conditions:rec_000000000000000000000001', category: 'conditions', sourceRecordId: 'provider-source-1', sourceName: 'Clinic', date: '2021-03-12', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'Example condition', status: 'active', verificationStatus: 'confirmed', severity: null, onsetDate: '2021-03-12', recordedDate: null }
+const connection = { ...defaultConnection(), mode: 'live' as const, status: 'connected' as const, relayBaseUrl: 'https://relay.test', categories: ['conditions'] as const, subject: 'u_0123456789abcdef' }
+// Use mutable categories in the actual ExportPayloadV2 factory.
+const payload = (): ExportPayloadV2 => ({ app: 'lunara' as const, v: 2 as const, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [], healthProfiles: [], regimenRecords: [], missedDoseEvents: [], medicalRecords: [cond], recordsConnection: { ...connection, categories: [...connection.categories] } })
+
+beforeEach(async () => {
+    installLifecycleLocks()
+  for (const table of db.tables) await table.clear()
+})
 
 describe('transfer v2', () => {
-  beforeEach(async () => {
-    await db.dailyLogs.clear()
-    await db.settings.clear()
-    await clearRecords()
-    await deleteKeyStore()
-  })
-
-  it('exports opened records and the connection without pendingSession', async () => {
-    await putSnapshot([cond], ['conditions'], { status: 'connected', mode: 'live', subject: 'u_x', pendingSession: { id: 'cs_1', externalId: 'e', categories: ['conditions'], startedAt: 'now' } })
-    const payload = await collectExport()
-    expect(payload.v).toBe(2)
-    expect(payload.medicalRecords).toEqual([cond])
-    expect(payload.recordsConnection).toMatchObject({ status: 'connected', subject: 'u_x' })
-    expect(payload.recordsConnection).not.toHaveProperty('pendingSession')
-  })
-
-  it('imports a v2 payload', async () => {
-    await applyImport({ app: 'lunara', v: 2, exportedAt: 'now', dailyLogs: [{ date: '2026-01-01', flow: 'light' }], settings: [], contentBookmarks: [], medicalRecords: [cond], recordsConnection: { id: 'primary', mode: 'live', status: 'connected', categories: ['conditions'], sources: [], consentReceiptIds: [], warnings: [] } })
+  it('restores a viewable snapshot with an imported disconnected connection', async () => {
+    await applyImport(payload())
     expect(await listRecords('conditions')).toEqual([cond])
-    expect((await getConnection()).status).toBe('connected')
+    expect(await getConnection()).toMatchObject({ status: 'disconnected', subject: connection.subject, relayBaseUrl: connection.relayBaseUrl, importedAt: expect.any(String) })
+    const exported = await collectExport()
+    expect(exported.medicalRecords).toEqual([cond])
+    expect(exported.recordsConnection).not.toBeNull()
+    expect(exported.recordsConnection).not.toHaveProperty('pendingSession')
+    expect(exported.recordsConnection).not.toHaveProperty('creationAttempt')
   })
 
-  it('still imports a v1 payload', async () => {
-    const n = await applyImport({ app: 'lunara', v: 1, exportedAt: 'now', dailyLogs: [{ date: '2026-01-02' }], settings: [], contentBookmarks: [] } as any)
-    expect(n).toBe(1)
-    expect(await db.medicalRecords.count()).toBe(0)
+  it('replaces populated data with empty arrays and preserves an empty connection snapshot', async () => {
+    await applyImport(payload())
+    await applyImport({ ...payload(), medicalRecords: [] })
+    expect(await listRecords()).toEqual([])
+    expect((await collectExport()).recordsConnection).toMatchObject({ subject: connection.subject })
+    await applyImport({ ...payload(), medicalRecords: [], recordsConnection: null })
+    expect((await collectExport()).recordsConnection).toBeNull()
+    expect((await getConnection()).status).toBe('disconnected')
   })
 
-  it('rejects other apps', async () => {
-    await expect(applyImport({ app: 'other', v: 2 } as any)).rejects.toThrow(/Lunara export/)
+  it('v1 preserves existing medical records and their connection', async () => {
+    await applyImport(payload())
+    const before = await getConnection()
+    await applyImport({ app: 'lunara', v: 1, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [] })
+    expect(await listRecords()).toEqual([cond])
+    expect(await getConnection()).toEqual(before)
+  })
+
+  it.each([SK.pinSalt, SK.pinHash, SK.aiKey, 'recoveryCode', SK.biometricLock, SK.deviceUnlockCredential])(
+    'excludes security setting %s on export and import', async (key) => {
+      await db.settings.put({ key, value: 'local-secret' })
+      expect((await collectExport()).settings.some((row) => row.key === key)).toBe(false)
+      await applyImport({ ...payload(), settings: [{ key, value: 'imported-secret' }] })
+      expect(await getSetting(key)).not.toBe('imported-secret')
+      expect(JSON.stringify(await collectExport())).not.toContain('local-secret')
+    },
+  )
+
+  it.each([{ app: 'other', v: 2 }, { app: 'lunara', v: 3 }])('rejects invalid app/version before writes: %j', async (bad) => {
+    await applyImport(payload())
+    const before = await collectExport()
+    await expect(applyImport({ ...payload(), ...bad } as any)).rejects.toThrow()
+    expect((await collectExport()).medicalRecords).toEqual(before.medicalRecords)
   })
 })
+
+afterEach(() => vi.unstubAllGlobals())
+
 ```
+
+Add full round-trip and atomicity cases using canonical schema fixtures, not cast-only skeletal rows:
+
+- Seed populated demo and live snapshots in separate cases; import a different v2 snapshot and assert no old category/source/subject/pending state survives, including categories empty in the import. Preserve only the fresh local generation.
+- Export a real health profile with granted medical-records ledger, regimenRecords and missedDoseEvents. Open a fresh database, import, and compare those canonical tables and opened records to the export; assert the ledger decision is restored, imported connection is viewable and no network ran.
+- Inject a failing Dexie hook on the final imported table write; assert all prior dailyLogs/settings/bookmarks/profile/regimen/adherence/record/connection changes rolled back. Also verify malformed records and unsupported versions are rejected before sealing/writes.
+- Include every excluded security key in one plaintext export/import fixture, plus saved vault secrets/relay-token envelope. Assert none of those values enter exported JSON and import never restores them; validated relay URL does round-trip.
+- Change/import relay A to B with a connected A snapshot and saved A token; assert disconnected status, increased generation, retained records, removed token and zero refresh requests. Hostile-prefix, credentials/query/fragment URL imports reject before writing. Same-URL import does not copy or activate credentials.
+Use Task 2's shared lifecycle test LockManager in this suite and close database handles on completion.
 
 - [ ] **Step 2: Run to verify it fails, implement, run to verify it passes**
 
-Run: `cd app && npx vitest run src/db/transfer.test.ts` → 4 passed. Also `npx tsc --noEmit` (Settings.tsx uses `applyImport`/`collectExport`; types still line up).
+Run: `cd app && npx vitest run src/db/transfer.test.ts` → all stated behaviors pass. Also `npx tsc --noEmit` (Settings.tsx uses `applyImport`/`collectExport`; types still line up).
 
 - [ ] **Step 3: Commit**
 
 ```bash
-git add app/src/db
+git add app/src/db app/src/screens/Onboarding.tsx
 git commit -m "Add the medical-records consent purpose and export format v2"
 ```
 
@@ -2104,33 +2504,56 @@ git commit -m "Add the medical-records consent purpose and export format v2"
 **Interfaces:**
 
 ```ts
-// connect.ts
-export interface ConnectDeps { provider: RecordsProvider; now?: () => string; randomId?: () => string; navigate?: (url: string) => void; sleep?: (ms: number) => Promise<void> }
-export async function grantRecordsConsent(): Promise<void>       // appends {purpose:'medical-records', state:'granted', version:1, decidedAt} to the profile ledger (replacing any prior entry for that purpose) via putHealthProfile
+// connect.ts: public signatures; implement the transaction/state rules below.
+export interface ConnectDeps {
+  provider: RecordsProvider
+  now?: () => string
+  randomId?: () => string
+  navigate?: (url: string) => void
+  sleep?: (ms: number) => Promise<void>
+  monotonicNow?: () => number // polling deadline; default performance.now
+}
+export async function grantRecordsConsent(): Promise<void>
 export async function hasRecordsConsent(): Promise<boolean>
-export async function startConnection(categories: RecordCategory[], deps: ConnectDeps): Promise<'connected' | 'redirected'>
-//   requires hasRecordsConsent() else throws Error('consent-required');
-//   externalId = randomId() (default: 16 random bytes base64url);
-//   returnUrl = `${location.origin}/?records=return&session=`  (sessionId appended after startConnect);
-//   demo: startConnect → completed → syncSnapshot(subject) → 'connected'
-//   live: putConnection({status:'pending', mode:'live', categories, pendingSession}) then navigate(redirectUrl) → 'redirected'
-export async function completePendingConnection(sessionId: string | null, deps: ConnectDeps): Promise<RecordsConnection>
-//   resolves session id from arg or pendingSession; polls provider.getSession every 2 s up to 30 attempts;
-//   'completed' + subject → putConnection({subject, pendingSession: undefined}) then syncSnapshot; terminal → status 'error' with friendly lastError; timeout → 'error' "Still waiting for your provider. Try refreshing."
+export async function startConnection(categories: RecordCategory[], deps: ConnectDeps): Promise<'connected' | 'redirected' | 'error'>
+export async function completePendingConnection(params: ReturnParams, deps: ConnectDeps): Promise<RecordsConnection>
 export async function syncSnapshot(deps: ConnectDeps): Promise<RecordsConnection>
-//   uses connection.subject + connection.categories; on success putSnapshot(records, categories, {status:'connected', sources, consentReceiptIds, lastSyncAt, syncStatus, warnings, skipped, connectedAt: connectedAt ?? now, lastError: undefined});
-//   on RecordsHttpError → putConnection({status: 'error', lastError: message + (retryAfterSeconds ? ` Try again in ${n} seconds.` : '')}); on other errors → generic message. Never rethrows; returns the connection.
+export async function cancelConnection(): Promise<void>
 export async function disconnectAndDelete(): Promise<void>
-//   clearRecords(); ledger entry 'declined' for 'medical-records'
-export function providerFor(connection: RecordsConnection, relay: { baseUrl: string | null; token: string | null }): RecordsProvider
-//   'demo' → createDemoProvider(); 'live' → createRelayProvider (throws Error('relay-required') when baseUrl null)
+export function providerFor(connection: RecordsConnection, relay: { baseUrl: string | null; token: string | null; tokenRelayBaseUrl: string | null }): RecordsProvider
+export class InvalidReturnError extends Error {
+  constructor() { super('This link does not match a connection you started.') }
+}
 ```
+
+Implement in this order:
+
+1. Consent uses the current health-profile ledger; grant replaces that purpose's entry with `{ purpose: 'medical-records', state: 'granted', version: 1, decidedAt }`. Before every network operation require consent and an enabled connection with the captured generation. Live also requires current canonical relay setting = connection.relayBaseUrl = saved token envelope.relayBaseUrl, plus a nonempty token. providerFor enforces that binding; it never sends a token or subject to a changed endpoint. Zero selected/effective categories makes no request.
+2. startConnection validates categories, then transactionally increments generation and persists mode/categories/relay binding before creating anything. Demo sets its known subject and granted categories before calling syncSnapshot(deps). Live persists a random 16-byte base64url externalId and exact creation body in creationAttempt before POST. Return URL is exactly `${location.origin}/?records=return`, with nothing appended. Save the returned live pendingSession in a guarded transaction before navigate(redirectUrl); recheck current generation/consent before navigation. Reject unsafe redirect URLs. A failed sync returns 'error', not 'connected'.
+3. Capture and strip return parameters synchronously in main.tsx before rendering/awaiting. completePendingConnection requires params.isReturn, !params.invalidSession, consent and a stored LIVE pendingSession whose connection binding equals current relay settings and token. If a session parameter is supplied it must equal pendingSession.id; only absence permits fallback. Otherwise throw InvalidReturnError for local UI copy, with no poll or database write. Consumed sessions, disconnect returns and no-pending returns cannot replay.
+4. Capture the persisted generation before polling and pass expectedGeneration on EVERY asynchronous metadata, record and error commit. In the single Dexie write transaction re-read connection and current consent and return without any write if stale or revoked. A local AbortController stops local work promptly; safety across tabs comes from the persisted guard, without BroadcastChannel. Cancel, disconnect, start and wipe increment generation before aborting requests/timers. Cancel clears pending/creation state, sets disconnected and keeps cached rows viewable. Disconnect clears rows/identifying state and declines consent in that same invalidation transaction; keep the nonpersonal generation tombstone.
+5. Poll every 2 seconds within a 60-second monotonic deadline while session status is not terminal OR sync.status is queued/syncing. Completed is session-terminal but queued/syncing is still polled. Terminal failures and failed/reauthorization_required sync take priority and exit to error; reauthorization copy is "Your provider needs you to sign in again. Start again to reconnect." Respect successful/error Retry-After without issuing requests before it elapses or beyond the deadline; clip HTTP timeouts to remaining budget. Terminal sessions clear pendingSession and offer Start again. Timeouts keep it and offer Check again. Persist subject and granted/available/missing categories and failure via guarded writes; snapshot failures retain subject and previous records for Refresh.
+6. Effective = selected ∩ granted, additionally narrowed by snapshot scope; never broaden an empty grant to omitted categories. For complete snapshots call putSnapshot(records, effective, patch). For partial call putSnapshot(records filtered to replaceable categories, effective ∩ snapshot.availableCategories, patch); missing categories retain old rows and are marked not refreshed. For not_started make no record writes or lastSyncAt/connectedAt success update; retain pending when available and offer Check again. Categories whose selection/consent was removed are deleted in that selection-change transaction. On successful complete/partial commit set connected and clear pending/creation/error state while retaining completeness, source, warning, skipped/additional-item and granted metadata.
+7. Creation, polling and snapshot failures go through ONE sanitized error function using guarded putConnection({ expectedGeneration, status: 'error', lastError, recoveryAction, ... }). Map only safe codes/status to copy; never persist raw response messages/stacks. Missing-consent/stale-generation preconditions cannot persist errors because the guard forbids all writes; return 'error' or the current connection and let the UI show the precondition. Invalid returns use InvalidReturnError without persistence. Terminal failures use start-again; timeout uses check-again; snapshot failure uses refresh. Preserve creationAttempt/externalId/body for retrying an ambiguous creation with unchanged categories/relay, even if a new local generation is allocated; definitive terminal failure clears creation state so Start again creates a new external ID. A selection/endpoint change is a new request, not an idempotent retry.
+8. Deduplicate completion and refresh by generation with module-level promises. Concurrent same-page refresh calls return the same promise. For cross-tab refresh ordering, use a Web Lock keyed by generation, re-read generation/consent and lastSyncAt after acquiring it, and skip redundant queued work if another refresh committed since it was requested. Network waits do not hold an IndexedDB transaction. Task 20 additionally deduplicates StrictMode return effects by session ID.
 
 ```ts
 // returnHandler.ts
-export interface ReturnParams { isReturn: boolean; sessionId: string | null }
-export function readReturnParams(search: string): ReturnParams   // parses ?records=return&session=cs_…; sessionId only when it matches /^cs_[a-f0-9]{20}$/, else null
-export function stripReturnParams(): void                        // history.replaceState(null, '', location.pathname) — call before any await
+export interface ReturnParams { isReturn: boolean; sessionId: string | null; invalidSession: boolean }
+export function readReturnParams(search: string): ReturnParams {
+  const params = new URLSearchParams(search)
+  const ids = params.getAll('session')
+  const isReturn = params.getAll('records').includes('return')
+  const invalidSession = isReturn && (params.getAll('records').length !== 1
+    || ids.length > 1 || (ids.length === 1 && !/^cs_[a-f0-9]{20}$/.test(ids[0])))
+  return { isReturn, sessionId: ids.length === 1 ? ids[0] : null, invalidSession }
+}
+export function stripReturnParams(): void {
+  const url = new URL(location.href)
+  url.searchParams.delete('records')
+  url.searchParams.delete('session')
+  history.replaceState(null, '', url.pathname + url.search + url.hash)
+}
 ```
 
 - [ ] **Step 1: Write the failing tests**
@@ -2138,118 +2561,130 @@ export function stripReturnParams(): void                        // history.repl
 ```ts
 // app/src/records/connect.test.ts
 import 'fake-indexeddb/auto'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getHealthProfile } from '../db/schema'
-import { deleteKeyStore } from '../platform/keyStore'
-import { completePendingConnection, disconnectAndDelete, grantRecordsConsent, hasRecordsConsent, startConnection, syncSnapshot } from './connect'
-import type { RecordsProvider } from './providers/types'
-import { RecordsHttpError } from './providers/types'
-import { clearRecords, getConnection, listRecords } from './store'
-import type { MedicalRecord } from './types'
+import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { db, setSetting, SK } from '../db/schema'
+import { setSecureSecret, SECURE_SECRET_KEYS } from '../platform/secureVault'
+import { completePendingConnection, disconnectAndDelete, grantRecordsConsent, startConnection, syncSnapshot } from './connect'
+import { getConnection, listRecords } from './store'
+import type { RecordsProvider, RecordsSnapshot, ConnectSessionState } from './providers/types'
 
-const rec: MedicalRecord = { id: 'demo:labs:o1', category: 'labs', sourceRecordId: 'o1', sourceName: 'S', date: '2026-01-01', codes: [], syncedAt: 'now', synthetic: true, name: 'A1c', value: 6, unit: '%', status: 'final', referenceRange: null, interpretation: null }
-const snapshot = { records: [rec], skipped: 0, sources: [{ system: 'demo', organization: 'Northstar', lastSyncedAt: 'now' }], warnings: [], syncStatus: 'complete' as const, consentReceiptIds: [], synthetic: true }
-
-function demoProvider(): RecordsProvider {
-  return { mode: 'demo', startConnect: vi.fn(async () => ({ sessionId: 'd1', redirectUrl: null, expiresAt: null, completed: true, subject: 'patient-demo-001' })), getSession: vi.fn(), fetchSnapshot: vi.fn(async () => snapshot) }
+const id = 'cs_0123456789abcdef0123'
+const subject = 'u_0123456789abcdef'
+const ret = { isReturn: true, sessionId: null, invalidSession: false }
+const snapshot: RecordsSnapshot = {
+  records: [{ id: 'live:labs:rec_000000000000000000000001', category: 'labs', sourceRecordId: 'lab-source', sourceName: 'Clinic', date: '2026-09-10', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'A1c', value: 6, unit: '%', status: 'final', referenceRange: null, interpretation: null }],
+  skipped: 0, additionalItems: 0, sources: [], warnings: [], syncStatus: 'complete', sync: { status: 'complete' }, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], failure: null, consentReceiptIds: [], synthetic: false,
 }
-function liveProvider(states: Array<{ status: any; subject: string | null }>): RecordsProvider {
-  let i = 0
-  return { mode: 'live', startConnect: vi.fn(async () => ({ sessionId: 'cs_0123456789abcdef0123', redirectUrl: 'https://connect/x', expiresAt: null, completed: false, subject: null })), getSession: vi.fn(async () => ({ id: 'cs_0123456789abcdef0123', ...states[Math.min(i++, states.length - 1)], grantedCategories: [], warnings: [], expiresAt: null })), fetchSnapshot: vi.fn(async () => ({ ...snapshot, synthetic: false })) }
+const completed: ConnectSessionState = { id, status: 'completed', subject, sync: { status: 'complete' }, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], failure: null, warnings: [], expiresAt: null }
+function provider(states: ConnectSessionState[] = [completed]): RecordsProvider {
+  let index = 0
+  return {
+    mode: 'live',
+    startConnect: vi.fn(async () => ({ sessionId: id, redirectUrl: 'https://connect.test/s', expiresAt: null, completed: false, subject: null })),
+    getSession: vi.fn(async () => states[Math.min(index++, states.length - 1)]),
+    fetchSnapshot: vi.fn(async () => snapshot),
+  }
 }
-const deps = { now: () => '2026-09-11T00:00:00Z', randomId: () => 'ext_fixed', sleep: async () => {} }
+let elapsed = 0
+const deps = { now: () => '2026-09-11T00:00:00Z', randomId: () => 'abcdefghijklmnop', navigate: vi.fn(), monotonicNow: () => elapsed, sleep: async (ms: number) => { elapsed += ms } }
 
-describe('connect', () => {
-  beforeEach(async () => {
-    await db.healthProfiles.clear()
-    await db.settings.clear()
-    await clearRecords()
-    await deleteKeyStore()
-    ;(globalThis as any).location = { origin: 'https://app.test' }
+beforeEach(async () => {
+  installLifecycleLocks()
+  for (const table of db.tables) await table.clear()
+  elapsed = 0
+  vi.stubGlobal('location', { origin: 'https://app.test' })
+  await setSetting(SK.recordsRelayUrl, 'https://relay.test')
+  await setSecureSecret(SECURE_SECRET_KEYS.recordsRelayToken, JSON.stringify({ relayBaseUrl: 'https://relay.test', token: 'tok' }))
+  await grantRecordsConsent()
+})
+afterEach(() => vi.unstubAllGlobals())
+
+describe('connection orchestration', () => {
+  it('stores the pending session before navigation with a fixed return URL', async () => {
+    const p = provider()
+    expect(await startConnection(['labs'], { ...deps, provider: p })).toBe('redirected')
+    expect(p.startConnect).toHaveBeenCalledWith({ categories: ['labs'], returnUrl: 'https://app.test/?records=return', externalId: 'abcdefghijklmnop' })
+    expect(await getConnection()).toMatchObject({ mode: 'live', relayBaseUrl: 'https://relay.test', pendingSession: { id }, generation: expect.any(Number) })
   })
 
-  it('requires consent before connecting', async () => {
-    expect(await hasRecordsConsent()).toBe(false)
-    await expect(startConnection(['labs'], { provider: demoProvider(), ...deps })).rejects.toThrow('consent-required')
-    await grantRecordsConsent()
-    expect(await hasRecordsConsent()).toBe(true)
-    expect((await getHealthProfile()).privacy.consentLedger.find((c) => c.purpose === 'medical-records')?.state).toBe('granted')
+  it('waits through queued sync and narrows to the granted categories', async () => {
+    const p = provider([{ ...completed, sync: { status: 'queued' } }, completed])
+    await startConnection(['labs', 'vitals'], { ...deps, provider: p })
+    const done = await completePendingConnection(ret, { ...deps, provider: p })
+    expect(p.getSession).toHaveBeenCalledTimes(2)
+    expect(p.fetchSnapshot).toHaveBeenCalledWith(subject, ['labs'])
+    expect(done.status).toBe('connected')
+    expect(done.pendingSession).toBeUndefined()
+    expect(await listRecords()).toEqual(snapshot.records)
   })
 
-  it('demo mode connects and stores the snapshot in one go', async () => {
-    await grantRecordsConsent()
-    expect(await startConnection(['labs'], { provider: demoProvider(), ...deps })).toBe('connected')
-    expect(await getConnection()).toMatchObject({ mode: 'demo', status: 'connected', subject: 'patient-demo-001', categories: ['labs'], lastSyncAt: deps.now() })
-    expect(await listRecords('labs')).toHaveLength(1)
+  it('rejects unsolicited, mismatched, malformed and replayed sessions without polling', async () => {
+    const p = provider()
+    await expect(completePendingConnection(ret, { ...deps, provider: p })).rejects.toThrow('This link does not match a connection you started.')
+    expect(p.getSession).not.toHaveBeenCalled()
+    await startConnection(['labs'], { ...deps, provider: p })
+    for (const params of [{ ...ret, sessionId: 'cs_ffffffffffffffffffff' }, { ...ret, invalidSession: true }]) {
+      await expect(completePendingConnection(params, { ...deps, provider: p })).rejects.toThrow(/does not match/)
+    }
+    expect(p.getSession).not.toHaveBeenCalled()
+    await completePendingConnection(ret, { ...deps, provider: p })
+    vi.mocked(p.getSession).mockClear()
+    await expect(completePendingConnection({ ...ret, sessionId: id }, { ...deps, provider: p })).rejects.toThrow(/does not match/)
+    expect(p.getSession).not.toHaveBeenCalled()
   })
 
-  it('live mode stores a pending session and redirects', async () => {
-    await grantRecordsConsent()
-    const navigate = vi.fn()
-    const provider = liveProvider([])
-    expect(await startConnection(['labs'], { provider, navigate, ...deps })).toBe('redirected')
-    expect(provider.startConnect).toHaveBeenCalledWith({ categories: ['labs'], returnUrl: 'https://app.test/?records=return&session=', externalId: 'ext_fixed' })
-    expect(navigate).toHaveBeenCalledWith('https://connect/x')
-    expect(await getConnection()).toMatchObject({ mode: 'live', status: 'pending', pendingSession: { id: 'cs_0123456789abcdef0123', externalId: 'ext_fixed' } })
-  })
-
-  it('completes a pending session after polling', async () => {
-    await grantRecordsConsent()
-    const provider = liveProvider([{ status: 'pending', subject: null }, { status: 'completed', subject: 'u_0123456789abcdef' }])
-    await startConnection(['labs'], { provider, navigate: () => {}, ...deps })
-    const c = await completePendingConnection(null, { provider, ...deps })
-    expect(c).toMatchObject({ status: 'connected', subject: 'u_0123456789abcdef' })
-    expect(c.pendingSession).toBeUndefined()
-    expect(provider.getSession).toHaveBeenCalledTimes(2)
-  })
-
-  it('maps terminal session states to an error', async () => {
-    await grantRecordsConsent()
-    const provider = liveProvider([{ status: 'expired', subject: null }])
-    await startConnection(['labs'], { provider, navigate: () => {}, ...deps })
-    expect(await completePendingConnection(null, { provider, ...deps })).toMatchObject({ status: 'error', lastError: expect.stringMatching(/expired/i) })
-  })
-
-  it('records a friendly error when the snapshot fails', async () => {
-    await grantRecordsConsent()
-    const provider = demoProvider()
-    await startConnection(['labs'], { provider, ...deps })
-    ;(provider.fetchSnapshot as any).mockRejectedValueOnce(new RecordsHttpError('The records service is busy. Try again in a minute.', 429, 30, 'rate_limited'))
-    expect(await syncSnapshot({ provider, ...deps })).toMatchObject({ status: 'error', lastError: expect.stringContaining('30 seconds') })
-  })
-
-  it('disconnect deletes everything and declines consent', async () => {
-    await grantRecordsConsent()
-    await startConnection(['labs'], { provider: demoProvider(), ...deps })
+  it('does not recreate rows or errors when disconnected during a fetch', async () => {
+    const p = provider()
+    await startConnection(['labs'], { ...deps, provider: p })
+    await completePendingConnection(ret, { ...deps, provider: p })
+    let release!: (s: RecordsSnapshot) => void
+    let started!: () => void
+    const fetching = new Promise<void>((resolve) => { started = resolve })
+    vi.mocked(p.fetchSnapshot).mockImplementationOnce(() => { started(); return new Promise((resolve) => { release = resolve }) })
+    const refresh = syncSnapshot({ ...deps, provider: p })
+    await fetching
+    const generation = (await getConnection()).generation
     await disconnectAndDelete()
-    expect(await db.medicalRecords.count()).toBe(0)
-    expect((await getConnection()).status).toBe('disconnected')
-    expect((await getHealthProfile()).privacy.consentLedger.find((c) => c.purpose === 'medical-records')?.state).toBe('declined')
+    release(snapshot)
+    await refresh
+    expect(await listRecords()).toEqual([])
+    expect(await getConnection()).toMatchObject({ status: 'disconnected', generation: generation + 1 })
+    expect((await getConnection()).lastError).toBeUndefined()
+    await expect(completePendingConnection(ret, { ...deps, provider: p })).rejects.toThrow(/does not match/)
   })
 })
 ```
+
+Add separate explicit tests for all remaining branches:
+
+- Demo persists mode/subject/categories/generation before fetch and returns connected or error according to sync outcome; no consent or zero categories makes no request.
+- Partial refresh with labs available/medications missing replaces labs but keeps old medications and marks not refreshed; complete empty labs clears only labs; not_started leaves rows and success timestamps untouched. An empty narrowed grant never calls fetchSnapshot. Test queued and syncing separately; test failed and reauthorization_required copy/status.
+- Terminal expired/canceled/failed clears pending and offers Start again (new creation); bounded timeout with Retry-After retains pending and Check again. Snapshot failure keeps subject/rows and Refresh. Creation/poll failure uses only sanitized persisted text. Ambiguous creation retry sends identical externalId/body; changed selection/relay uses a fresh attempt.
+- Suspend sealing or reject a suspended fetch after cancel/disconnect/wipe from an independent client: no records, subject or error writes survive. Verify consent revocation and relay URL changes during work also reject the commit. Simultaneous same-generation refresh calls share work; independent-tab ordering cannot commit an older result over the newer one. Use fake timers with asynchronous advancement for deadline tests and restore all stubbed globals, including location.
 
 ```ts
 // app/src/records/returnHandler.test.ts
 import { describe, expect, it } from 'vitest'
 import { readReturnParams } from './returnHandler'
-
+const id = 'cs_0123456789abcdef0123'
 describe('readReturnParams', () => {
-  it('detects a valid return', () => {
-    expect(readReturnParams('?records=return&session=cs_0123456789abcdef0123')).toEqual({ isReturn: true, sessionId: 'cs_0123456789abcdef0123' })
-  })
-  it('drops malformed session ids but keeps the return flag', () => {
-    expect(readReturnParams('?records=return&session=<script>')).toEqual({ isReturn: true, sessionId: null })
-  })
-  it('ignores unrelated queries', () => {
-    expect(readReturnParams('?preview=onboarding')).toEqual({ isReturn: false, sessionId: null })
+  it('distinguishes valid, absent, malformed and duplicate IDs', () => {
+    expect(readReturnParams(`?records=return&session=${id}`)).toEqual({ isReturn: true, sessionId: id, invalidSession: false })
+    expect(readReturnParams('?records=return')).toEqual({ isReturn: true, sessionId: null, invalidSession: false })
+    expect(readReturnParams('?records=return&session=<script>')).toMatchObject({ isReturn: true, invalidSession: true })
+    expect(readReturnParams('?records=return&session=')).toMatchObject({ invalidSession: true })
+    expect(readReturnParams(`?records=return&session=${id}&session=${id}`)).toMatchObject({ invalidSession: true })
+    expect(readReturnParams('?preview=onboarding')).toEqual({ isReturn: false, sessionId: null, invalidSession: false })
   })
 })
 ```
 
+Also stub history/location to assert synchronous stripping before any render/provider call, preserving unrelated query/hash fields. Test duplicate records parameters as invalid. Return after disconnected state, consumed-session replay and no-pending fallback must each make zero requests.
+
 - [ ] **Step 2: Run to verify they fail, implement both modules, run to verify they pass**
 
-Run: `cd app && npx vitest run src/records/connect.test.ts src/records/returnHandler.test.ts` → 10 passed.
+Run: `cd app && npx vitest run src/records/connect.test.ts src/records/returnHandler.test.ts` → all stated behaviors pass.
 
 - [ ] **Step 3: Commit**
 
@@ -2261,29 +2696,31 @@ git commit -m "Orchestrate FinchNode connections, polling, refresh and disconnec
 ### Task 20: Records tab and screens
 
 **Files:**
-- Modify: `app/src/components/TabBar.tsx`, `app/src/state/appStore.ts`, `app/src/App.tsx`, `app/src/main.tsx`
+- Modify: `app/src/components/TabBar.tsx`, `app/src/state/appStore.ts`, `app/src/App.tsx`, `app/src/main.tsx`, `app/src/styles/app.css`
+- Test: `app/src/components/RecordsReturnHandler.test.ts` (StrictMode/shared completion)
 - Create: `app/src/screens/RecordsScreen.tsx`, `app/src/components/RecordsCategoryList.tsx`, `app/src/components/RecordsReturnHandler.tsx`, `app/src/styles/records.css`
 
 **Interfaces:**
 - `Tab` gains `'records'`; `TABS` inserts `{ id: 'records', label: 'Records', icon: 'M6 4h9l4 4v12H6z M9 12h6M9 16h6' }` before settings.
-- `appStore` gains `recordsCategory: RecordCategory | null`, `setRecordsCategory`, `recordsReturn: { sessionId: string | null } | null`, `setRecordsReturn`.
-- `main.tsx`: before rendering, `const ret = readReturnParams(window.location.search); if (ret.isReturn) { stripReturnParams(); useApp.getState().setRecordsReturn({ sessionId: ret.sessionId }) }`.
-- `App.tsx`: render `<RecordsScreen />` for `tab === 'records'`; render `<RecordsReturnHandler />` (no UI of its own; it runs `completePendingConnection` once when `recordsReturn` is set, switches `tab` to `'records'`, then clears `recordsReturn`).
+- `appStore` gains `recordsCategory: RecordCategory | null`, `setRecordsCategory`, `recordsReturn: ReturnParams | null`, `setRecordsReturn`.
+- `main.tsx`: before rendering, `const ret = readReturnParams(window.location.search); if (ret.isReturn) { stripReturnParams(); useApp.getState().setRecordsReturn(ret) }`.
+- `App.tsx`: render RecordsScreen for the records tab and RecordsReturnHandler when a captured return exists. The handler switches to Records and clears the captured return after completion. Guard StrictMode double-run with a MODULE-LEVEL `inFlight: Map<string, Promise<RecordsConnection>>` keyed by the validated stored pending session ID, not a component ref. Validate consent/relay/pending equality before joining or creating that promise; invalid returns surface the exact mismatch copy without persistence or polling. For an absent URL ID resolve the stored pending ID to use as the key. Remove the map entry in finally only if it still points to that promise. Component cleanup only unsubscribes UI updates; it must not cancel the shared promise or clear a newer return. Task 19 still guards writes by generation.
+- Add a duplicate-handler test: mount/effect, StrictMode cleanup/remount before a suspended poll resolves, then release; assert one completion/poll sequence and one committed snapshot. A later replay after pending is consumed must be rejected. Include two same-session return-handler calls directly if pure helpers are extracted for Node testability.
 - `RecordsScreen` reads the connection via `useLiveQuery(getConnection)`, counts via `useLiveQuery(countByCategory)`, relay settings via `getSetting(SK.recordsRelayUrl)` + `getSecureSecret(SECURE_SECRET_KEYS.recordsRelayToken)`, and renders the four states from spec C5 with these exact strings:
   - Heading: "Your medical records"
-  - Intro: "Bring conditions, medications, labs and more from your provider into Lunara. They stay in this browser, encrypted, and are never sent anywhere else."
-  - Consent checkbox: "I understand that connecting sends my chosen categories to FinchNode (and to my relay in live mode), and that the records are stored only in this browser."
-  - Buttons: "Try with sample data", "Connect my provider" (disabled hint: "Add a relay URL in Settings to connect a real provider."), "Refresh", "Disconnect and delete".
+  - Intro: "Bring conditions, medications, labs and more from your provider into Lunara. Records are encrypted in this browser and are not sent to the AI assistant. They are included when you export a backup or explicitly upload an encrypted backup, and you can choose to include them in a report."
+  - Consent checkbox: "I understand that connecting sends my chosen categories and a random external ID to FinchNode (through my relay in live mode, also with a return URL). Record bodies are encrypted in this browser, are not sent to the AI assistant, are included in exports and explicitly uploaded encrypted backups, and may be included in a report I choose."
+  - Buttons: "Try with sample data", "Connect my provider" (disabled hint: "Save a relay URL and its required token in Settings to connect your provider."), "Refresh", "Disconnect and delete".
   - Demo banner: "Sample data from FinchNode's fictional Northstar Health. Nothing here is about you."
-  - Pending: "Finishing your connection" / "Cancel".
-  - Error card shows `lastError` with "Try again" (calls `syncSnapshot` or `completePendingConnection` depending on `pendingSession`) and "Disconnect".
-  - Source card: organization, "Last synced {date}", `syncStatus === 'partial'` → "Some categories were not available" with the warnings, `skipped > 0` → "{n} items could not be read".
-- `RecordsCategoryList` props `{ category: RecordCategory; onBack(): void }`: header with `CATEGORY_LABELS[category]`, rows: primary line = `name`/`substance`, secondary = category-specific detail (`dosage · status`, `status · onset {date}`, `value unit · {date}` with `referenceRange` muted, `reaction · severity`, `status · {date}`), tertiary = `sourceName`. Empty state: "Nothing in this category from your provider."
+  - Pending: "Finishing your connection" / "Cancel" (calls cancelConnection, invalidating generation before abort). Both connect buttons are disabled without consent or with zero categories. Live also needs a saved token whose relay binding matches the saved URL. For a new live attempt, construct its provider from that matched saved URL/token and let startConnection persist the new connection binding before the first request; providerFor is used for existing pending/refresh connections.
+  - Error card shows lastError and the persisted recoveryAction: "Start again" calls startConnection (with the saved creation body only for an ambiguous retry); "Check again" resumes the matching pending session via completePendingConnection; "Refresh" uses retained subject and previous records. A timeout must not restart creation, and terminal sessions must not keep polling their old ID.
+  - Source card: organization, "Last synced {date}", `syncStatus === 'partial'` → "Some categories were not available" with the warnings, `skipped > 0` → "{n} items could not be read"; additionalItems > 0 → "{n} additional items from your provider are not shown yet". Show missing categories as "not refreshed" and retained rows as previously cached; distinguish not-selected/unavailable/not_started from a successfully refreshed empty category. ImportedAt and disconnected snapshots stay viewable; refresh is disabled until a valid enabled connection with matching relay/token exists.
+- `RecordsCategoryList` props `{ category: RecordCategory; onBack(): void }`: header with `CATEGORY_LABELS[category]`, rows: primary line = `name`/`substance`, secondary = category-specific detail (`dosage · status`, `status · onset {date}`, `value unit · {date}` with `referenceRange` muted, `reaction · severity`, `status · {date}`), tertiary = `sourceName`. Empty state only after a successful available-category refresh: "Nothing in this category from your provider." Missing categories show "Not refreshed" with cached rows when present; unselected categories show "Not selected".
 - Every user-triggered action wraps in try/catch and sets a local `status` string; never `alert()`.
 
 - [ ] **Step 1: Wire the tab, store and return handler; build the screens**
 
-Write the components following the interface above. Reuse existing classes: `.page`, `.card`, `.section-label`, `.cta`, `.overlay` (for the category list). Put new rules in `records.css` under a `.records-` prefix (banner, source card, count grid `grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))`, row layout). Import `records.css` in `main.tsx`.
+Write the components following the interface above. Reuse existing classes: `.page`, `.card`, `.section-label`, `.cta`, `.overlay` (for the category list). Put new rules in `records.css` under a `.records-` prefix (banner, source card, count grid `grid-template-columns: repeat(auto-fill, minmax(140px, 1fr))`, row layout). Import records.css before desktop.css in main.tsx; desktop.css stays last among screen styles. Change the default mobile `.tabbar-inner` grid to `grid-template-columns: repeat(5, minmax(0, 1fr))`; preserve the desktop display:flex override. Include app.css in this task's files.
 
 - [ ] **Step 2: Verify**
 
@@ -2301,20 +2738,22 @@ git commit -m "Add the Records tab with demo and live connection flows"
 **Files:**
 - Create: `app/src/components/PrivacyTable.tsx`, `app/src/privacy/destinations.ts`
 - Modify: `app/src/screens/Settings.tsx`, `app/src/components/DoctorReport.tsx`
+- Test: `app/src/screens/Settings.test.ts` (URL/token binding and endpoint changes)
 
 **Interfaces:**
-- `privacy/destinations.ts` exports `PRIVACY_DESTINATIONS: { destination: string; when: string; sent: string; offByDefault: true }[]` with the six rows from spec section 8 (verbatim text) — the single source used by the UI and copied into `PRIVACY.md`.
+- `privacy/destinations.ts` exports `PRIVACY_DESTINATIONS: { destination: string; when: string; sent: string; offByDefault: true }[]` with the six rows from spec section 8. Correct the demo row to "Chosen categories and a random external ID"; encrypted backup uploads include imported records and occur only through the explicit backup action. The live row includes the required token sent only to the relay. Carry the same wording into PRIVACY.md and the Records consent explanation.
 - `PrivacyTable` renders that array as a responsive table (`<table class="privacy-table">`, stacked rows under 560px).
 - Settings gains two cards:
-  - "Medical records": relay URL input (validated `https://` or localhost, saved to `SK.recordsRelayUrl` on blur), relay token password input (saved to the vault key `records-relay-token`; shows "Saved" / "Not set", never echoes the value), current mode line, link button "Open Records".
-  - "Privacy and data": `<PrivacyTable />` plus a paragraph "Full details in PRIVACY.md in the repository." The existing "Delete all data" handler additionally calls `clearRecords()` and `destroySecureVault()`.
-- DoctorReport gains `includeProviderRecords` (default `false`) next to the other opt-ins, labelled "Records from your provider". When on, render a section "Records from your provider" with three sub-lists (active conditions, active medications, allergies) from `listRecords(...)`, each row `name — status — date — source`, and a footnote "Imported via FinchNode on {lastSyncAt}. Not verified by Lunara." When the connection is demo, prefix the footnote with "Sample data. ".
+  - "Medical records": use Task 16's new URL canonicalizer on blur (HTTPS or exact localhost/127.0.0.1 HTTP; no credentials/query/fragment). Save through a helper that compares the old canonical URL in the settings/connection transaction. When it changes, increment generation, set a live connection disconnected, clear pending/creation state, keep records/subject for local viewing and disable refresh. Then delete the old token from the vault. The password field is required for live mode; save JSON `{ relayBaseUrl: canonicalUrl, token }` under records-relay-token, show "Saved" / "Not set" without echoing it, and report saved only for the current matching endpoint. Use Task 2's shared lifecycle for token operations. A canonical-equivalent URL does not disconnect. Live connect also requires the saved matching token. Include mode and Open Records link.
+  - URL/token edits and imports share the binding rules: never forward an old subject/token to a new relay. Add tests for relay A→B, removal, canonical-equivalent URLs, hostile localhost prefixes, saved-token validation and refresh disabled with cached rows still viewable. Coordinate token saves versus URL changes with a Web Lock named lunara-relay-settings and re-read settings before saving; a stale form cannot bind a token to an endpoint selected by another tab.
+  - "Privacy and data": `<PrivacyTable />` plus a paragraph "Full details in PRIVACY.md in the repository." Use the existing wipe flow already completed in Tasks 6 and 17, including its blocked-delete message and lifecycle coordination.
+- DoctorReport gains `includeProviderRecords` (default `false`) next to the other opt-ins, labelled "Records from your provider". Only when ticked, render a section "Records from your provider" inside DoctorReport's Task 6 `.print-root` with three sub-lists (active conditions, active medications, allergies) from `listRecords(...)`, each row `name — status — date — source`, and a footnote "Imported via FinchNode on {lastSyncAt}. Not verified by Lunara." When the connection is demo, prefix the footnote with "Sample data. ". Fetch opt-in data with loading/error state; export remains disabled until all requested report data loaded successfully. Unticking removes the section and cancels/ignores pending loads. Do not leave hidden provider records in the printable tree.
 
 - [ ] **Step 1: Implement the three changes**
 
 - [ ] **Step 2: Verify**
 
-Run: `cd app && npx tsc --noEmit && npx vitest run && npx vite build`; in the browser: set a relay URL, confirm it persists after reload; open the doctor's report with the demo connection, toggle the provider-records section, print preview shows it.
+Run: `cd app && npx tsc --noEmit && npx vitest run && npx vite build`; in the browser: set a relay URL, confirm it persists after reload; open the doctor's report with the demo connection, toggle the provider-records section. Verify portrait and landscape print previews contain the section only when ticked, never underlying app screens or scrims, and export is disabled during load/failure. Changing the relay removes its old token and disables refresh without deleting the visible snapshot.
 
 - [ ] **Step 3: Commit**
 
@@ -2328,13 +2767,13 @@ git commit -m "Add records settings, the privacy table, and provider records in 
 **Files:**
 - Create: `workers/records-relay/package.json`, `workers/records-relay/wrangler.toml`, `workers/records-relay/src/index.js`, `workers/records-relay/src/index.test.js`, `workers/records-relay/README.md`
 
-**Interfaces:** routes and validation from spec C2. `export default { fetch(request, env) }`. Env: `FINCHNODE_API_KEY` (secret), `ALLOWED_ORIGINS`, `RELAY_CLIENT_TOKEN` (optional), `FINCHNODE_BASE_URL` (default `https://api.finchnode.com/api/v1`). `package.json` mirrors `workers/backup/package.json` with name `@lunara/records-relay-worker`. `wrangler.toml`: `name = "lunara-records-relay"`, `main = "src/index.js"`, `compatibility_date = "2026-01-01"`, `[vars] ALLOWED_ORIGINS = "http://localhost:5173"`, and a comment `# wrangler secret put FINCHNODE_API_KEY`.
+**Interfaces:** routes and validation from spec C2. `export default { fetch(request, env) }`. Env: `FINCHNODE_API_KEY` (secret), `ALLOWED_ORIGINS`, `RELAY_CLIENT_TOKEN` (required high-entropy secret), `FINCHNODE_BASE_URL` (default `https://api.finchnode.com/api/v1`). `package.json` mirrors `workers/backup/package.json` with name `@lunara/records-relay-worker`. `wrangler.toml`: `name = "lunara-records-relay"`, `main = "src/index.js"`, `compatibility_date = "2026-01-01"`, `[vars] ALLOWED_ORIGINS = "http://localhost:5173"`, and comments for `wrangler secret put FINCHNODE_API_KEY` and `wrangler secret put RELAY_CLIENT_TOKEN`. Neither secret belongs in [vars]. This is one owner using a dedicated FinchNode application; a shared deployment for independent users requires per-user authentication and subject/session ownership checks before live use. Missing secret configuration returns 503; absent/incorrect token returns 401 before any upstream call. Exact Origin allowlisting is an additional browser restriction, not authentication.
 
 - [ ] **Step 1: Write the failing tests**
 
 ```js
 // workers/records-relay/src/index.test.js
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import worker from './index.js'
 
 const env = { FINCHNODE_API_KEY: 'ck_test_placeholder', ALLOWED_ORIGINS: 'https://app.example', RELAY_CLIENT_TOKEN: 'tok' }
@@ -2342,9 +2781,11 @@ const origin = { origin: 'https://app.example', 'x-lunara-relay-token': 'tok' }
 let upstream
 
 beforeEach(() => {
-  upstream = vi.fn(async () => new Response(JSON.stringify({ id: 'cs_0123456789abcdef0123', url: 'https://connect/x', expiresAt: 'later', status: 'pending', object: 'connect_session' }), { status: 201, headers: { 'content-type': 'application/json' } }))
-  globalThis.fetch = upstream
+  upstream = vi.fn(async () => new Response(JSON.stringify({ id: 'cs_0123456789abcdef0123', url: 'https://connect/x', expiresAt: '2026-09-12T00:00:00Z', status: 'pending', object: 'connect_session' }), { status: 201, headers: { 'content-type': 'application/json' } }))
+  vi.stubGlobal('fetch', upstream)
 })
+
+afterEach(() => vi.unstubAllGlobals())
 
 const call = (method, path, body, headers = origin) =>
   worker.fetch(new Request(`https://relay.test${path}`, { method, headers: { 'content-type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined }), env)
@@ -2359,43 +2800,75 @@ describe('records relay', () => {
     expect(bad.status).toBe(403)
   })
 
-  it('requires the client token when configured', async () => {
-    const res = await call('POST', '/v1/connect/sessions', { categories: ['labs'], returnUrl: 'https://app.example/?records=return&session=', externalId: 'abcdefghijklmnop' }, { origin: 'https://app.example' })
+  it('requires the client token before all upstream access', async () => {
+    const res = await call('POST', '/v1/connect/sessions', { categories: ['labs'], returnUrl: 'https://app.example/?records=return', externalId: 'abcdefghijklmnop' }, { origin: 'https://app.example' })
     expect(res.status).toBe(401)
     expect(upstream).not.toHaveBeenCalled()
   })
 
+  it('rejects missing server configuration and incorrect client tokens', async () => {
+    const request = new Request('https://relay.test/v1/connect/sessions/cs_0123456789abcdef0123', { headers: origin })
+    expect((await worker.fetch(request, { ...env, RELAY_CLIENT_TOKEN: undefined })).status).toBe(503)
+    expect((await call('GET', '/v1/connect/sessions/cs_0123456789abcdef0123', undefined, { ...origin, 'x-lunara-relay-token': 'wrong' })).status).toBe(401)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it('rejects claims rather than filtering an unsupported category', async () => {
+    const res = await call('POST', '/v1/connect/sessions', { categories: ['labs', 'claims'], returnUrl: 'https://app.example/?records=return', externalId: 'abcdefghijklmnop' })
+    expect(res.status).toBe(400)
+    expect(upstream).not.toHaveBeenCalled()
+  })
+
+  it.each([undefined, [], ['labs', 'labs'], ['claims'], ['labs', ''], 'labs'])(
+    'rejects missing, empty, duplicate or malformed POST categories: %j', async (categories) => {
+      expect((await call('POST', '/v1/connect/sessions', { categories, returnUrl: 'https://app.example/?records=return', externalId: 'abcdefghijklmnop' })).status).toBe(400)
+      expect(upstream).not.toHaveBeenCalled()
+    },
+  )
+  it.each(['', '?categories=', '?categories=labs,labs', '?categories=claims', '?categories=labs&categories=vitals', '?categories=labs,'])(
+    'rejects invalid snapshot category query %s', async (query) => {
+      expect((await call('GET', `/v1/users/u_0123456789abcdef/records${query}`)).status).toBe(400)
+      expect(upstream).not.toHaveBeenCalled()
+    },
+  )
+
   it('creates a connect session with an allowlisted body and bearer key', async () => {
-    const res = await call('POST', '/v1/connect/sessions', { categories: ['labs', 'claims'], returnUrl: 'https://app.example/?records=return&session=', externalId: 'abcdefghijklmnop', evil: true })
+    const res = await call('POST', '/v1/connect/sessions', { categories: ['labs'], returnUrl: 'https://app.example/?records=return', externalId: 'abcdefghijklmnop', evil: true })
     expect(res.status).toBe(201)
-    expect(await res.json()).toEqual({ id: 'cs_0123456789abcdef0123', url: 'https://connect/x', expiresAt: 'later', status: 'pending' })
+    expect(await res.json()).toEqual({ id: 'cs_0123456789abcdef0123', url: 'https://connect/x', expiresAt: '2026-09-12T00:00:00Z', status: 'pending' })
     const [url, init] = upstream.mock.calls[0]
     expect(url).toBe('https://api.finchnode.com/api/v1/connect/sessions')
     expect(init.headers.authorization).toBe('Bearer ck_test_placeholder')
     expect(init.headers['idempotency-key']).toBe('abcdefghijklmnop')
-    expect(JSON.parse(init.body)).toEqual({ categories: ['labs'], returnUrl: 'https://app.example/?records=return&session=', externalId: 'abcdefghijklmnop', syncMode: 'one-time', durationDays: 365 })
+    expect(JSON.parse(init.body)).toEqual({ categories: ['labs'], returnUrl: 'https://app.example/?records=return', externalId: 'abcdefghijklmnop', syncMode: 'one-time', durationDays: 365 })
   })
 
   it('rejects return urls outside the allowed origins and bad ids', async () => {
-    expect((await call('POST', '/v1/connect/sessions', { categories: ['labs'], returnUrl: 'https://evil.example/', externalId: 'abcdefghijklmnop' })).status).toBe(400)
+    for (const returnUrl of ['https://evil.example/', 'https://app.example.evil/?records=return', 'https://app.example@evil.test/', 'https://user:pass@app.example/', 'https://app.example:8443/', `https://app.example/?x=${'x'.repeat(2048)}`]) {
+      expect((await call('POST', '/v1/connect/sessions', { categories: ['labs'], returnUrl, externalId: 'abcdefghijklmnop' })).status).toBe(400)
+    }
     expect((await call('GET', '/v1/connect/sessions/nope')).status).toBe(400)
     expect((await call('GET', '/v1/users/u_zz/records')).status).toBe(400)
   })
 
   it('proxies session state and snapshots with no-store and passes rate-limit headers', async () => {
-    upstream.mockResolvedValueOnce(new Response(JSON.stringify({ id: 'cs_0123456789abcdef0123', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'complete', grantedCategories: ['labs'], warnings: [] }, categories: ['labs'] }), { status: 200 }))
+    upstream.mockResolvedValueOnce(new Response(JSON.stringify({ id: 'cs_0123456789abcdef0123', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'complete', syncId: null, startedAt: null, completedAt: null, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], failure: null, warnings: [] }, categories: ['labs'] }), { status: 200 }))
     const s = await call('GET', '/v1/connect/sessions/cs_0123456789abcdef0123')
-    expect(await s.json()).toEqual({ id: 'cs_0123456789abcdef0123', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'complete', grantedCategories: ['labs'], warnings: [] } })
+    expect(await s.json()).toEqual({ id: 'cs_0123456789abcdef0123', status: 'completed', subject: 'u_0123456789abcdef', expiresAt: null, sync: { status: 'complete', syncId: null, startedAt: null, completedAt: null, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], failure: null, warnings: [] } })
     upstream.mockResolvedValueOnce(new Response('{"object":"health_record"}', { status: 200, headers: { 'ratelimit-remaining': '9', 'retry-after': '1' } }))
     const r = await call('GET', '/v1/users/u_0123456789abcdef/records?categories=labs,vitals')
     expect(upstream.mock.calls[1][0]).toBe('https://api.finchnode.com/api/v1/users/u_0123456789abcdef/records?categories=labs%2Cvitals')
     expect(r.headers.get('cache-control')).toBe('private, no-store')
     expect(r.headers.get('ratelimit-remaining')).toBe('9')
+    expect(r.headers.get('retry-after')).toBe('1')
+    expect(r.headers.get('access-control-expose-headers')).toMatch(/retry-after/i)
+    expect(r.headers.get('access-control-expose-headers')).toMatch(/ratelimit-remaining/i)
+    expect(r.headers.get('vary')).toMatch(/origin/i)
   })
 
   it('forwards upstream errors without leaking the key', async () => {
-    upstream.mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: 'consent_expired', message: 'x' } }), { status: 410 }))
-    const r = await call('GET', '/v1/users/u_0123456789abcdef/records')
+    upstream.mockResolvedValueOnce(new Response(JSON.stringify({ error: { type: 'invalid_request_error', code: 'consent_expired', message: 'Consent expired', requestId: 'req_1' } }), { status: 410 }))
+    const r = await call('GET', '/v1/users/u_0123456789abcdef/records?categories=labs')
     expect(r.status).toBe(410)
     expect(await r.text()).not.toContain('ck_test')
   })
@@ -2404,11 +2877,18 @@ describe('records relay', () => {
 
 - [ ] **Step 2: Run to verify they fail, implement `src/index.js`, run to verify they pass**
 
-Run: `cd workers/records-relay && pnpm install && pnpm test` → 6 passed. Implementation notes: build `categories` with a fixed allowlist array of the seven categories; `timingSafeEqual` via `crypto.subtle.digest` comparison of SHA-256 of both tokens; forward only the whitelisted response fields for sessions; snapshots are streamed through as-is with `content-type: application/json` and `cache-control: private, no-store`; copy `retry-after`, `ratelimit-limit`, `ratelimit-remaining`, `ratelimit-reset` from upstream when present; a 403 for disallowed origins on every method.
+Add actual-request tests for missing and disallowed Origin with valid tokens, malformed JSON, a body over the explicit 16 KiB limit (including streamed bodies without Content-Length), upstream fetch rejection/timeouts, complete local/upstream error envelopes, no-store on errors/sessions/snapshots and browser-visible Retry-After. Test exact return origin against both Origin and ALLOWED_ORIGINS when the allowlist contains two valid origins: a return to the other allowed origin is still rejected for this request. Test missing FINCHNODE_API_KEY as 503 too.
+
+Run: `cd workers/records-relay && pnpm install && pnpm test` → authentication, origin, strict category, envelope and header behaviors pass. Implement:
+
+- Validate required secret configuration first (503); OPTIONS uses exact Origin preflight without asking for the client token header value. Every actual route authenticates the required token (401) before upstream access and validates a present allowlisted Origin (403). Compare SHA-256 digests with a full fixed-length XOR/OR accumulation over all 32 bytes, returning equality only after the loop; no early-return byte comparison.
+- Parse URLs with new URL. Return URL must be credential-free, at most 2048 characters, and have origin exactly equal to request Origin and an ALLOWED_ORIGINS entry. Strictly require supported, nonempty, unique categories on POST and exactly one comma-separated categories query on snapshot GET. Reject invalid input with 400; never filter unsupported entries or omit the upstream filter. Limit/validate JSON bodies and allowlist outbound fields.
+- Forward only whitelisted session fields: id/status/subject/expiresAt and the full validated sync metadata including status, granted/available/missing categories, warnings and failure. Stream snapshots as JSON. Upstream fetch is bounded (10 seconds), with redirects rejected and no cookies; map local network failures to sanitized api_error envelopes.
+- Copy AND expose Retry-After, RateLimit-Limit, RateLimit-Remaining and RateLimit-Reset via Access-Control-Expose-Headers. Include Vary: Origin and Cache-Control: private, no-store on sessions, snapshots and all error responses. Local errors use `{ error: { type: 'invalid_request_error' | 'api_error', code, message, requestId } }`; upstream error fixtures use that complete vendored envelope and never include a real secret. Expose headers on errors too so browser polling can honor backoff.
 
 - [ ] **Step 3: README**
 
-Write `workers/records-relay/README.md` following spec C2's README bullet list, with a "What the relay can and cannot see" section and the exact `wrangler` commands.
+Write workers/records-relay/README.md with single-owner/dedicated-app scope, setup/category allowlisting, both secret commands, exact origin configuration, deployment and required saved URL/token. Include "What the relay can and cannot see": trusted operator can see records in transit, stores nothing. Explain that Origin is not authentication and a deployment serving independent users needs per-user authentication and subject/session ownership checks.
 
 - [ ] **Step 4: Commit**
 
@@ -2425,7 +2905,9 @@ git commit -m "Add the stateless FinchNode records relay Worker"
 
 - [ ] **Step 1: Write PRIVACY.md**
 
-Sections: "Summary" (three sentences), "What leaves your browser" (the table generated from `PRIVACY_DESTINATIONS`, same wording), "What is stored and how" (Dexie tables; sealed records and secrets; the browser-managed key; PIN and device unlock are screen gates), "Threat model" (spec section 8 paragraph), "Medical records via FinchNode" (demo vs live, the relay, FinchNode's own consent receipts and how to revoke at the source), "Deleting your data" (Disconnect and delete; Delete all data; clearing site data), "No tracking" (no analytics, cookies, third-party scripts; CSP enforced by `_headers`).
+Sections: "Summary" (three sentences), "What leaves your browser" (the table generated from `PRIVACY_DESTINATIONS`, same wording), "What is stored and how" (medical-record bodies and vault secrets are sealed; record IDs/categories/dates and connection metadata—including organizations, warnings, subjects and pending-session identifiers—remain plaintext in IndexedDB; existing daily logs and health profiles are also not sealed; the browser-managed key; PIN/device unlock only gate the screen, without server signature verification), "Threat model" (spec section 8 paragraph), "Medical records via FinchNode" (demo vs live, the relay, FinchNode's own consent receipts and how to revoke at the source), "Deleting your data" (Disconnect and delete; Delete all data; clearing site data), "No tracking" (no analytics, cookies, third-party scripts; CSP enforced by `_headers`).
+
+State explicitly that exports contain opened medical records plus canonical healthProfiles, regimenRecords and missedDoseEvents, with all listed security settings excluded; backup uploads encrypt this whole payload and occur only through the backup action. Do not describe the entire local database as encrypted. Repeat Task 20's introduction/consent privacy statements and single-owner relay authentication/binding limitations.
 
 - [ ] **Step 2: README**
 
@@ -2450,6 +2932,13 @@ git commit -m "Document privacy guarantees and the FinchNode records setup"
 
 ## Plan self-review
 
-- **Spec coverage:** A1 → T6; A2 → T1–T3; A3 → T4; A4 → T5; A5 → T7; A6 → T12; B1 → T9; B2/B3 → T10–T11; C1 → T16; C2 → T22; C3 → T13–T15; C4 → T17–T18; C5 → T20–T21; C6 → T16/T19/T20; D → T21/T23; testing section → each task; phasing → three phases with a final verification in T23. Phase 4 (adversarial review) is run by the orchestrator, not this plan.
-- **Type consistency:** `RecordsConnection`, `MedicalRecord`, `RecordsProvider`, `RecordsSnapshot`, `SealedBlob`, `getSealingKey`, `putSnapshot`, `listRecords`, `getConnection`, `clearRecords`, `normalizeCategories`, `recordId`, `RecordsHttpError` are defined once (T1, T2, T13, T16, T17) and used with those names in T18–T21.
-- **Known judgement calls left to the implementer:** exact class names in `app.css` for T11/T12; which Onboarding step ids belong to the Apple Health import in T6; the shape of the hand-written FinchNode fixture in T15 (must satisfy the vendored schema).
+- **Structure:** header, Global Constraints, file structure, Tasks 1–23 with checkbox steps and this self-review retained. Task 8 points to Task 23. Verification uses behavioral expectations rather than stale test-suite totals. This document is self-contained; implementing agents do not need the saved review.
+- **Spec coverage:** section 5 A1 → T6; A2 → T1–T3/T17; A3 → T4/T6; A4 → T5/T6; A5 → T7/T16; A6 → T6/T12/T20/T21. Section 6 B1 → T9; B2/B3 → T10/T11. Section 7 C1 → T16/T19/T20; C2 → T16/T21/T22; C3 → T13–T16; C4 → T17–T19/T21; C5 → T20/T21; C6 → T16/T19/T20. Sections 8/11 → T8/T18/T21–T23; section 9 → each task's behavior tests. Phase 4 adversarial review remains the orchestrator's final implementation review.
+- **B1–B5:** required single-owner token/503/401 and dedicated app (T16/T21/T22); exact parsed relay/return URLs, token/connection bindings and endpoint invalidation (T16/T18/T19/T21/T22); fixed return URL plus invalidSession, replay/no-pending checks (T19/T20); generation guarded transactions, invalidation before abort, cross-tab safety and StrictMode promise dedupe (T17/T19/T20); atomic key winner, versionchange, shared lifecycle and blocked-wipe errors (T2/T3/T6/T17/T21).
+- **B6–B10:** complete security-setting exclusion list and vault-free transfer (T18); validate/seal-before-transaction v1 preservation/v2 full replacement/imported views (T18); independent session/sync states, effective categories and complete/partial/not_started rules (T13/T15–T20); initialized demo state and recoverable sanitized errors/idempotent creation retry (T19/T20); strict relay filters plus provider/normalizer/UI category boundaries (T13–T16/T19/T20/T22).
+- **B11–B15:** isolated print roots and opt-in/load guards (T6/T21); initial-ready lock plus synchronous hide and generation-checked unlock (T6); memory-label/type cleanup and precise Onboarding subsection removal without StepId changes (T6); visible device enrollment/web reminders and vault destruction in the early wipe migration (T6); startup/restored/rolling scheduler, tags, bounded registration lookup, stop-before-wipe and strict time syntax (T5/T6).
+- **B16–B20:** Node-safe global stubs/restoration and asynchronous timers (T4/T5/T19); serialized and built SW checks plus omit/no-store/error HTTP (T7/T16); flex rail, root scrims, scrolling/animation, stylesheet order and mobile five-tab grid (T12/T20); explicit live normalization/stable identity/demographics/consistent fixture and unsupported-array disclosure (T13/T15/T16/T20); LOINC-keyed exact/reversed BP, labeled other components and one-sided ranges (T14).
+- **N1–N4:** effective heading/font/CTA/phase/chart/health CSS and computed-style checks (T9–T12); accurate demo/export/backup/report/AI privacy text (T20/T21/T23); exact plaintext/encryption boundary (T8/T17/T23); raw WebAuthn ID/type/null verification and honest screen-gate copy (T4/T6).
+- **N5–N8:** exposed rate-limit headers, full envelopes and Worker security/error tests (T16/T22); canonical profile/regimen/adherence v2 round trip without overriding restored ledger decisions (T18); locked TypeScript 5.9.3, ES2024+DOM libs and tsc in the FHIR task (T14); closed raw handles, explicit demographics fixtures, true v3 migration/no-write liveQuery, corrected task reference and behavioral verification (T3/T8/T15/T17 and test steps throughout).
+- **Contract consistency:** SyncDetails/RecordsSnapshot distinguish sync.status from snapshot completeness; RecordsConnection includes generation/relayBaseUrl/importedAt and recovery metadata; guarded ConnectionPatch carries expectedGeneration but never stores it. All completion/error writes use the same consent/generation transaction guard; import is a deliberate full replacement with a new generation, prepared ciphertext and all tables in one transaction. The minimal generation tombstone prevents ABA after cancel/disconnect/wipe. Token envelopes are always bound and excluded from transfers.
+- **Resolved decisions:** one owner/dedicated FinchNode app; live extra arrays are counted and disclosed, not displayed. Demo FHIR DiagnosticReport inside labs retains its existing lab mapping. The exact Onboarding StepIds, real CSS selectors and version-3 tables are specified above. No BroadcastChannel and no additional consent-versus-authorization restriction were added. Imported snapshots remain viewable; explicit connection may use the user's restored granted ledger and must satisfy endpoint/token checks.
