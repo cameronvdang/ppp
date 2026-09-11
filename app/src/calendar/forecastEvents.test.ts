@@ -4,6 +4,7 @@ import { buildIcs } from './ics'
 // app/src/calendar/forecastEvents.test.ts
 import { describe, expect, it } from 'vitest'
 import { forecastCalendarEvents } from './forecastEvents'
+import { buildCycleForecast } from '../engine/cycleForecast'
 
 const eligible = { periodForecast: true, ovulationForecast: true, fertileWindow: true, pregnancyChanceEstimate: false }
 const prediction = { nextPeriodStart: '2026-09-25', ovulationDate: '2026-09-11', fertileWindow: { start: '2026-09-07', end: '2026-09-12' }, uncertaintyDays: 2, cycleDay: 15, averageCycleLength: 28, source: 'basic' as const }
@@ -14,10 +15,11 @@ describe('forecastCalendarEvents', () => {
     const ev = forecastCalendarEvents({ prediction, eligibility: eligible, diagnostics }, { cycles: 1, discreet: true })
     expect(ev.map((e) => [e.uid, e.summary, e.start, e.end])).toEqual([
       ['ppp-a-0@ppp.local', 'PPP', '2026-09-23', '2026-09-27'],
-      ['ppp-b-0@ppp.local', 'PPP +', '2026-09-06', '2026-09-12'],
-      ['ppp-c-0@ppp.local', 'PPP ○', '2026-09-10', '2026-09-12'],
+      ['ppp-b-0@ppp.local', 'PPP +', '2026-09-07', '2026-09-12'],
+      ['ppp-c-0@ppp.local', 'PPP ○', '2026-09-11', '2026-09-11'],
     ])
     expect(ev[0].description).toBe('Estimate from PPP, ±2 days.')
+    expect(ev.every(e => e.description === 'Estimate from PPP, ±2 days.')).toBe(true)
     expect(ev.every(e => e.kind === undefined)).toBe(true)
   })
   it('shifts later cycles by the cycle length and widens the period window', () => {
@@ -26,11 +28,25 @@ describe('forecastCalendarEvents', () => {
     expect(periods.map((e) => [e.start, e.end])).toEqual([['2026-09-23', '2026-09-27'], ['2026-10-19', '2026-10-27'], ['2026-11-14', '2026-11-26']])
     expect(periods[2].summary).toBe('Period expected')
     expect(periods[2].description).toBe('Estimate from PPP, ±6 days. Not for contraception.')
+    expect(ev.filter(e => e.kind === 'fertile').map(e => [e.start, e.end])).toEqual([
+      ['2026-09-07', '2026-09-12'], ['2026-10-05', '2026-10-10'], ['2026-11-02', '2026-11-07'],
+    ])
+    expect(ev.filter(e => e.kind === 'ovulation').map(e => [e.start, e.end])).toEqual([
+      ['2026-09-11', '2026-09-11'], ['2026-10-09', '2026-10-09'], ['2026-11-06', '2026-11-06'],
+    ])
+    expect(ev.filter(e => e.kind !== 'period').every(e => e.description === 'Estimate from PPP, ±2 days. Not for contraception.')).toBe(true)
   })
   it('omits fertility events when not eligible and everything when the period forecast is off', () => {
     expect(forecastCalendarEvents({ prediction, eligibility: { ...eligible, fertileWindow: false, ovulationForecast: false }, diagnostics }, { cycles: 2, discreet: true }).every((e) => e.uid.startsWith('ppp-a-'))).toBe(true)
     expect(forecastCalendarEvents({ prediction, eligibility: { ...eligible, periodForecast: false }, diagnostics }, { cycles: 2, discreet: true })).toEqual([])
   })
+})
+
+it('exports prediction dates for the three-start regression, never diagnostic ranges', () => {
+  const forecast = buildCycleForecast({ periodStarts: ['2026-07-01', '2026-07-29', '2026-08-26'], ovulations: [], today: '2026-09-11' })
+  const events = forecastCalendarEvents({ ...forecast, eligibility: eligible }, { cycles: 1, discreet: false })
+  expect(events.find(e => e.kind === 'fertile')).toMatchObject({ start: '2026-09-04', end: '2026-09-09' })
+  expect(events.find(e => e.kind === 'ovulation')).toMatchObject({ start: '2026-09-09', end: '2026-09-09' })
 })
 
 it('uses profile-adjusted uncertainty rather than the raw diagnostic window', () => {

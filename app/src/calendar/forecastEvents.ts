@@ -9,11 +9,11 @@ export function forecastCalendarEvents(f: {
   eligibility: PersonalizedPrediction['eligibility']
   diagnostics: CycleForecastDiagnostics
 }, opts: ForecastEventOptions): IcsAllDayEvent[] {
-  const { prediction: p, eligibility, diagnostics } = f
+  const { prediction: p, eligibility } = f
   if (!eligibility.periodForecast || p.nextPeriodStart === null || p.averageCycleLength < 15) return []
   const cycles = Math.max(1, Math.min(6, Number.isFinite(opts.cycles) ? Math.trunc(opts.cycles) : 3))
-  const fertile = diagnostics.fertileWindowRange ?? p.fertileWindow
-  const ovulation = diagnostics.ovulationWindow ?? (p.ovulationDate ? { start: p.ovulationDate, end: p.ovulationDate } : null)
+  const fertile = p.fertileWindow
+  const ovulation = p.ovulationDate
   const events: IcsAllDayEvent[] = []
   for (let n = 0; n < cycles; n++) {
     const shift = n * p.averageCycleLength
@@ -28,9 +28,9 @@ export function forecastCalendarEvents(f: {
       addDays(p.nextPeriodStart, shift - uncertainty), addDays(p.nextPeriodStart, shift + uncertainty),
       `Estimate from PPP, ±${uncertainty} days.`))
     if (eligibility.fertileWindow && fertile) events.push(event('b', 'fertile', opts.discreet ? 'PPP +' : 'Fertile window (estimate)',
-      addDays(fertile.start, shift), addDays(fertile.end, shift), 'Estimate from PPP.'))
+      addDays(fertile.start, shift), addDays(fertile.end, shift), `Estimate from PPP, ±${p.uncertaintyDays} days.`))
     if (eligibility.ovulationForecast && ovulation) events.push(event('c', 'ovulation', opts.discreet ? 'PPP ○' : 'Ovulation (estimate)',
-      addDays(ovulation.start, shift), addDays(ovulation.end, shift), 'Estimate from PPP.'))
+      addDays(ovulation, shift), addDays(ovulation, shift), `Estimate from PPP, ±${p.uncertaintyDays} days.`))
   }
   return events
 }
