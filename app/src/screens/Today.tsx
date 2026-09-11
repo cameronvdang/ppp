@@ -680,7 +680,7 @@ export function Today() {
         </button>
       </section>
 
-      <section className="today-quick-actions" aria-label={`Log for ${compactDate(selectedDate)}`}>
+      <section className={`today-quick-actions${data.prediction.nextPeriodStart !== null ? ' has-calendar' : ''}`} aria-label={`Log for ${compactDate(selectedDate)}`}>
         <button
           type="button"
           className={data.selectedLog?.flow ? 'quick-action is-recorded' : 'quick-action'}
