@@ -99,7 +99,8 @@ For live records from your provider:
    high-entropy relay client token as Worker secrets, plus exact allowed origins.
 2. Append the relay's exact origin to `connect-src` in `app/public/_headers`
    (or your host's equivalent). No wildcard relay allowance is included.
-3. In **Settings → Medical records**, save the relay URL and its required token.
+3. In **Settings → Medical records**, save the relay URL as **Connector address**
+   and its required token as **Connector key**.
    The token is sealed in the vault and bound to that canonical URL.
 4. Open Records, consent to at least one category, and choose **Connect my provider**.
    Complete Hosted Connect. PPP resumes only the pending session you started,

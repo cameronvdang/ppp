@@ -39,7 +39,7 @@ export async function grantRecordsConsent(): Promise<void> {
 export function providerFor(connection: RecordsConnection, relay: RelaySettings): RecordsProvider {
   if (connection.mode === 'demo') return createDemoProvider()
   const baseUrl = relay.baseUrl ? canonicalizeRelayUrl(relay.baseUrl) : null
-  if (!baseUrl || baseUrl !== connection.relayBaseUrl || relay.tokenRelayBaseUrl !== baseUrl || !relay.token?.trim()) throw new Error('Save a relay URL and its required token in Settings to connect your provider.')
+  if (!baseUrl || baseUrl !== connection.relayBaseUrl || relay.tokenRelayBaseUrl !== baseUrl || !relay.token?.trim()) throw new Error('Save your connector address and key in Settings to connect your provider.')
   return createRelayProvider({ baseUrl, token: relay.token })
 }
 async function currentFor(captured: RecordsConnection, deps: ConnectDeps): Promise<RecordsConnection> {
@@ -103,7 +103,7 @@ async function persistError(c: RecordsConnection, error: unknown, recoveryAction
   if (!(error instanceof StaleOperation)) {
     const lastError = message ?? (error instanceof PollTimeout || (error instanceof DOMException && error.name === 'TimeoutError') ? recoveryAction === 'check-again' ? POLL_TIMEOUT : 'The records service did not respond in time. Try again.'
       : error instanceof RecordsHttpError ? error.status === 429 && c.mode === 'demo' ? DEMO_BUSY : friendlyStatus(error.status)
-      : 'The records service is unavailable right now.')
+      : 'Could not reach your records right now.')
     await putConnection({ ...patch, ...commitGuard(c), status: 'error', lastError, recoveryAction })
   }
   return getConnection()

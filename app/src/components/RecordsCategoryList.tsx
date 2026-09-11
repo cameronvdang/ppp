@@ -20,9 +20,9 @@ export function RecordsCategoryList({ category, onBack }: { category: RecordCate
       <h2 id="records-category-title">{CATEGORY_LABELS[category]}</h2>
     </div>
     <div className="overlay-body">
-      {data?.connection.mode === 'demo' && <p className="records-banner">Sample data from FinchNode&apos;s fictional Northstar Health. Nothing here is about you.</p>}
+      {data?.connection.mode === 'demo' && <p className="records-banner">Sample data. None of this is about you.</p>}
       {!data ? <p role={result?.status === 'error' ? 'alert' : 'status'}>{result?.status === 'error' ? 'Could not load these records. Close this list and try again.' : 'Loading records…'}</p> : <>
-        {availability !== 'Available' && <p className="records-notice">{availability}.{data.records.length > 0 ? ' Showing previously cached records.' : ''}</p>}
+        {availability !== 'Available' && <p className="records-notice">{availability}.{data.records.length > 0 ? ' Showing previously saved records.' : ''}</p>}
         {data.records.length === 0 && availability === 'Available' && <p>Nothing in this category from your provider.</p>}
         <ul className="records-list">{data.records.map(r => <li className="records-row" key={r.id}>
           <strong>{recordName(r)}</strong>

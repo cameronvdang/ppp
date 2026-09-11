@@ -99,7 +99,7 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
                   <span />
                 </div>
                 <div className="health-kicker">Past 28 days</div>
-                <h1>Your monthly symptom snapshot</h1>
+                <h1>Your monthly symptom summary</h1>
                 <p>
                   Check in over time to see how often temperature, sleep, focus, mood, and body
                   changes appear in your own log.
@@ -113,7 +113,7 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
               <section className="health-panel peri-current-result">
                 <div className="peri-result-meta">
                   <div>
-                    <div className="health-kicker">Current snapshot</div>
+                    <div className="health-kicker">Current summary</div>
                     <h2>
                       {data.summary.loggedDays === 0
                         ? 'Ready for your first check-in'

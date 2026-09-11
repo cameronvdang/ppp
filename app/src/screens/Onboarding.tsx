@@ -777,11 +777,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="ob-summary-list privacy">
           <article>
             <span className="local">Local</span>
-            <div><strong>Core tracking</strong><p>Cycle dates, symptoms, notes, and your profile are stored in PPP’s local database.</p></div>
+            <div><strong>Core tracking</strong><p>Your cycle dates, symptoms, notes and profile stay on this device.</p></div>
           </article>
           <article>
             <span className="paused">Off</span>
-            <div><strong>Cloud account</strong><p>No PPP account, advertising profile, or background cloud sync is created.</p></div>
+            <div><strong>Cloud account</strong><p>No PPP account or advertising profile is created. Nothing is uploaded automatically.</p></div>
           </article>
           <article>
             <span className="cautious">Ask first</span>
@@ -1358,12 +1358,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         />
         <div className="ai-provider-grid">
           <OptionCard
-            option={{ id: 'anthropic', icon: '✳', label: 'Anthropic', detail: 'An API key, or a token from `claude setup-token` to use your Claude subscription.' }}
+            option={{ id: 'anthropic', icon: '✳', label: 'Anthropic', detail: 'Use your Anthropic key or Claude sign-in code.' }}
             selected={provider === 'anthropic'}
             onClick={() => chooseProvider('anthropic')}
           />
           <OptionCard
-            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Encrypted with a browser-managed key in IndexedDB.' }}
+            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Your saved key is encrypted on this device.' }}
             selected={provider === 'openai'}
             onClick={() => chooseProvider('openai')}
           />
@@ -1371,7 +1371,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {provider === 'anthropic' ? (
           <div className="card ai-setup-card">
             <div className="field">
-              <label htmlFor="anthropic-key">Anthropic API key or CLI token</label>
+              <label htmlFor="anthropic-key">Anthropic key or Claude sign-in code</label>
               <input
                 id="anthropic-key"
                 type="password"
@@ -1397,9 +1397,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </select>
             </div>
             <p className="microcopy">
-              To bill answers to a Claude subscription instead of API credits, run{' '}
-              <code>claude setup-token</code> on a computer where you are signed in and paste the
-              token here. PPP cannot run the CLI itself from a mobile app.
+              To use your Claude subscription, run <code>claude setup-token</code> on a computer where you are signed in. Paste the sign-in code here. PPP cannot create this code.
             </p>
           </div>
         ) : (

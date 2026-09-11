@@ -171,7 +171,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         if (!alive) return
         setHasOpenAiKey(Boolean(openAiKey))
         setHasAnthropicKey(Boolean(anthropicKey))
-        setVaultLabel('Browser-managed key (WebCrypto in IndexedDB)')
+        setVaultLabel('Encrypted on this device')
         setBiometrics(biometricStatus)
       })
       .catch((reason: unknown) => {
@@ -410,13 +410,13 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     else setHasOpenAiKey(false)
     setStatus(
       provider === 'anthropic'
-        ? 'Anthropic credential removed from this device. Revoke it in the Anthropic console to invalidate it everywhere.'
+        ? 'Anthropic key removed from this device. Revoke it in your Anthropic account to stop it working everywhere.'
         : 'OpenAI key removed from secure storage.',
     )
   }
 
   async function enableBackup() {
-    const endpoint = prompt('Backup relay URL (your deployed PPP backup Worker):', s!.endpoint)
+    const endpoint = prompt('Backup service address:', s!.endpoint)
     if (!endpoint) return
     let code = s!.recoveryCode
     if (!code) {
@@ -427,14 +427,14 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     await setSetting(SK.backupEndpoint, endpoint)
     try {
       await pushBackup(endpoint, code)
-      setStatus('Backed up (zero-knowledge — the server cannot read it).')
+      setStatus('Backed up. Your backup service cannot read this copy.')
     } catch (e) {
       setStatus(e instanceof Error ? e.message : 'Backup failed.')
     }
   }
 
   async function restore() {
-    const endpoint = prompt('Backup relay URL:', s!.endpoint)
+    const endpoint = prompt('Backup service address:', s!.endpoint)
     if (!endpoint) return
     const code = prompt('Enter your recovery code:')
     if (!code) return
@@ -505,7 +505,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       if (hasEnabledPlans && permission === 'denied') {
         setStatus('Saved locally, but notifications are blocked in your browser settings.')
       } else if (hasEnabledPlans) {
-        setStatus('Reminder schedule updated. Keep PPP open; delivery may be delayed while the browser is suspended.')
+        setStatus('Reminders updated. Keep PPP open. Reminders may arrive late if your browser pauses PPP.')
       } else {
         setStatus('All local reminders are off.')
       }
@@ -686,13 +686,14 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
           </button>
         )}
         <div className="setting-row static-row">
-          <span>Secret storage</span>
+          <span>Saved keys</span>
           <span className="muted">{vaultLabel}</span>
         </div>
         <p className="muted" style={{ padding: '8px 0' }}>
-          Credentials are encrypted with a non-extractable browser-managed key stored in IndexedDB.
-          PIN and device unlock gate the screen; they do not encrypt this key or all of your local history.
+          Saved keys are encrypted on this device. Your PIN and device unlock lock the screen.
+          They do not encrypt everything you log.
         </p>
+        <a href="#privacy-and-data">How PPP protects your data</a>
       </Section>
 
       <Section title="Your data &amp; encrypted backup">
@@ -710,7 +711,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         </button>
         <button className="setting-row" onClick={enableBackup}>
           <span>Encrypted cloud backup</span>
-          <span className="muted">zero-knowledge ›</span>
+          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={restore}>
           <span>Restore from backup</span>
@@ -735,7 +736,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
               <span className="reminder-kicker">QUIETLY ON YOUR DEVICE</span>
               <h3>{activeReminderCount ? `${activeReminderCount} active` : 'Your time, your rhythm'}</h3>
               <p>
-                Keep PPP open to receive reminders. Closing this tab stops delivery; browser suspension can delay notifications. No account or server is used.
+                Reminders show while PPP is open. Add them to your calendar to get them when it is closed.
               </p>
             </div>
             <span
@@ -903,10 +904,9 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 
       <RecordsSettingsCard />
 
-      <Section title="Privacy and data">
+      <Section title="Privacy and data" id="privacy-and-data">
         <PrivacyTable />
-        <p className="records-settings-note">Full details in PRIVACY.md in the repository.</p>
-        <p className="records-settings-note">Disconnect records to stop imports, remove your AI key to stop assistant sharing, and skip backup uploads to keep backups local. Remove your reminder email to stop email reminders. Records never enter AI context and enter reports only when you choose them.</p>
+        <p className="records-settings-note">Disconnect records to stop imports. Remove your AI key to stop sharing with the assistant. Skip backup uploads to keep backups on this device. Remove your reminder email to stop email reminders. Records are never shared with the assistant. Reports include them only if you choose.</p>
       </Section>
 
       <Section title="AI assistant">
@@ -924,7 +924,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         </button>
         {(s.provider === 'anthropic' ? hasAnthropicKey : hasOpenAiKey) && (
           <button className="setting-row" onClick={removeAiKey}>
-            <span>Remove saved credential</span>
+            <span>Remove saved key</span>
             <span className="muted">›</span>
           </button>
         )}
@@ -945,9 +945,9 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <div>
+    <div id={id}>
       <div className="section-label" style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: title }} />
       <div className="card" style={{ padding: '0 16px' }}>
         {children}
@@ -976,25 +976,25 @@ function RecordsSettingsCard() {
   }, [savedUrl, revision])
   async function saveUrl() {
     setBusy(true); setMessage('')
-    try { const canonical = await saveRelayUrl(url); setUrl(canonical ?? ''); setRevision(n => n + 1); setMessage('Relay URL saved.') }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the relay URL.') }
+    try { const canonical = await saveRelayUrl(url); setUrl(canonical ?? ''); setRevision(n => n + 1); setMessage('Connector address saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the connector address.') }
     finally { setBusy(false) }
   }
   async function saveToken() {
     setBusy(true); setMessage('')
-    try { await saveRelayToken(url, token); setToken(''); setRevision(n => n + 1); setMessage('Relay token saved.') }
-    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the relay token.') }
+    try { await saveRelayToken(url, token); setToken(''); setRevision(n => n + 1); setMessage('Connector key saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the connector key.') }
     finally { setBusy(false) }
   }
   return <Section title="Medical records">
     <div className="records-settings-fields">
       <p>Mode: {connection?.mode === 'live' ? 'Live' : 'Sample data'} · {connection?.status ?? 'disconnected'}</p>
-      <label htmlFor="records-relay-url">Relay URL</label>
+      <label htmlFor="records-relay-url">Connector address</label>
       <input id="records-relay-url" type="url" autoComplete="off" placeholder="https://your-relay.example" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => void saveUrl()} />
-      <p className="muted">Use your single-owner relay with a dedicated FinchNode application. Changing the URL disconnects live access and removes its old token. Cached records stay viewable.</p>
-      <label htmlFor="records-relay-token">Required relay token · {tokenSaved ? 'Saved' : 'Not set'}</label>
-      <input id="records-relay-token" type="password" autoComplete="new-password" value={token} onChange={e => setToken(e.target.value)} placeholder="Enter your relay client token" />
-      <button className="cta records-secondary" disabled={busy || !token.trim() || !url.trim()} onClick={() => void saveToken()}>Save token</button>
+      <p className="muted">Connect through your own connector. If you change the address, PPP disconnects and keeps what it already has.</p>
+      <label htmlFor="records-relay-token">Connector key · {tokenSaved ? 'Saved' : 'Not set'}</label>
+      <input id="records-relay-token" type="password" autoComplete="new-password" value={token} onChange={e => setToken(e.target.value)} placeholder="Enter your connector key" />
+      <button className="cta records-secondary" disabled={busy || !token.trim() || !url.trim()} onClick={() => void saveToken()}>Save key</button>
       {message && <p role="status">{message}</p>}
     </div>
     <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span><span aria-hidden="true">›</span></button>
@@ -1040,8 +1040,8 @@ function CalendarSettingsCard() {
 
   return <Section title="Calendar">
     <div className="calendar-settings">
-      <p>Your calendar app imports the file. Nothing is sent to PPP. Re-importing updates the same events.</p>
-      <p>Estimates are not for contraception. Quiet hours are not applied to calendar reminders.</p>
+      <p>Opens in your calendar app. Nothing is sent to PPP. Importing again updates the same events.</p>
+      <p>Dates are estimates, not for contraception. Quiet hours do not apply in your calendar.</p>
       <label className="reminder-privacy-row">
         <span><strong>Discreet titles</strong><small>Use neutral titles on calendars that may be shared.</small></span>
         <span className="reminder-switch">

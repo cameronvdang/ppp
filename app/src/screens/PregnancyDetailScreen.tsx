@@ -234,9 +234,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
               </section>
 
               <p className="health-note">
-                Bleeding heavier than spotting, severe persistent belly pain, trouble breathing,
-                fainting, fluid leaking, or a noticeable reduction in baby movement can need
-                immediate care. Contact emergency services or your maternity team; do not wait for
+                Bleeding heavier than spotting, severe persistent belly pain, trouble breathing, or fainting can need immediate care. So can fluid leaking or a noticeable reduction in baby movement. Contact emergency services or your maternity team; do not wait for
                 an app.
               </p>
             </>

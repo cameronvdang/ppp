@@ -84,7 +84,7 @@ function apiError(provider: AssistantProvider, status: number): Error {
     return new Error(
       provider === 'openai'
         ? 'OpenAI rejected that key. Add a fresh project key in AI settings.'
-        : 'Anthropic rejected that credential. A CLI token from `claude setup-token` expires — generate a new one, or paste a console API key.',
+        : 'Anthropic rejected that key or sign-in code. Create a new Claude sign-in code, or add your Anthropic key.',
     )
   }
   if (status === 402) return new Error('That account has no available credits.')
@@ -110,7 +110,7 @@ async function askAnthropic(
 ): Promise<string> {
   const credential = config.apiKey?.trim()
   if (!credential) {
-    throw new Error('Add an Anthropic key or a `claude setup-token` CLI token before sending a message.')
+    throw new Error('Add your Anthropic key or Claude sign-in code before sending a message.')
   }
   const kind = anthropicCredentialKind(credential)
   if (kind === null) {
@@ -187,7 +187,7 @@ async function askOpenAI(
   approvedContext: ApprovedAssistantContext | undefined,
   fetchImpl: FetchLike,
 ): Promise<string> {
-  if (!config.apiKey?.trim()) throw new Error('Add an OpenAI API key before sending a message.')
+  if (!config.apiKey?.trim()) throw new Error('Add an OpenAI key before sending a message.')
   const baseUrl = cleanBaseUrl(config.baseUrl || 'https://api.openai.com')
   const response = await fetchImpl(`${baseUrl}/v1/responses`, {
     method: 'POST',

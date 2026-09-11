@@ -33,7 +33,7 @@ export function RecordsScreen() {
   async function action(run: () => Promise<unknown>, success = '') {
     setBusy(true); setStatus(''); setRecordsNotice(null)
     try { await run(); setStatus(success) }
-    catch { setStatus('Could not update your records. Check your connection and relay settings, then try again.') }
+    catch { setStatus('Could not update your records. Check your connection and connector settings, then try again.') }
     finally { setBusy(false) }
   }
   async function start(mode: RecordsMode) {
@@ -64,24 +64,24 @@ export function RecordsScreen() {
   const showConnect = connection.status === 'disconnected' || (connection.status === 'error' && connection.recoveryAction === 'start-again')
   return <div className="page records-page">
     <h1>Your medical records</h1>
-    <p>Bring conditions, medications, labs and more from your provider into PPP. Records are encrypted in this browser and are not sent to the AI assistant. They are included when you export a backup or explicitly upload an encrypted backup, and you can choose to include them in a report.</p>
+    <p>Bring your conditions, medications and labs into PPP. They are encrypted on this device and never shared with the assistant. Backups include them. Reports include them only if you choose.</p>
     {(status || recordsNotice) && <p className="card records-notice" role="status">{recordsNotice ?? status}</p>}
-    {connection.mode === 'demo' && showSnapshot && <p className="records-banner">Sample data from FinchNode&apos;s fictional Northstar Health. Nothing here is about you.</p>}
+    {connection.mode === 'demo' && showSnapshot && <p className="records-banner">Sample data. None of this is about you.</p>}
     {showConnect && <section className="card records-connect">
       <h2 className="section-label">What leaves this device</h2>
-      <p>The sample API receives chosen categories and a random external ID. In live mode, your relay sends these and a return URL to FinchNode, then requests records using your subject ID. Your required client token goes only to your relay.</p>
-      <p className="muted">Record bodies and vault secrets are encrypted. Record IDs, categories, dates and connection metadata stay readable in browser storage, as do existing logs and profiles.</p>
+      <p>Sample data: PPP sends FinchNode the categories you pick and a random code.</p>
+      <p className="muted">Your provider: your connector sends FinchNode your chosen categories, a random code, and a link back to PPP. Your connector then uses your record code to request your records from FinchNode. Your connector key goes only to your connector.</p>
       <fieldset className="records-checklist"><legend>Choose categories from your provider</legend>
         {RECORD_CATEGORIES.map(category => <label key={category}><input type="checkbox" checked={categories.includes(category)} onChange={e => setCategories(previous => e.target.checked ? [...previous, category] : previous.filter(c => c !== category))} />{CATEGORY_LABELS[category]}</label>)}
       </fieldset>
       <label className="records-consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
-        <span>I understand that connecting sends my chosen categories and a random external ID to FinchNode (through my relay in live mode, also with a return URL). Record bodies are encrypted in this browser, are not sent to the AI assistant, are included in exports and explicitly uploaded encrypted backups, and may be included in a report I choose.</span>
+        <span>I agree to send my chosen categories and a random code to FinchNode, through my connector for my provider. For my provider, my connector also sends FinchNode a link back to PPP. PPP keeps my record contents encrypted on this device. They are never shared with the assistant. They are included in exports and encrypted backups I choose to upload. Reports include them only if I choose.</span>
       </label>
       <div className="records-actions">
         <button className="cta" disabled={busy || !consent || categories.length === 0} onClick={() => void action(() => start('demo'))}>Try with sample data</button>
         <button className="cta records-secondary" disabled={busy || !consent || categories.length === 0 || !liveReady} onClick={() => void action(() => start('live'))}>Connect my provider</button>
       </div>
-      {!liveReady && <p className="muted">Save a relay URL and its required token in Settings to connect your provider. <button className="records-link" onClick={() => setTab('settings')}>Open Settings</button></p>}
+      {!liveReady && <p className="muted">Save your connector address and key in Settings to connect your provider. <button className="records-link" onClick={() => setTab('settings')}>Open Settings</button></p>}
     </section>}
     {connection.status === 'pending' && <section className="card" aria-live="polite">
       <p><span className="records-spinner" aria-hidden="true" />Finishing your connection</p>
@@ -89,7 +89,7 @@ export function RecordsScreen() {
       {!connection.pendingSession && connection.creationAttempt && <button className="cta" disabled={busy || !granted || (connection.mode === 'live' && !liveReady)} onClick={() => void action(retryCreation)}>Try again</button>}
       <button className="records-link" onClick={() => void action(cancelConnection, 'Connection canceled.')}>Cancel</button>
     </section>}
-    {connection.status === 'error' && <section className="card records-error" role="alert"><p>{connection.lastError ?? 'The records service is unavailable right now.'}</p>
+    {connection.status === 'error' && <section className="card records-error" role="alert"><p>{connection.lastError ?? 'Could not reach your records right now.'}</p>
       {connection.recoveryAction === 'start-again' && <button className="cta" disabled={busy || !consent || !categories.length || (connection.mode === 'live' && !liveReady)} onClick={() => void action(() => start(connection.mode))}>Start again</button>}
       {connection.recoveryAction === 'check-again' && connection.pendingSession && <button className="cta" disabled={busy || !granted || !liveReady} onClick={() => void action(checkAgain)}>Check again</button>}
       {connection.recoveryAction === 'refresh' && <button className="cta" disabled={busy || !canRefresh} onClick={() => void action(refresh)}>Refresh</button>}
@@ -99,19 +99,19 @@ export function RecordsScreen() {
       <section className="card records-source">
         <span className="records-badge">{connection.mode === 'demo' ? 'Sample data' : 'From your provider'}</span>
         <h2>{connection.sources.map(s => s.organization ?? s.system).join(', ') || 'Records from your provider'}</h2>
-        <p>{connection.lastSyncAt ? `Last synced ${formatRecordDate(connection.lastSyncAt)}` : 'Not refreshed yet'}</p>
+        <p>{connection.lastSyncAt ? `Last refreshed ${formatRecordDate(connection.lastSyncAt)}` : 'Not refreshed yet'}</p>
         {connection.status === 'disconnected' && <p>Saved in this browser. Connect again to refresh.</p>}
         {connection.importedAt && <p className="muted">Imported backup · {formatRecordDate(connection.importedAt)}</p>}
         {connection.syncStatus === 'partial' && <p>Some categories were not available</p>}
         {connection.warnings.map((w, i) => <p className="muted" key={`${w.code}-${i}`}>{w.message}</p>)}
         {!!connection.skipped && <p>{connection.skipped} items could not be read</p>}
-        {connection.additionalItems > 0 && <p>{connection.additionalItems} additional items from your provider are not shown yet</p>}
+        {connection.additionalItems > 0 && <p>{connection.additionalItems} more items from your provider are not shown yet</p>}
       </section>
       <div className="records-count-grid">{RECORD_CATEGORIES.map(category => {
         const availability = categoryAvailability(connection, category)
         return <button className="card records-count" key={category} onClick={() => setRecordsCategory(category)}>
           <span>{CATEGORY_LABELS[category]}</span><strong>{counts[category]}</strong>
-          <span className="muted">{availability === 'Available' ? `${counts[category]} ${counts[category] === 1 ? 'record' : 'records'} from your provider` : `${availability}${counts[category] ? ' · cached' : ''}`}</span>
+          <span className="muted">{availability === 'Available' ? `${counts[category]} ${counts[category] === 1 ? 'record' : 'records'} from your provider` : `${availability}${counts[category] ? ' · saved' : ''}`}</span>
         </button>
       })}</div>
     </>}

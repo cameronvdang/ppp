@@ -311,7 +311,7 @@ describe('Settings records relay binding', () => {
   it('reports token cleanup failure after disabling live access', async () => {
     const p = await connected()
     vi.spyOn(secureVault, 'deleteSecureSecret').mockRejectedValueOnce(new Error('private vault details'))
-    await expect(saveRelayUrl('https://relay-b.test')).rejects.toThrow(/old token could not be removed/)
+    await expect(saveRelayUrl('https://relay-b.test')).rejects.toThrow(/old key could not be removed/)
     expect((await getConnection()).status).toBe('disconnected')
     expect((await loadRelaySettings()).token).toBeNull()
     await syncSnapshot({ provider: p })

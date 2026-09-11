@@ -17,7 +17,7 @@ describe('relay provider', () => {
   )
   it('requires a token before requesting anything', () => {
     const fetch = vi.fn()
-    expect(() => createRelayProvider({ baseUrl: 'https://relay.test', token: '' }, { fetch })).toThrow(/token/i)
+    expect(() => createRelayProvider({ baseUrl: 'https://relay.test', token: '' }, { fetch })).toThrow('Save the required connector key first.')
     expect(fetch).not.toHaveBeenCalled()
   })
 

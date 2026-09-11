@@ -114,7 +114,7 @@ export function AssistantScreen() {
       setBaseUrl(savedBaseUrl || '')
       setConsent(parseAssistantConsent(savedConsent))
       setApiKey(key)
-      setVaultLabel('Browser-managed key (WebCrypto in IndexedDB)')
+      setVaultLabel('Encrypted on this device')
       setSetupOpen(!key)
       setLoading(false)
     })().catch((reason: unknown) => {
@@ -157,11 +157,11 @@ export function AssistantScreen() {
       const suppliedKey = keyInput.trim()
       if (suppliedKey) {
         if (provider === 'anthropic' && anthropicCredentialKind(suppliedKey) === null) {
-          setError('Anthropic credentials start with sk-ant- (an API key or a `claude setup-token` token).')
+          setError('Your Anthropic key or sign-in code should start with sk-ant-.')
           return
         }
         if (provider === 'openai' && !suppliedKey.startsWith('sk-')) {
-          setError('That does not look like an OpenAI API key.')
+          setError('That does not look like an OpenAI key.')
           return
         }
         await setSecureSecret(vaultKeyFor(provider), suppliedKey)
@@ -177,7 +177,7 @@ export function AssistantScreen() {
       if (!apiKey && !suppliedKey) {
         setError(
           provider === 'anthropic'
-            ? 'Add an Anthropic API key, or paste a token from `claude setup-token`.'
+            ? 'Add your Anthropic key or Claude sign-in code.'
             : 'Add an OpenAI project key, or choose another provider.',
         )
         return
@@ -213,7 +213,7 @@ export function AssistantScreen() {
       setSetupOpen(true)
       setError(
         provider === 'anthropic'
-          ? 'Add an Anthropic key or CLI token before sending a message.'
+          ? 'Add your Anthropic key or Claude sign-in code before sending a message.'
           : 'Add an OpenAI key before sending a message.',
       )
       return
@@ -294,14 +294,14 @@ export function AssistantScreen() {
           <section className="assistant-setup-intro">
             <p className="eyebrow">Connection</p>
             <h3>Choose where answers come from</h3>
-            <p>Your key stays on this device. PPP never ships a shared key.</p>
+            <p>Your saved key is encrypted on this device. PPP sends it to the AI service used for your answers.</p>
             <div className="ai-provider-grid">
               <button
                 className={`choice-card compact ${provider === 'anthropic' ? 'selected' : ''}`}
                 onClick={() => void chooseProvider('anthropic')}
               >
                 <span className="choice-icon">✳</span>
-                <span><strong>Anthropic</strong><small>API key or Claude CLI login</small></span>
+                <span><strong>Anthropic</strong><small>Your key or Claude sign-in code</small></span>
               </button>
               <button
                 className={`choice-card compact ${provider === 'openai' ? 'selected' : ''}`}
@@ -317,7 +317,7 @@ export function AssistantScreen() {
             {provider === 'anthropic' ? (
               <>
                 <div className="field">
-                  <label htmlFor="assistant-key">Anthropic API key or CLI token</label>
+                  <label htmlFor="assistant-key">Anthropic key or Claude sign-in code</label>
                   <input
                     id="assistant-key"
                     type="password"
@@ -325,7 +325,7 @@ export function AssistantScreen() {
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder={apiKey ? 'Saved securely · enter to replace' : 'sk-ant-api… or sk-ant-oat…'}
+                    placeholder={apiKey ? 'Saved securely · enter to replace' : 'Paste your key or sign-in code'}
                     value={keyInput}
                     onChange={(event) => setKeyInput(event.target.value)}
                   />
@@ -333,26 +333,21 @@ export function AssistantScreen() {
                     <small className="field-hint">
                       Currently using{' '}
                       {credentialKind === 'cli-token'
-                        ? 'a Claude CLI subscription token'
-                        : 'a console API key'}
+                        ? 'a Claude sign-in code'
+                        : 'an Anthropic key'}
                       .
                     </small>
                   )}
                 </div>
 
                 <details className="assistant-key-fallback">
-                  <summary>Use your Claude subscription instead (CLI login)</summary>
+                  <summary>Use your Claude subscription</summary>
                   <p className="microcopy">
-                    PPP runs in a mobile WebView, so it cannot shell out to the{' '}
-                    <code>claude</code> CLI the way a server can. Run this once on a computer
-                    where you are signed in:
+                    PPP cannot create a Claude sign-in code. Run <code>claude</code> with the command below on a computer where you are signed in:
                   </p>
                   <pre className="cli-snippet"><code>claude setup-token</code></pre>
                   <p className="microcopy">
-                    Paste the <code>{CLI_TOKEN_PREFIX}…</code> token it prints into the field
-                    above. PPP sends it as an OAuth bearer credential, so answers are billed
-                    to your Claude subscription rather than to API credits. The token expires —
-                    rerun the command to refresh it.
+                    Paste the <code>{CLI_TOKEN_PREFIX}…</code> sign-in code into the field above. PPP sends it to Anthropic to use your Claude subscription. When it expires, run the command again.
                   </p>
                 </details>
 
@@ -374,7 +369,7 @@ export function AssistantScreen() {
             ) : (
               <>
                 <div className="field">
-                  <label htmlFor="assistant-key">OpenAI project API key</label>
+                  <label htmlFor="assistant-key">OpenAI project key</label>
                   <input
                     id="assistant-key"
                     type="password"
@@ -400,7 +395,7 @@ export function AssistantScreen() {
               </>
             )}
             <p className="microcopy">
-              Storage: {vaultLabel}. Credentials never enter the cycle database or a backup. PIN and device unlock gate the screen; they do not encrypt the browser key.
+              Saved keys: {vaultLabel}. They stay separate from your logs and backups. Your PIN and device unlock lock the screen. They do not encrypt everything you log.
             </p>
             {apiKey && (
               <button className="text-button danger" onClick={removeKey}>

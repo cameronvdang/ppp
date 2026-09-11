@@ -70,6 +70,6 @@ describe('HTTP privacy and category boundaries', () => {
   it('sanitizes failures and retains error Retry-After dates', async () => {
     vi.useFakeTimers(); vi.setSystemTime(new Date('2026-09-11T00:00:00Z'))
     await expect(requestJson('https://relay.test', { fetch: vi.fn(async () => new Response(JSON.stringify({ error: { type: 'api_error', code: 'rate_limited', message: 'PRIVATE BODY', requestId: 'req_1' } }), { status: 429, headers: { 'retry-after': 'Fri, 11 Sep 2026 00:00:30 GMT' } })) })).rejects.toMatchObject({ message: 'The records service is busy. Try again in a minute.', retryAfterSeconds: 30 })
-    await expect(requestJson('https://relay.test', { fetch: vi.fn(async () => { throw new Error('PRIVATE STACK') }) })).rejects.toMatchObject({ message: 'The records service is unavailable right now.' })
+    await expect(requestJson('https://relay.test', { fetch: vi.fn(async () => { throw new Error('PRIVATE STACK') }) })).rejects.toMatchObject({ message: 'Could not reach your records right now.' })
   })
 })

@@ -278,7 +278,7 @@ export function DoctorReport() {
 
 
               <div className="section-label" style={{ margin: '18px 0 10px' }}>
-                Report metadata
+                Report details
               </div>
               <ReportRow label="Selected range" value={describeRange(data.range)} />
               <ReportRow

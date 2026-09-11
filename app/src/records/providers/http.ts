@@ -35,7 +35,7 @@ export async function requestJson<T>(url: string, init: RequestInit & HttpDeps =
     return await Promise.race([aborted, run()])
   } catch (error) {
     if (error instanceof RecordsHttpError || (error instanceof DOMException && ['AbortError', 'TimeoutError'].includes(error.name))) throw error
-    throw new RecordsHttpError('The records service is unavailable right now.', 0, null, null)
+    throw new RecordsHttpError('Could not reach your records right now.', 0, null, null)
   } finally {
     clearTimeout(timer)
     signal?.removeEventListener('abort', abort)
@@ -49,8 +49,8 @@ export function parseRetryAfter(value: string | null): number | null {
 }
 export function friendlyStatus(status: number): string {
   if (status === 429) return 'The records service is busy. Try again in a minute.'
-  if (status === 401 || status === 403) return 'The records service refused the request. Check the relay settings.'
+  if (status === 401 || status === 403) return 'Your connector refused the request. Check its address and key in Settings.'
   if (status === 404) return 'The records service could not find this connection.'
   if (status === 410) return 'This connection has expired. Start again to reconnect.'
-  return 'The records service is unavailable right now.'
+  return 'Could not reach your records right now.'
 }
