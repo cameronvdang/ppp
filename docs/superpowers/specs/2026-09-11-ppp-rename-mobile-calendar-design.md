@@ -1,7 +1,7 @@
 # PPP: rename, mobile-first install, and add-to-calendar
 
 Date: 2026-09-11
-Status: draft for review
+Status: implemented on `feat/web-app-finchnode` (2026-09-11) through Tasks 1-16 plus review fixes; independent Claude subagent reviews, Codex execution
 Branch: `feat/web-app-finchnode` (continues the Lunara-web work)
 Depends on: `docs/superpowers/specs/2026-09-10-lunara-web-finchnode-design.md`
 
