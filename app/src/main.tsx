@@ -28,7 +28,7 @@ if (tab || action) {
   if (tab && ['today', 'insights', 'graphs', 'records', 'settings'].includes(tab)) useApp.getState().setTab(tab as Tab)
   if (action === 'log') useApp.getState().setLaunchAction('log')
   params.delete('tab'); params.delete('action')
-  history.replaceState(null, '', window.location.pathname + (params.size ? `?${params}` : '') + window.location.hash)
+  history.replaceState(null, '', window.location.pathname + (params.toString() ? `?${params}` : '') + window.location.hash)
 }
 
 void initializeRuntime()
