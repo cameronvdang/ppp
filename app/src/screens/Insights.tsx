@@ -62,7 +62,7 @@ export function Insights() {
           <i className="constellation-seed seed-c" />
         </span>
         <span className="assistant-feature-copy">
-          <span className="assistant-feature-kicker">Lunara AI</span>
+          <span className="assistant-feature-kicker">PPP AI</span>
           <strong>Bring the question you keep circling</strong>
           <small>Your key, your conversation, your choice</small>
         </span>
@@ -121,7 +121,7 @@ export function Insights() {
             </div>
           ) : (
             <div className="card empty-card">
-              Try a broader word, or ask Lunara AI without sharing tracker data.
+              Try a broader word, or ask PPP AI without sharing tracker data.
             </div>
           )}
         </section>

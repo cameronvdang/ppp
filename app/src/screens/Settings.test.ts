@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getSetting, setSetting, SK, LunaraDB } from '../db/schema'
+import { db, getSetting, setSetting, SK, PppDB } from '../db/schema'
 import * as deviceUnlock from '../platform/deviceUnlock'
 import * as notifications from '../platform/notifications'
 import * as secureVault from '../platform/secureVault'
@@ -152,7 +152,7 @@ describe('Settings browser privacy actions', () => {
     vi.stubGlobal('window', { location: { hostname: 'localhost' } })
     vi.stubGlobal('PublicKeyCredential', { isUserVerifyingPlatformAuthenticatorAvailable: async () => true })
     vi.stubGlobal('navigator', { ...globalThis.navigator, credentials: { create: vi.fn(() => { entered(); return creating }) } })
-    const other = new LunaraDB()
+    const other = new PppDB()
     const enrollment = setDeviceUnlockEnabled(true, true)
     const rejected = expect(enrollment).rejects.toThrow('Your PIN or local data changed')
     const credential = { type: 'public-key', id: 'AQIDBA', rawId: new Uint8Array([1, 2, 3, 4]).buffer } as PublicKeyCredential
@@ -211,7 +211,7 @@ describe('Settings browser privacy actions', () => {
     })
     const reload = vi.fn()
     try {
-      await expect(wipeLocalData(reload)).rejects.toThrow('Close other Lunara tabs and try again.')
+      await expect(wipeLocalData(reload)).rejects.toThrow('Close other PPP tabs and try again.')
       expect(reload).not.toHaveBeenCalled()
     } finally {
       blocker.close()

@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import worker from './index.js'
 
 const env = { FINCHNODE_API_KEY: 'ck_test_placeholder', ALLOWED_ORIGINS: 'https://app.example', RELAY_CLIENT_TOKEN: 'tok' }
-const origin = { origin: 'https://app.example', 'x-lunara-relay-token': 'tok' }
+const origin = { origin: 'https://app.example', 'x-ppp-relay-token': 'tok' }
 let upstream
 
 beforeEach(() => {
@@ -21,7 +21,7 @@ describe('records relay', () => {
     const ok = await worker.fetch(new Request('https://relay.test/v1/connect/sessions', { method: 'OPTIONS', headers: { origin: 'https://app.example' } }), env)
     expect(ok.status).toBe(204)
     expect(ok.headers.get('access-control-allow-origin')).toBe('https://app.example')
-    expect(ok.headers.get('access-control-allow-headers')).toMatch(/x-lunara-relay-token/i)
+    expect(ok.headers.get('access-control-allow-headers')).toMatch(/x-ppp-relay-token/i)
     const bad = await worker.fetch(new Request('https://relay.test/v1/connect/sessions', { method: 'OPTIONS', headers: { origin: 'https://evil.example' } }), env)
     expect(bad.status).toBe(403)
   })
@@ -35,7 +35,7 @@ describe('records relay', () => {
   it('rejects missing server configuration and incorrect client tokens', async () => {
     const request = new Request('https://relay.test/v1/connect/sessions/cs_0123456789abcdef0123', { headers: origin })
     expect((await worker.fetch(request, { ...env, RELAY_CLIENT_TOKEN: undefined })).status).toBe(503)
-    expect((await call('GET', '/v1/connect/sessions/cs_0123456789abcdef0123', undefined, { ...origin, 'x-lunara-relay-token': 'wrong' })).status).toBe(401)
+    expect((await call('GET', '/v1/connect/sessions/cs_0123456789abcdef0123', undefined, { ...origin, 'x-ppp-relay-token': 'wrong' })).status).toBe(401)
     expect(upstream).not.toHaveBeenCalled()
   })
 
@@ -114,7 +114,7 @@ async function envelope(response, status) {
   return result
 }
 it.each(['', 'https://evil.example', 'https://app.example.evil', 'null'])('validates actual-request Origin %s even with the correct token', async value => {
-  const headers = { 'x-lunara-relay-token': 'tok', ...(value ? { origin: value } : {}) }
+  const headers = { 'x-ppp-relay-token': 'tok', ...(value ? { origin: value } : {}) }
   const response = await call('GET', sessionPath, undefined, headers)
   await envelope(response, 403)
   expect(response.headers.has('access-control-allow-origin')).toBe(false)
@@ -216,14 +216,14 @@ it('uses omit/no-store/error upstream and never forwards browser headers or extr
   const init = upstream.mock.calls[0][1]
   expect(init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
   expect(init.headers.cookie).toBeUndefined()
-  expect(init.headers['x-lunara-relay-token']).toBeUndefined()
+  expect(init.headers['x-ppp-relay-token']).toBeUndefined()
   expect(init.body).not.toContain('PRIVATE')
   expect(response.headers.get('cache-control')).toBe('private, no-store')
 })
 it('compares the entire required token, including non-ASCII bytes and different suffixes', async () => {
   const local = { ...env, RELAY_CLIENT_TOKEN: 'owner-é-long-token' }
   for (const token of ['owner-é-long-tokenx', 'owner-è-long-token', 'owner-é-long-toke']) {
-    const response = await worker.fetch(new Request(`https://relay.test${sessionPath}`, { headers: { ...origin, 'x-lunara-relay-token': token } }), local)
+    const response = await worker.fetch(new Request(`https://relay.test${sessionPath}`, { headers: { ...origin, 'x-ppp-relay-token': token } }), local)
     await envelope(response, 401)
   }
   expect(upstream).not.toHaveBeenCalled()

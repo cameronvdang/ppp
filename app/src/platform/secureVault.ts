@@ -14,7 +14,7 @@ export const SECURE_SECRET_KEYS = {
   recordsRelayToken: 'records-relay-token',
 } as const
 
-const DB_NAME = 'lunara-secrets'
+const DB_NAME = 'ppp-secrets'
 const STORE = 'secrets'
 
 function assertValidKey(key: string): void {

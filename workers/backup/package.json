@@ -1,5 +1,5 @@
 {
-  "name": "@lunara/backup-worker",
+  "name": "@ppp/backup-worker",
   "private": true,
   "version": "0.1.0",
   "scripts": {

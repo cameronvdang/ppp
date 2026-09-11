@@ -109,7 +109,7 @@ describe('App wipe recovery after reactive onboarding flags disappear', () => {
         state: state.current, onRetry: () => { void runDataWipe(setState, reload) },
       }))
       expect(markup).toContain('role="alert"')
-      expect(markup).toContain('Close other Lunara tabs and try again.')
+      expect(markup).toContain('Close other PPP tabs and try again.')
       expect(markup).toContain('Retry delete')
       expect(markup).not.toContain('private-test-key')
       expect(markup).not.toContain('PIN lock')

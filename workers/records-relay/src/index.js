@@ -33,7 +33,7 @@ function config(env) {
   return { origins, base }
 }
 function headersFor(origin, origins = []) {
-  return { ...(origins.includes(origin) ? { 'Access-Control-Allow-Origin': origin } : {}), 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-Lunara-Relay-Token', 'Access-Control-Expose-Headers': RATE_HEADERS.join(', '), Vary: 'Origin', 'Cache-Control': 'private, no-store' }
+  return { ...(origins.includes(origin) ? { 'Access-Control-Allow-Origin': origin } : {}), 'Access-Control-Allow-Methods': 'GET, POST, OPTIONS', 'Access-Control-Allow-Headers': 'Content-Type, X-PPP-Relay-Token', 'Access-Control-Expose-Headers': RATE_HEADERS.join(', '), Vary: 'Origin', 'Cache-Control': 'private, no-store' }
 }
 function json(body, status, headers) { return new Response(JSON.stringify(body), { status, headers: { ...headers, 'Content-Type': 'application/json' } }) }
 function errorResponse(error, headers) {
@@ -180,7 +180,7 @@ export default {
         if (!origins.includes(origin)) throw new Failure(403, 'origin_denied', 'This origin is not allowed.')
         return new Response(null, { status: 204, headers })
       }
-      const token = request.headers.get('X-Lunara-Relay-Token')
+      const token = request.headers.get('X-PPP-Relay-Token')
       if (!token || !await equalToken(token, env.RELAY_CLIENT_TOKEN)) throw new Failure(401, 'unauthorized', 'A valid relay client token is required.')
       if (!origin || !origins.includes(origin)) throw new Failure(403, 'origin_denied', 'This origin is not allowed.')
       const url = new URL(request.url)

@@ -10,7 +10,7 @@ import { applyImport, collectExport, type ExportPayloadV2 } from './transfer'
 const cond: MedicalRecord = { id: 'live:conditions:rec_000000000000000000000001', category: 'conditions', sourceRecordId: 'provider-source-1', sourceName: 'Clinic', date: '2021-03-12', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'Example condition', status: 'active', verificationStatus: 'confirmed', severity: null, onsetDate: '2021-03-12', recordedDate: null }
 const connection = { ...defaultConnection(), mode: 'live' as const, status: 'connected' as const, relayBaseUrl: 'https://relay.test', categories: ['conditions'] as const, subject: 'u_0123456789abcdef' }
 // Use mutable categories in the actual ExportPayloadV2 factory.
-const payload = (): ExportPayloadV2 => ({ app: 'lunara' as const, v: 2 as const, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [], healthProfiles: [], regimenRecords: [], missedDoseEvents: [], medicalRecords: [cond], recordsConnection: { ...connection, categories: [...connection.categories] } })
+const payload = (): ExportPayloadV2 => ({ app: 'ppp' as const, v: 2 as const, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [], healthProfiles: [], regimenRecords: [], missedDoseEvents: [], medicalRecords: [cond], recordsConnection: { ...connection, categories: [...connection.categories] } })
 
 beforeEach(async () => {
     installLifecycleLocks()
@@ -42,7 +42,7 @@ describe('transfer v2', () => {
   it('v1 preserves existing medical records and their connection', async () => {
     await applyImport(payload())
     const before = await getConnection()
-    await applyImport({ app: 'lunara', v: 1, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [] })
+    await applyImport({ app: 'ppp', v: 1, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [], settings: [], contentBookmarks: [] })
     expect(await listRecords()).toEqual([cond])
     expect(await getConnection()).toEqual(before)
   })
@@ -57,7 +57,7 @@ describe('transfer v2', () => {
     },
   )
 
-  it.each([{ app: 'other', v: 2 }, { app: 'lunara', v: 3 }])('rejects invalid app/version before writes: %j', async (bad) => {
+  it.each([{ app: 'other', v: 2 }, { app: 'ppp', v: 3 }])('rejects invalid app/version before writes: %j', async (bad) => {
     await applyImport(payload())
     const before = await collectExport()
     await expect(applyImport({ ...payload(), ...bad } as any)).rejects.toThrow()
@@ -180,4 +180,10 @@ it('same URL import preserves a locally saved binding but never activates an imp
   await applyImport({ ...canonical(), settings: [{ key: SK.recordsRelayUrl, value: 'https://relay.test///' }] })
   expect(await getSecureSecret(SECURE_SECRET_KEYS.recordsRelayToken)).toBe(envelope)
   expect((await getConnection()).status).toBe('disconnected')
+})
+
+it('imports legacy v1 backups and writes the current product identity', async () => {
+  await applyImport({ app: 'lunara', v: 1, exportedAt: '2026-09-11T00:00:00Z', dailyLogs: [{ date: '2026-09-01', flow: 'medium' }], settings: [], contentBookmarks: [] })
+  expect(await db.dailyLogs.get('2026-09-01')).toMatchObject({ flow: 'medium' })
+  expect((await collectExport()).app).toBe('ppp')
 })

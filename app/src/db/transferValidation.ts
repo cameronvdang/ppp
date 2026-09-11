@@ -18,7 +18,7 @@ const date: Check = v => typeof v === 'string' && /^\d{4}-\d{2}-\d{2}(?:T.*)?$/.
 const cats: Check = v => Array.isArray(v) && v.every(isRecordCategory) && new Set(v).size === v.length
 const json: Check = v => v === null || str(v) || bool(v) || num(v) || (Array.isArray(v) ? v.every(json) : v !== undefined && typeof v === 'object' && Object.values(object(v)).every(x => x === undefined || json(x)))
 const fields = (keys: string[], check: Check) => Object.fromEntries(keys.map(k => [k, check]))
-export function assertValid(value: unknown, check: Check, name: string): void { if (!check(value)) throw new Error(`Invalid ${name} in Lunara export.`) }
+export function assertValid(value: unknown, check: Check, name: string): void { if (!check(value)) throw new Error(`Invalid ${name} in PPP export.`) }
 export function validateRows(value: unknown, check: Check, name: string): void { assertValid(value, arr(v => json(v) && check(v)), name) }
 export const settingCheck = shape({ key: nonempty, value: str })
 export const bookmarkCheck = shape({ slug: nonempty, savedAt: date })
@@ -82,7 +82,7 @@ export function validateConnection(value: unknown): Omit<RecordsConnection, 'pen
   if (value === null) return null
   assertValid(value, shape(connectionFields), 'records connection')
   const r = object(value)
-  if (r.subject !== undefined && !(r.mode === 'demo' ? r.subject === 'patient-demo-001' : /^u_[a-f0-9]{16}$/.test(String(r.subject)))) throw new Error('Invalid records subject in Lunara export.')
+  if (r.subject !== undefined && !(r.mode === 'demo' ? r.subject === 'patient-demo-001' : /^u_[a-f0-9]{16}$/.test(String(r.subject)))) throw new Error('Invalid records subject in PPP export.')
   const connection = Object.fromEntries(Object.keys(connectionFields).filter(k => r[k] !== undefined).map(key => [key, r[key]])) as unknown as RecordsConnection
   if (connection.relayBaseUrl !== null) connection.relayBaseUrl = canonicalizeRelayUrl(connection.relayBaseUrl)
   return connection

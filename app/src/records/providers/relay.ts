@@ -22,7 +22,7 @@ const SYNC_STATUSES: SyncStatus[] = ['not_started', 'queued', 'syncing', 'comple
 export function createRelayProvider(config: { baseUrl: string; token: string }, deps: HttpDeps = {}): RecordsProvider {
   const baseUrl = canonicalizeRelayUrl(config.baseUrl)
   if (!config.token.trim()) throw new Error('Save the required relay token first.')
-  const json = (path: string, init: RequestInit = {}, onResponse?: (h: Headers) => void) => requestJson<unknown>(`${baseUrl}${path}`, { ...deps, ...init, onResponse: h => { deps.onResponse?.(h); onResponse?.(h) }, headers: { 'x-lunara-relay-token': config.token, 'content-type': 'application/json' } })
+  const json = (path: string, init: RequestInit = {}, onResponse?: (h: Headers) => void) => requestJson<unknown>(`${baseUrl}${path}`, { ...deps, ...init, onResponse: h => { deps.onResponse?.(h); onResponse?.(h) }, headers: { 'x-ppp-relay-token': config.token, 'content-type': 'application/json' } })
   return {
     mode: 'live', relayBaseUrl: baseUrl,
     withRequest: options => createRelayProvider(config, { ...deps, ...options }),

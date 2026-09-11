@@ -98,7 +98,7 @@ describe('keyStore', () => {
     try {
       const deleting = second.deleteKeyStore()
       void deleting.then(reportedSuccess, () => {})
-      await expect(deleting).rejects.toThrow('Close other Lunara tabs and try again.')
+      await expect(deleting).rejects.toThrow('Close other PPP tabs and try again.')
       expect(reportedSuccess).not.toHaveBeenCalled()
       expect(deletionCompleted).toBeDefined()
     } finally {

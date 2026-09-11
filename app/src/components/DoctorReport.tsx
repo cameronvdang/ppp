@@ -142,7 +142,7 @@ export function DoctorReport() {
     if (!data) return
     setExportError(null)
     try {
-      await exportCurrentReport('Lunara doctor report')
+      await exportCurrentReport('PPP doctor report')
     } catch {
       setExportError('The report export sheet could not open. Please try again.')
     }
@@ -432,7 +432,7 @@ export function DoctorReport() {
               </div>
 
               <p className="muted" style={{ marginTop: 18, lineHeight: 1.5 }}>
-                This summary is for discussion with a healthcare provider. Lunara is not a medical
+                This summary is for discussion with a healthcare provider. PPP is not a medical
                 device, does not diagnose a condition, and does not establish why a pattern occurred.
                 Bring original dates and details when they matter clinically.
               </p>

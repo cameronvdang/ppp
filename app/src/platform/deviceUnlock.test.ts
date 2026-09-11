@@ -1,6 +1,6 @@
 import 'fake-indexeddb/auto'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, getSetting, SK, LunaraDB } from '../db/schema'
+import { db, getSetting, SK, PppDB } from '../db/schema'
 import { authenticateWithBiometrics, enrollDeviceUnlock, getBiometricStatus, removeDeviceUnlock } from './deviceUnlock'
 
 const fakeCredential = { rawId: new Uint8Array([1, 2, 3, 4]).buffer, id: 'AQIDBA', type: 'public-key' }
@@ -90,7 +90,7 @@ describe('deviceUnlock', () => {
     'rejects an assertion when another tab performs %s during WebAuthn', async change => {
       installWebAuthn({ uvpaa: true })
       await saveEnrollment()
-      const other = new LunaraDB()
+      const other = new PppDB()
       vi.mocked(navigator.credentials.get).mockImplementationOnce(async () => {
         if (change === 'remove credential') await other.settings.delete(SK.deviceUnlockCredential)
         else if (change === 'replace credential') await other.settings.put({ key: SK.deviceUnlockCredential, value: 'CQ' })

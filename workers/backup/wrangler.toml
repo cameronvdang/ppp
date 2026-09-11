@@ -1,14 +1,15 @@
-name = "lunara-backup"
+# ppp.example is a placeholder; operators must replace it with their own domain.
+name = "ppp-backup"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 
-# Create the bucket first:  wrangler r2 bucket create lunara-backups
+# Create the bucket first:  wrangler r2 bucket create ppp-backups
 [[r2_buckets]]
 binding = "BACKUPS"
-bucket_name = "lunara-backups"
+bucket_name = "ppp-backups"
 
 [vars]
 # Comma-separated origins allowed to call this relay (your deployed app URLs).
-ALLOWED_ORIGINS = "https://lunara.app,http://localhost:5173"
+ALLOWED_ORIGINS = "https://ppp.example,http://localhost:5173"
 # Reject blobs larger than this many bytes (a period history is tiny).
 MAX_BLOB_BYTES = "5242880"

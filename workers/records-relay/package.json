@@ -1,5 +1,5 @@
 {
-  "name": "@lunara/records-relay-worker",
+  "name": "@ppp/records-relay-worker",
   "private": true,
   "version": "0.1.0",
   "scripts": {

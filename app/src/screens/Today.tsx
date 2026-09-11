@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useState } from 'react'
 import { DateStrip } from '../components/DateStrip'
-import { LunaraMark } from '../components/LunaraMark'
+import { PppMark } from '../components/PppMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
 import {
   db,
@@ -77,7 +77,7 @@ function phaseFor(
       tone: 'empty',
       eyebrow: 'Your cycle',
       title: 'Let’s pick this back up',
-      body: 'It has been a while since a period was logged, so Lunara paused its estimates. Add your most recent period to restart them.',
+      body: 'It has been a while since a period was logged, so PPP paused its estimates. Add your most recent period to restart them.',
     }
   }
   if (cycleDay && cycleDay <= 5) {
@@ -869,11 +869,11 @@ function Header({
     <header className="today-header">
       <button
         type="button"
-        className="lunara-brand-button"
+        className="ppp-brand-button"
         onClick={() => setTab('settings')}
         aria-label="Open settings"
       >
-        <LunaraMark decorative />
+        <PppMark decorative />
       </button>
       <div className="today-heading">
         <span>{relativeLabel}</span>
@@ -898,7 +898,7 @@ function Header({
 function Disclaimer() {
   return (
     <p className="disclaimer">
-      Lunara is not a medical device. Predictions are estimates and are not contraception.
+      PPP is not a medical device. Predictions are estimates and are not contraception.
     </p>
   )
 }

@@ -19,6 +19,6 @@ export function ProviderRecordsReport({ data }: { data: ProviderReportData }) {
       <h3>{category === 'conditions' ? 'Active conditions' : category === 'medications' ? 'Active medications' : 'Allergies'}</h3>
       {data[category].length ? <ul>{data[category].map(r => <li key={r.id}>{recordName(r)} — {'status' in r ? r.status ?? 'Status not supplied' : 'Status not supplied'} — {formatRecordDate(r.date)} — {r.sourceName ?? 'Source not supplied'}</li>)}</ul> : <p className="muted">No imported items in this section.</p>}
     </div>)}
-    <p className="muted">{data.connection.mode === 'demo' ? 'Sample data. ' : ''}Imported via FinchNode on {formatRecordDate(data.connection.lastSyncAt ?? data.connection.importedAt ?? null)}. Not verified by Lunara.</p>
+    <p className="muted">{data.connection.mode === 'demo' ? 'Sample data. ' : ''}Imported via FinchNode on {formatRecordDate(data.connection.lastSyncAt ?? data.connection.importedAt ?? null)}. Not verified by PPP.</p>
   </section>
 }

@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto'
 import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, setSetting, SK, LunaraDB } from '../db/schema'
+import { db, setSetting, SK, PppDB } from '../db/schema'
 import { setSecureSecret, SECURE_SECRET_KEYS } from '../platform/secureVault'
 import { cancelConnection, completePendingConnection, disconnectAndDelete, grantRecordsConsent, hasRecordsConsent, providerFor, startConnection, syncSnapshot } from './connect'
 import { getConnection, listRecords } from './store'
@@ -377,7 +377,7 @@ for (const action of ['cancel', 'disconnect', 'wipe', 'revoke', 'relay-change'] 
     vi.mocked(p.fetchSnapshot).mockImplementationOnce(() => { entered(); return new Promise((_, r) => { reject = r }) })
     const running = syncSnapshot({ ...deps, provider: p })
     await waiting
-    const other = new LunaraDB()
+    const other = new PppDB()
     try {
       if (action === 'cancel') await cancelConnection()
       else if (action === 'disconnect') await disconnectAndDelete()

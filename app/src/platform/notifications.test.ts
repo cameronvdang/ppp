@@ -51,7 +51,7 @@ describe('in-session reminders', () => {
     await scheduleDailyReminder('08:05')
     expect(await pendingDailyReminder()).toBe(true)
     await vi.advanceTimersByTimeAsync(5 * 60_000)
-    expect((globalThis as any).Notification).toHaveBeenCalledWith('Lunara', expect.objectContaining({ body: expect.any(String) }))
+    expect((globalThis as any).Notification).toHaveBeenCalledWith('PPP', expect.objectContaining({ body: expect.any(String) }))
     expect(await pendingDailyReminder()).toBe(true)
   })
 
@@ -67,8 +67,8 @@ describe('in-session reminders', () => {
   it('schedules only requests due within 24 hours', async () => {
     const base = Date.now()
     await scheduleMaterializedReminders([
-      { id: 1, reminderId: 'r1', occurrenceKey: 'a', kind: 'water', route: 'today', state: 'scheduled', title: 'Lunara', body: 'Sip', fireAt: new Date(base + 60_000).toISOString() } as any,
-      { id: 2, reminderId: 'r1', occurrenceKey: 'b', kind: 'water', route: 'today', state: 'scheduled', title: 'Lunara', body: 'Sip', fireAt: new Date(base + 30 * 60 * 60_000).toISOString() } as any,
+      { id: 1, reminderId: 'r1', occurrenceKey: 'a', kind: 'water', route: 'today', state: 'scheduled', title: 'PPP', body: 'Sip', fireAt: new Date(base + 60_000).toISOString() } as any,
+      { id: 2, reminderId: 'r1', occurrenceKey: 'b', kind: 'water', route: 'today', state: 'scheduled', title: 'PPP', body: 'Sip', fireAt: new Date(base + 30 * 60 * 60_000).toISOString() } as any,
     ])
     expect(pendingInSessionTimers()).toBe(1)
     await vi.advanceTimersByTimeAsync(60_000)
@@ -92,7 +92,7 @@ function deferred<T>() {
 function request(delay = minute, occurrenceKey = 'occurrence'): MaterializedReminderRequest {
   return {
     id: 1, reminderId: 'water', occurrenceKey, kind: 'water', route: 'today',
-    state: 'scheduled', title: 'Lunara', body: 'Sip',
+    state: 'scheduled', title: 'PPP', body: 'Sip',
     fireAt: new Date(Date.now() + delay).toISOString(),
   }
 }
@@ -286,7 +286,7 @@ describe('reminder scheduler and delivery', () => {
     await scheduleDailyReminder('08:05')
     await advance(5 * minute)
     await advance(24 * hour)
-    expect([...center.keys()]).toEqual(['lunara-daily:2026-09-11:08:05', 'lunara-daily:2026-09-12:08:05'])
+    expect([...center.keys()]).toEqual(['ppp-daily:2026-09-11:08:05', 'ppp-daily:2026-09-12:08:05'])
   })
 
   it('caps unique timers at 64, excludes past/invalid/far dates, and cancels replacements', async () => {
@@ -338,7 +338,7 @@ describe('reminder scheduler and delivery', () => {
     } })
     await scheduleMaterializedReminders([request()])
     await advance(minute)
-    expect(showNotification).toHaveBeenCalledWith('Lunara', { body: 'Sip', tag: 'water:occurrence', renotify: false })
+    expect(showNotification).toHaveBeenCalledWith('PPP', { body: 'Sip', tag: 'water:occurrence', renotify: false })
     expect(ready).not.toHaveBeenCalled()
     expect(NotificationMock).not.toHaveBeenCalled()
     expect(vi.getTimerCount()).toBe(0)

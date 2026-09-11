@@ -1,11 +1,11 @@
-.lunara-crescent {
+.ppp-crescent {
   display: block;
   flex: 0 0 auto;
   color: var(--red-600);
   overflow: visible;
 }
 
-.lunara-brand-button {
+.ppp-brand-button {
   width: 42px;
   height: 42px;
   display: grid;
@@ -23,19 +23,19 @@
     box-shadow 160ms var(--ease-soft);
 }
 
-.lunara-brand-button .lunara-crescent {
+.ppp-brand-button .ppp-crescent {
   width: 24px;
   height: 24px;
 }
 
-.lunara-brand-button:active {
+.ppp-brand-button:active {
   color: var(--red-700);
   transform: scale(0.94);
   box-shadow: 0 3px 10px color-mix(in srgb, var(--red-700) 8%, transparent);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lunara-brand-button {
+  .ppp-brand-button {
     transition: none;
   }
 }

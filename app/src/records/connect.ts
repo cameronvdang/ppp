@@ -148,7 +148,7 @@ async function refresh(deps: ConnectDeps, captured?: RecordsConnection): Promise
       } catch (error) { return persistError(c, error, 'refresh') }
     }
     const locks = globalThis.navigator?.locks
-    return locks ? await locks.request(`lunara-records-refresh:${c.generation}`, { mode: 'exclusive' }, locked) : locked()
+    return locks ? await locks.request(`ppp-records-refresh:${c.generation}`, { mode: 'exclusive' }, locked) : locked()
   })
   const promise = run()
   refreshes.set(c.generation, promise)

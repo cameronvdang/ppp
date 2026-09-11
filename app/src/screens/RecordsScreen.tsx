@@ -64,7 +64,7 @@ export function RecordsScreen() {
   const showConnect = connection.status === 'disconnected' || (connection.status === 'error' && connection.recoveryAction === 'start-again')
   return <div className="page records-page">
     <h1>Your medical records</h1>
-    <p>Bring conditions, medications, labs and more from your provider into Lunara. Records are encrypted in this browser and are not sent to the AI assistant. They are included when you export a backup or explicitly upload an encrypted backup, and you can choose to include them in a report.</p>
+    <p>Bring conditions, medications, labs and more from your provider into PPP. Records are encrypted in this browser and are not sent to the AI assistant. They are included when you export a backup or explicitly upload an encrypted backup, and you can choose to include them in a report.</p>
     {(status || recordsNotice) && <p className="card records-notice" role="status">{recordsNotice ?? status}</p>}
     {connection.mode === 'demo' && showSnapshot && <p className="records-banner">Sample data from FinchNode&apos;s fictional Northstar Health. Nothing here is about you.</p>}
     {showConnect && <section className="card records-connect">

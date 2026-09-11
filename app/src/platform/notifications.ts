@@ -142,8 +142,8 @@ function armDaily(): void {
   timers.set(DAILY_KEY, setTimeout(() => {
     timers.delete(DAILY_KEY)
     void showReminder(
-      'Lunara', 'A gentle moment to check in with yourself.',
-      `lunara-daily:${occurrenceDate}:${time}`, () => generation === dailyGeneration,
+      'PPP', 'A gentle moment to check in with yourself.',
+      `ppp-daily:${occurrenceDate}:${time}`, () => generation === dailyGeneration,
     ).catch(() => undefined)
     if (notificationApi()?.permission === 'granted') armDaily()
     else clearDaily()
@@ -201,7 +201,7 @@ function scheduleRequests(
   }
 }
 
-/** In-session only: delivery requires an open Lunara tab. */
+/** In-session only: delivery requires an open PPP tab. */
 export async function scheduleMaterializedReminders(
   requests: MaterializedReminderRequest[],
   stillCurrent: () => boolean = () => true,

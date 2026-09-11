@@ -2,7 +2,7 @@
 import 'fake-indexeddb/auto'
 import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, putHealthProfile, LunaraDB, createDefaultHealthProfile, getSetting, SK } from '../db/schema'
+import { db, putHealthProfile, PppDB, createDefaultHealthProfile, getSetting, SK } from '../db/schema'
 import { deleteKeyStore } from '../platform/keyStore'
 import type { MedicalRecord } from './types'
 import { defaultConnection, transitionConnection, clearRecords, countByCategory, getConnection, listRecords, putConnection, putSnapshot } from './store'
@@ -58,7 +58,7 @@ import { destroySecureVault } from '../platform/secureVault'
 import { wipeLocalData } from '../lib/dataWipe'
 
 it('migrates an actual v3 database preserving all historical tables', async () => {
-  const name = 'lunara-v3-migration'
+  const name = 'ppp-v3-migration'
   const old = new Dexie(name)
   old.version(3).stores({ dailyLogs: 'date', cycles: 'startDate', settings: 'key', contentBookmarks: 'slug', healthProfiles: 'id', regimenRecords: 'id, method, startDate, [method+startDate]', missedDoseEvents: 'id, regimenId, date, [regimenId+date]' })
   const rows: Record<string, object> = {
@@ -69,7 +69,7 @@ it('migrates an actual v3 database preserving all historical tables', async () =
   }
   for (const [table, row] of Object.entries(rows)) await old.table(table).put(row)
   old.close()
-  const upgraded = new LunaraDB(name)
+  const upgraded = new PppDB(name)
   try {
     await upgraded.open()
     expect(upgraded.verno).toBe(4)
@@ -130,7 +130,7 @@ for (const action of ['clear', 'disconnect', 'wipe', 'revoke', 'relay-change'] a
     vi.spyOn(sealed, 'seal').mockImplementationOnce(async (...args) => { entered(); await held; return realSeal(...args) })
     const writing = putSnapshot([lab('late', null)], ['labs'], { expectedGeneration, subject: 'late-subject' })
     await enteredSeal
-    const other = new LunaraDB()
+    const other = new PppDB()
     let destruction: Promise<void> | undefined
     try {
       await other.transaction('rw', other.recordsConnection, other.medicalRecords, other.healthProfiles, other.settings, async () => {

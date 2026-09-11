@@ -1,6 +1,6 @@
 import { generateSealingKey } from '../crypto/sealed'
 
-export const KEY_DB_NAME = 'lunara-keys'
+export const KEY_DB_NAME = 'ppp-keys'
 const STORE = 'keys'
 const MAIN_KEY = 'sealing-v1'
 
@@ -10,7 +10,7 @@ const handles = new Set<IDBDatabase>()
 export async function withVaultLifecycle<T>(mode: 'shared' | 'exclusive', run: () => Promise<T>): Promise<T> {
   const locks = globalThis.navigator?.locks
   if (!locks) return run() // older Safari: uncoordinated but functional
-  return locks.request('lunara-vault-lifecycle', { mode }, run)
+  return locks.request('ppp-vault-lifecycle', { mode }, run)
 }
 
 export function withSealingKey<T>(run: (key: CryptoKey) => Promise<T>): Promise<T> {
@@ -70,7 +70,7 @@ export function destroyVaultStorage(beforeDelete: () => Promise<void>): Promise<
       const req = indexedDB.deleteDatabase(KEY_DB_NAME)
       req.onsuccess = () => resolve()
       req.onerror = () => reject(req.error)
-      req.addEventListener('blocked', () => reject(new Error('Close other Lunara tabs and try again.')))
+      req.addEventListener('blocked', () => reject(new Error('Close other PPP tabs and try again.')))
     })
   })
 }

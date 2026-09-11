@@ -313,7 +313,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 
   async function exportPlain() {
     const payload = await collectExport()
-    await shareOrDownload(`lunara-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))
+    await shareOrDownload(`ppp-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))
     setStatus('Exported. Save it somewhere safe.')
   }
 
@@ -321,7 +321,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     const pass = prompt('Choose a passphrase to encrypt this file. You will need it to import.')
     if (!pass) return
     const env = await encryptedExport(pass)
-    await shareOrDownload(`lunara-encrypted-${localToday()}.json`, JSON.stringify(env))
+    await shareOrDownload(`ppp-encrypted-${localToday()}.json`, JSON.stringify(env))
     setStatus('Encrypted export saved.')
   }
 
@@ -406,7 +406,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   }
 
   async function enableBackup() {
-    const endpoint = prompt('Backup relay URL (your deployed Lunara backup Worker):', s!.endpoint)
+    const endpoint = prompt('Backup relay URL (your deployed PPP backup Worker):', s!.endpoint)
     if (!endpoint) return
     let code = s!.recoveryCode
     if (!code) {
@@ -495,7 +495,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       if (hasEnabledPlans && permission === 'denied') {
         setStatus('Saved locally, but notifications are blocked in your browser settings.')
       } else if (hasEnabledPlans) {
-        setStatus('Reminder schedule updated. Keep Lunara open; delivery may be delayed while the browser is suspended.')
+        setStatus('Reminder schedule updated. Keep PPP open; delivery may be delayed while the browser is suspended.')
       } else {
         setStatus('All local reminders are off.')
       }
@@ -531,7 +531,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   }
 
   function wipe() {
-    if (!confirm('Delete ALL Lunara data on this device? This cannot be undone.')) return
+    if (!confirm('Delete ALL PPP data on this device? This cannot be undone.')) return
     onDeleteAllData()
   }
 
@@ -725,7 +725,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
               <span className="reminder-kicker">QUIETLY ON YOUR DEVICE</span>
               <h3>{activeReminderCount ? `${activeReminderCount} active` : 'Your time, your rhythm'}</h3>
               <p>
-                Keep Lunara open to receive reminders. Closing this tab stops delivery; browser suspension can delay notifications. No account or server is used.
+                Keep PPP open to receive reminders. Closing this tab stops delivery; browser suspension can delay notifications. No account or server is used.
               </p>
             </div>
             <span
@@ -895,7 +895,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 
       <Section title="AI assistant">
         <button className="setting-row" onClick={() => setAssistantOpen(true)}>
-          <span>Open Lunara AI</span>
+          <span>Open PPP AI</span>
           <span className="muted">
             {s.provider === 'anthropic'
               ? hasAnthropicKey
@@ -922,7 +922,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       </Section>
 
       <p className="muted" style={{ textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
-        Lunara is open source (AGPL-3.0) and not affiliated with Flo Health Inc. Not a medical
+        PPP is open source (AGPL-3.0), based on Lunara, and not affiliated with Flo Health Inc. Not a medical
         device. Clearing browser storage deletes local history — keep an encrypted backup.
       </p>
     </div>

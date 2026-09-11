@@ -1,4 +1,4 @@
-# Lunara backup relay (M3)
+# PPP backup relay (M3)
 
 Stateless zero-knowledge backup: the app encrypts the whole database on-device
 (AES-256-GCM, key derived via Argon2id from a show-once recovery code) and this

@@ -364,7 +364,7 @@ export interface ContentBookmark {
 
 export interface SealedRecordRow { id: string; category: RecordCategory; date: string | null; sealed: SealedBlob }
 
-export class LunaraDB extends Dexie {
+export class PppDB extends Dexie {
   medicalRecords!: Table<SealedRecordRow, string>
   recordsConnection!: Table<RecordsConnection, string>
   dailyLogs!: Table<DailyLog, string>
@@ -384,7 +384,7 @@ export class LunaraDB extends Dexie {
    */
   missedDoseEvents!: Table<MissedDoseEvent, string>
 
-  constructor(name = 'lunara') {
+  constructor(name = 'ppp') {
     super(name)
     this.version(1).stores({
       dailyLogs: 'date',
@@ -427,7 +427,7 @@ export class LunaraDB extends Dexie {
   }
 }
 
-export const db = new LunaraDB()
+export const db = new PppDB()
 
 /**
  * Period starts for the engine: first day of each run of consecutive

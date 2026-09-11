@@ -91,7 +91,7 @@
   border-radius: 18px;
 }
 
-.startup-failure-mark .lunara-crescent {
+.startup-failure-mark .ppp-crescent {
   color: var(--red-700);
 }
 
@@ -1191,9 +1191,9 @@ button.card:active {
 
 .cycle-ring-progress {
   fill: none;
-  stroke: url('#lunara-cycle-gradient');
+  stroke: url('#ppp-cycle-gradient');
   stroke-linecap: round;
-  filter: url('#lunara-ring-glow');
+  filter: url('#ppp-ring-glow');
   transition: stroke-dashoffset 900ms var(--ease-out);
 }
 

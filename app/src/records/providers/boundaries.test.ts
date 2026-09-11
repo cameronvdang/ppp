@@ -29,7 +29,7 @@ describe('HTTP privacy and category boundaries', () => {
     expect(fetch.mock.calls[0]).toBeDefined()
     const init = (fetch.mock.calls as unknown as [string, RequestInit][])[0][1]
     expect(init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
-    expect(new Headers(init.headers).get('x-lunara-relay-token')).toBeNull()
+    expect(new Headers(init.headers).get('x-ppp-relay-token')).toBeNull()
   })
   it('honors external abort before fetching and while reading a body', async () => {
     const controller = new AbortController()

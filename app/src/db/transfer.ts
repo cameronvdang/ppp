@@ -12,7 +12,7 @@ import { object } from '../records/normalize/fields'
 import { assertValid, bookmarkCheck, dailyLogCheck, missedCheck, profileCheck, regimenCheck, settingCheck, validateConnection, validateMedicalRecord, validateRows } from './transferValidation'
 
 const SECRET_KEYS = new Set<string>([SK.pinSalt, SK.pinHash, SK.aiKey, 'recoveryCode', SK.biometricLock, SK.deviceUnlockCredential, ...Object.values(SECURE_SECRET_KEYS), 'recordsRelayToken'])
-export interface ExportPayloadV1 { app: 'lunara'; v: 1; exportedAt: string; dailyLogs: DailyLog[]; settings: Setting[]; contentBookmarks: ContentBookmark[] }
+export interface ExportPayloadV1 { app: 'lunara' | 'ppp'; v: 1; exportedAt: string; dailyLogs: DailyLog[]; settings: Setting[]; contentBookmarks: ContentBookmark[] }
 export interface ExportPayloadV2 extends Omit<ExportPayloadV1, 'v'> {
   v: 2
   healthProfiles: HealthProfile[]
@@ -38,20 +38,20 @@ export function collectExport(): Promise<ExportPayloadV2> {
     const { rows, connection, ...tables } = snapshot
     const medicalRecords = await Promise.all(rows.map(row => open<MedicalRecord>(key, row.sealed)))
     const recordsConnection = logicalConnection(connection, rows.length > 0) ? validateConnection(connection) : null
-    return { app: 'lunara', v: 2, exportedAt: new Date().toISOString(), ...tables, medicalRecords, recordsConnection }
+    return { app: 'ppp', v: 2, exportedAt: new Date().toISOString(), ...tables, medicalRecords, recordsConnection }
   })
 }
 function validatePayload(input: unknown): ExportPayload {
   const p = object(input)
-  if (p.app !== 'lunara' || (p.v !== 1 && p.v !== 2)) throw new Error('Not a supported Lunara export file.')
+  if (!(p.app === 'lunara' || p.app === 'ppp') || (p.v !== 1 && p.v !== 2)) throw new Error('Not a supported PPP export file.')
   assertValid(p.exportedAt, v => typeof v === 'string' && Number.isFinite(Date.parse(v)), 'export timestamp')
   validateRows(p.dailyLogs, dailyLogCheck, 'daily logs'); validateRows(p.settings, settingCheck, 'settings'); validateRows(p.contentBookmarks, bookmarkCheck, 'bookmarks')
-  const legacy = { app: 'lunara' as const, exportedAt: String(p.exportedAt), dailyLogs: p.dailyLogs as DailyLog[], settings: safeSettings(p.settings as Setting[]), contentBookmarks: p.contentBookmarks as ContentBookmark[] }
+  const legacy = { app: 'ppp' as const, exportedAt: String(p.exportedAt), dailyLogs: p.dailyLogs as DailyLog[], settings: safeSettings(p.settings as Setting[]), contentBookmarks: p.contentBookmarks as ContentBookmark[] }
   if (p.v === 1) return { ...legacy, v: 1 }
   validateRows(p.healthProfiles, profileCheck, 'health profiles'); validateRows(p.regimenRecords, regimenCheck, 'regimens'); validateRows(p.missedDoseEvents, missedCheck, 'adherence')
-  if (!Array.isArray(p.medicalRecords)) throw new Error('Invalid medical records in Lunara export.')
+  if (!Array.isArray(p.medicalRecords)) throw new Error('Invalid medical records in PPP export.')
   const medicalRecords = p.medicalRecords.map(validateMedicalRecord)
-  if (new Set(medicalRecords.map(r => r.id)).size !== medicalRecords.length) throw new Error('Duplicate medical records in Lunara export.')
+  if (new Set(medicalRecords.map(r => r.id)).size !== medicalRecords.length) throw new Error('Duplicate medical records in PPP export.')
   return { ...legacy, v: 2, healthProfiles: p.healthProfiles as HealthProfile[], regimenRecords: p.regimenRecords as RegimenRecord[], missedDoseEvents: p.missedDoseEvents as MissedDoseEvent[], medicalRecords, recordsConnection: validateConnection(p.recordsConnection) }
 }
 export async function applyImport(input: unknown): Promise<number> {

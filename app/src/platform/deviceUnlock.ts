@@ -62,11 +62,11 @@ export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
   const credential = (await navigator.credentials.create({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
-      rp: { name: 'Lunara', id: window.location.hostname },
+      rp: { name: 'PPP', id: window.location.hostname },
       user: {
         id: crypto.getRandomValues(new Uint8Array(16)),
-        name: 'lunara-local',
-        displayName: 'Lunara on this device',
+        name: 'ppp-local',
+        displayName: 'PPP on this device',
       },
       pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
       authenticatorSelection: {
@@ -91,7 +91,7 @@ export async function enrollDeviceUnlock(): Promise<{ credentialId: string }> {
  * cryptographically protect the stored encryption key.
  */
 export async function authenticateWithBiometrics(
-  _reason = 'Unlock your private Lunara data',
+  _reason = 'Unlock your private PPP data',
 ): Promise<BiometricAuthenticationResult> {
   const [enrollment, preference] = await db.settings.bulkGet([SK.deviceUnlockCredential, SK.biometricLock])
   const stored = enrollment?.value, enabled = preference?.value

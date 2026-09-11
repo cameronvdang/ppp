@@ -35,7 +35,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
     if (!data) return
     setExportError(null)
     try {
-      await exportCurrentReport('Lunara private cycle report')
+      await exportCurrentReport('PPP private cycle report')
     } catch {
       setExportError('The report export sheet could not open. Please try again.')
     }
@@ -69,7 +69,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
             {!data ? (
               <div className="health-empty no-print" role={loadFailed ? 'alert' : 'status'}>
                 <strong>{loadFailed ? 'Could not load your report' : 'Building your report'}</strong>
-                <p>{loadFailed ? 'Close it and try again.' : 'Your entries stay on this device while Lunara calculates the summary.'}</p>
+                <p>{loadFailed ? 'Close it and try again.' : 'Your entries stay on this device while PPP calculates the summary.'}</p>
               </div>
             ) : (
               <>
@@ -225,7 +225,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                       <div className="health-empty">
                         <strong>No repeatable pattern yet</strong>
                         <p>
-                          Patterns need at least three entries across two completed cycles. Lunara
+                          Patterns need at least three entries across two completed cycles. PPP
                           does not turn one unusual day into a conclusion.
                         </p>
                       </div>

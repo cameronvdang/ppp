@@ -33,7 +33,7 @@ async function independentClients() {
 
 function readStoredSecret(key: string): Promise<SealedBlob | undefined> {
   return new Promise((resolve, reject) => {
-    const req = indexedDB.open('lunara-secrets', 1)
+    const req = indexedDB.open('ppp-secrets', 1)
     req.onsuccess = () => {
       const db = req.result
       const tx = db.transaction('secrets')
@@ -137,7 +137,7 @@ describe('web secure vault', () => {
 
     try {
       expect(requests).toHaveBeenCalledWith(
-        'lunara-vault-lifecycle', { mode: 'exclusive' }, expect.any(Function),
+        'ppp-vault-lifecycle', { mode: 'exclusive' }, expect.any(Function),
       )
       // Drain the microtask queue while the shared encryption is suspended.
       await new Promise<void>((resolve) => setTimeout(resolve, 0))

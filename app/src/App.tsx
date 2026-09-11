@@ -69,7 +69,7 @@ export default function App() {
     // Persist legacy/fresh-install profile state outside Dexie's read-only
     // liveQuery context. getHealthProfile remains safe to call reactively.
     void ensureHealthProfile().catch((error: unknown) => {
-      console.error('[Lunara startup] Could not persist the health profile migration.', error)
+      console.error('[PPP startup] Could not persist the health profile migration.', error)
     })
   }, [])
 
@@ -128,7 +128,7 @@ export default function App() {
   if (screen === 'wipe' && wipeState.status !== 'idle') {
     return <DataWipeRecovery state={wipeState} onRetry={deleteAllData} />
   }
-  if (screen === 'loading') return <div className="page page-loading" role="status" aria-label="Loading Lunara" />
+  if (screen === 'loading') return <div className="page page-loading" role="status" aria-label="Loading PPP" />
   if (screen === 'onboarding') return <Onboarding onDone={() => setOnboarded(true)} />
   if (screen === 'locked') return <PinLock />
 

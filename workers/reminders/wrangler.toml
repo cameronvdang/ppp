@@ -1,4 +1,5 @@
-name = "lunara-reminders"
+# ppp.example is a placeholder; operators must replace it with their own domain.
+name = "ppp-reminders"
 main = "src/index.js"
 compatibility_date = "2026-01-01"
 
@@ -13,7 +14,7 @@ id = "REPLACE_WITH_KV_ID"
 crons = ["0 * * * *"]
 
 [vars]
-ALLOWED_ORIGINS = "https://lunara.app,http://localhost:5173"
-APP_NAME = "Lunara"
-FROM_EMAIL = "reminders@lunara.app"
+ALLOWED_ORIGINS = "https://ppp.example,http://localhost:5173"
+APP_NAME = "PPP"
+FROM_EMAIL = "reminders@ppp.example"
 # Set the Resend key as a secret:  wrangler secret put RESEND_API_KEY

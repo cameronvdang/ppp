@@ -24,7 +24,7 @@ describe('relay provider', () => {
   it('starts a hosted connect session with the token header', async () => {
     const fetch = vi.fn(async (url: string, init: RequestInit) => {
       expect(url).toBe('https://relay.example.com/v1/connect/sessions')
-      expect(new Headers(init.headers).get('x-lunara-relay-token')).toBe('tok')
+      expect(new Headers(init.headers).get('x-ppp-relay-token')).toBe('tok')
       expect(init).toMatchObject({ credentials: 'omit', cache: 'no-store', redirect: 'error' })
       expect(JSON.parse(String(init.body))).toEqual({ categories: ['labs'], returnUrl: 'https://app/?records=return', externalId: 'abcdefghijklmnop' })
       return ok({ id: 'cs_0123456789abcdef0123', url: 'https://connect.finchnode.com/s/1', expiresAt: '2026-09-12T00:00:00Z', status: 'pending' })
