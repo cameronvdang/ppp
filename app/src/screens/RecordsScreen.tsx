@@ -50,7 +50,12 @@ export function RecordsScreen() {
   }
   async function checkAgain() {
     const c = await getConnection()
-    return completePendingConnection({ isReturn: true, sessionId: c.pendingSession?.id ?? null, invalidSession: false }, { provider: providerFor(c, await loadRelaySettings()) })
+    return completePendingConnection({ isReturn: true, sessionId: null, invalidSession: false }, { provider: providerFor(c, await loadRelaySettings()) })
+  }
+  async function retryCreation() {
+    const c = await getConnection()
+    if (c.status !== 'pending' || c.pendingSession || !c.creationAttempt) return
+    return startConnection(c.creationAttempt.categories, { provider: providerFor(c, await loadRelaySettings()) })
   }
   if (!connection || !counts) return <div className="page"><h1>Your medical records</h1><p role="status">Loading records…</p></div>
   const total = Object.values(counts).reduce((a, b) => a + b, 0)
@@ -78,7 +83,12 @@ export function RecordsScreen() {
       </div>
       {!liveReady && <p className="muted">Save a relay URL and its required token in Settings to connect your provider. <button className="records-link" onClick={() => setTab('settings')}>Open Settings</button></p>}
     </section>}
-    {connection.status === 'pending' && <section className="card" aria-live="polite"><p><span className="records-spinner" aria-hidden="true" />Finishing your connection</p><button className="records-link" onClick={() => void action(cancelConnection, 'Connection canceled.')}>Cancel</button></section>}
+    {connection.status === 'pending' && <section className="card" aria-live="polite">
+      <p><span className="records-spinner" aria-hidden="true" />Finishing your connection</p>
+      {connection.pendingSession && <button className="cta" disabled={busy || !granted || !liveReady} onClick={() => void action(checkAgain)}>Check again</button>}
+      {!connection.pendingSession && connection.creationAttempt && <button className="cta" disabled={busy || !granted || (connection.mode === 'live' && !liveReady)} onClick={() => void action(retryCreation)}>Try again</button>}
+      <button className="records-link" onClick={() => void action(cancelConnection, 'Connection canceled.')}>Cancel</button>
+    </section>}
     {connection.status === 'error' && <section className="card records-error" role="alert"><p>{connection.lastError ?? 'The records service is unavailable right now.'}</p>
       {connection.recoveryAction === 'start-again' && <button className="cta" disabled={busy || !consent || !categories.length || (connection.mode === 'live' && !liveReady)} onClick={() => void action(() => start(connection.mode))}>Start again</button>}
       {connection.recoveryAction === 'check-again' && connection.pendingSession && <button className="cta" disabled={busy || !granted || !liveReady} onClick={() => void action(checkAgain)}>Check again</button>}
