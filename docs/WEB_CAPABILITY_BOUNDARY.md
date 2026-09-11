@@ -10,6 +10,12 @@ After the initial app load, these features need no account or hosted backend:
 
 - Cycle, period, symptom, mood, medication, contraception, BBT, and OPK logging,
   with local profile and calendar views.
+- Phase estimates on Today, the daily log and the calendar derive from logged
+  period runs and the personalized forecast. Calendar tints identify follicular
+  and luteal estimates; dots mark days with symptom, digestion (including nausea
+  or diarrhea) or mood entries. Tap a day to edit its log. Hormonal contraception
+  and pregnancy hide fertility phase estimates; missing or stale history does
+  not receive a phase estimate. This adds no network calls or storage schema.
 - Predictions, uncertainty ranges, pattern analysis, pregnancy dating, TTC and
   perimenopause summaries, and reports with browser print/save-as-PDF.
 - Bundled educational content and bookmarks.

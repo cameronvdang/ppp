@@ -60,6 +60,15 @@ or six when selected. Re-importing updates the same event IDs. Estimates are not
 for contraception. Reminder times follow the local wall clock; quiet hours are
 not applied by the calendar export.
 
+### Cycle phases and symptoms
+
+Tracks your cycle phase (period, follicular, fertile window, ovulation estimate,
+luteal) and lets you note symptoms such as nausea or diarrhea on any day; the
+calendar shows phases and which days have notes. Phase labels are estimates
+from logged history. Today and the daily log show the phase and cycle day;
+calendar dots mark symptom, digestion or mood entries. Hormonal contraception
+and pregnancy hide fertility phase estimates.
+
 ## Privacy
 
 See [PRIVACY.md](PRIVACY.md) for the network-destination table and storage boundary,

@@ -532,6 +532,8 @@ button.card:active {
 }
 
 .cal-day.dim { color: var(--ink-300); }
+.cal-day.phase-follicular { background: var(--pink-100); }
+.cal-day.phase-luteal { background: var(--pink-200); }
 .cal-day.period { background: var(--period); }
 
 .cal-day.predicted {
@@ -556,6 +558,20 @@ button.card:active {
   background: var(--red-600);
   border-radius: 50%;
 }
+
+.cal-day.has-symptoms .cal-symptom-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-650);
+  transform: translateX(-50%);
+}
+
+.cal-day.today-mark.has-symptoms .cal-symptom-dot { left: calc(50% - 4px); }
+.cal-day.today-mark.has-symptoms::after { left: calc(50% + 2px); bottom: 4px; }
 
 .calendar-title-button {
   min-width: 150px;
