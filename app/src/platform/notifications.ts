@@ -231,6 +231,9 @@ let schedulerLifecycle = 0
 let startup: Promise<void> | undefined
 let hourly: ReturnType<typeof setInterval> | undefined
 let settingsSubscription: { unsubscribe(): void } | undefined
+const inFlightRefreshes = new Set<Promise<void>>()
+let initialSubscription: Promise<void> | undefined
+let finishInitialSubscription: (() => void) | undefined
 const settingsKeys = [REMINDER_SETTINGS_KEY, SK.reminderTime]
 type SettingsSnapshot = [raw: string | undefined, legacyTime: string | undefined, timeZone: string]
 
@@ -252,7 +255,7 @@ function withCurrentSettings(
   })
 }
 
-export async function refreshReminderScheduler(): Promise<void> {
+async function refreshScheduler(): Promise<void> {
   if (!schedulerRunning) return
   const generation = ++schedulerGeneration
   const stillCurrent = () => schedulerRunning && generation === schedulerGeneration
@@ -294,6 +297,20 @@ export async function refreshReminderScheduler(): Promise<void> {
   }
 }
 
+export function refreshReminderScheduler(): Promise<void> {
+  const promise = refreshScheduler()
+  inFlightRefreshes.add(promise)
+  void promise.finally(() => inFlightRefreshes.delete(promise)).catch(() => undefined)
+  return promise
+}
+
+/** Wait for startup's initial subscription emission and all refreshes it starts. */
+export async function whenIdle(): Promise<void> {
+  await startup
+  await initialSubscription
+  while (inFlightRefreshes.size) await Promise.all([...inFlightRefreshes])
+}
+
 const refresh = () => {
   void refreshReminderScheduler().catch(() => undefined)
 }
@@ -311,8 +328,13 @@ export async function startReminderScheduler(): Promise<void> {
       // supersede it and let await start() resolve before timers are installed.
       await refreshReminderScheduler()
       if (!schedulerRunning || lifecycle !== schedulerLifecycle) return
+      let initialDone!: () => void
+      initialSubscription = new Promise<void>(resolve => { initialDone = resolve })
+      finishInitialSubscription = initialDone
       const changed = () => {
-        if (schedulerRunning && lifecycle === schedulerLifecycle) refresh()
+        if (schedulerRunning && lifecycle === schedulerLifecycle) {
+          void refreshReminderScheduler().catch(() => undefined).finally(initialDone)
+        } else initialDone()
       }
       settingsSubscription = liveQuery(readSettings).subscribe({
         next: changed,
@@ -337,6 +359,9 @@ export async function stopReminderScheduler(): Promise<void> {
   globalThis.document?.removeEventListener('visibilitychange', visible)
   settingsSubscription?.unsubscribe()
   settingsSubscription = undefined
+  finishInitialSubscription?.()
+  finishInitialSubscription = undefined
+  initialSubscription = undefined
   clearDaily()
   clearMaterialized()
 }

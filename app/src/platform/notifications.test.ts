@@ -255,15 +255,17 @@ describe('reminder scheduler and delivery', () => {
     await savePreferences()
     const removeListener = vi.spyOn(documentStub, 'removeEventListener')
     await notifications.startReminderScheduler()
-    await settleStorage()
+    // Dexie starts its initial liveQuery read on a zero-delay timer.
+    await vi.advanceTimersByTimeAsync(0)
+    await notifications.whenIdle()
     await cancelMaterializedReminders()
     documentStub.visibilityState = 'hidden'
     documentStub.dispatchEvent(new Event('visibilitychange'))
-    await settleStorage()
+    await notifications.whenIdle()
     expect(pendingInSessionTimers()).toBe(0)
     documentStub.visibilityState = 'visible'
     documentStub.dispatchEvent(new Event('visibilitychange'))
-    await settleStorage()
+    await notifications.whenIdle()
     expect(pendingInSessionTimers()).toBe(1)
     await notifications.stopReminderScheduler()
     expect(removeListener).toHaveBeenCalledTimes(1)
