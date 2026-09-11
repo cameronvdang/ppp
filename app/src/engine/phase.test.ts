@@ -23,6 +23,15 @@ describe('cyclePhaseFor', () => {
   it('reports cycle day only when there is no fertile window yet', () => {
     expect(cyclePhaseFor({ ...base, date: '2026-09-12', prediction: { ...prediction, fertileWindow: null, ovulationDate: null } })).toMatchObject({ phase: 'cycle', label: 'Cycle day 12' })
   })
+  it('asks for two starts only when history is insufficient', () => {
+    expect(cyclePhaseFor({ ...base, date: '2026-09-12', periodStarts: ['2026-09-01'], prediction: { ...prediction, fertileWindow: null, ovulationDate: null } }).detail)
+      .toBe('Log two period starts to see phase estimates.')
+    expect(cyclePhaseFor({ ...base, date: '2026-09-12', prediction: { ...prediction, fertileWindow: null, ovulationDate: null } }).detail)
+      .toBe('No phase estimate for this day.')
+    expect(cyclePhaseFor({ ...base, date: '2026-09-30' })).toMatchObject({
+      phase: 'cycle', detail: 'No phase estimate for this day.',
+    })
+  })
   it('is unknown with no history or stale history', () => {
     expect(cyclePhaseFor({ ...base, date: '2026-09-12', periodStarts: [], flowDates: [] })).toMatchObject({ phase: 'unknown', cycleDay: null })
     expect(cyclePhaseFor({ ...base, date: '2027-01-15' })).toMatchObject({ cycleDay: null })

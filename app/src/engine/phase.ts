@@ -54,5 +54,7 @@ export function cyclePhaseFor({ date, periodStarts, flowDates, prediction, eligi
   if (fertile && date < fertile.start) {
     return result('follicular', 'Follicular phase', 'Phase estimate. From the end of your period until the fertile window.')
   }
-  return result('cycle', `Cycle day ${cycleDay}`, 'Log two period starts to see phase estimates.')
+  return result('cycle', `Cycle day ${cycleDay}`, periodStarts.length < 2
+    ? 'Log two period starts to see phase estimates.'
+    : 'No phase estimate for this day.')
 }
