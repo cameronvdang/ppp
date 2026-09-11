@@ -293,3 +293,31 @@ Design:
 - Copy always says "estimate"; nothing is presented as confirmed ovulation.
 
 Plan: `docs/superpowers/plans/2026-09-11-ppp-phases-symptoms.md` (Tasks 13–15).
+
+## 12. Addendum: plain-language UI (2026-09-11)
+
+The user asked for less verbose UI copy with no technical jargon; the Settings
+sentence "Credentials are encrypted with a non-extractable browser-managed key
+stored in IndexedDB…" was the example. Architecture detail on the interface
+reveals more than a user needs and reads as noise.
+
+Design:
+
+- Every sentence in the main UI is short (aim for 12 words, never more than
+  20; the consent sentence may reach 24) and describes an outcome, not a
+  mechanism: "Encrypted on this device", "Your PIN locks the screen".
+- Implementation vocabulary is banned from screens, components and the
+  in-app privacy table (a guard test enforces a list: IndexedDB, WebCrypto,
+  non-extractable, AES, browser-managed, pseudonymous, subject ID, external ID,
+  return URL, client token, single-owner, vault, sealed, service worker, PWA,
+  FHIR, RRULE, PRIVACY.md, repository, metadata, allowlist, canonical, BYOK,
+  API, .ics). The relay is called "your connector" in the UI, with fields
+  "Connector address" and "Connector key".
+- Honesty is preserved: "encrypted on this device" is said only about records
+  and saved keys; predictions are always "estimates"; consent text still says
+  what is sent and where.
+- Everything removed from the UI moves to `PRIVACY.md`, which keeps the full
+  technical account, and the in-app "Privacy and data" card keeps a plain
+  version of the destinations table.
+
+Plan: `docs/superpowers/plans/2026-09-11-ppp-copy.md` (Task 16).
