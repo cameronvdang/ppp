@@ -1,66 +1,97 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { hashPin } from '../crypto/vault'
 import { getSetting, SK } from '../db/schema'
-import {
-  authenticateWithBiometrics,
-  getBiometricStatus,
-  type BiometricKind,
-} from '../native/biometrics'
+import { attemptSessionUnlock, invalidateLockAttempt, isCurrentLockAttempt, prepareDeviceUnlock } from '../lib/lockSession'
+import { authenticateWithBiometrics, getBiometricStatus } from '../platform/deviceUnlock'
 import { useApp } from '../state/appStore'
 
 export function PinLock() {
   const setLocked = useApp((s) => s.setLocked)
   const [entered, setEntered] = useState('')
   const [shake, setShake] = useState(false)
-  const [biometricKind, setBiometricKind] = useState<BiometricKind>('none')
+  const [deviceUnlockAvailable, setDeviceUnlockAvailable] = useState(false)
   const [authBusy, setAuthBusy] = useState(false)
   const [authError, setAuthError] = useState<string | null>(null)
+  const generation = useRef(0)
 
   useEffect(() => {
-    let alive = true
-    ;(async () => {
-      const enabled = (await getSetting(SK.biometricLock)) === '1'
-      if (!enabled) return
-      const status = await getBiometricStatus()
-      if (!alive || !status.available || !status.enrolled) return
-      setBiometricKind(status.kind)
-      await unlockWithBiometrics()
-    })().catch(() => undefined)
+    let mounted = true
+    // A hide invalidates even an already locked screen, including partial PIN entry.
+    const onVisibility = () => {
+      if (document.visibilityState !== 'hidden') return
+      invalidateLockAttempt(generation, () => {
+        setEntered('')
+        setShake(false)
+        setAuthBusy(false)
+        setAuthError(null)
+      })
+    }
+    document.addEventListener('visibilitychange', onVisibility)
+    void prepareDeviceUnlock({
+      generation,
+      visibility: () => document.visibilityState,
+      isMounted: () => mounted,
+      readEnabled: async () => (await getSetting(SK.biometricLock)) === '1',
+      readStatus: getBiometricStatus,
+      showAvailable: () => setDeviceUnlockAvailable(true),
+      unlock: unlockWithDevice,
+    }).catch(() => undefined)
     return () => {
-      alive = false
+      mounted = false
+      document.removeEventListener('visibilitychange', onVisibility)
+      // Cleanup also cancels in-flight work across unmount and StrictMode replay.
+      invalidateLockAttempt(generation, () => {})
     }
   }, [])
 
-  async function unlockWithBiometrics() {
+  function current(captured: number) {
+    return isCurrentLockAttempt(generation, captured, document.visibilityState)
+  }
+
+  async function unlockWithDevice() {
+    if (document.visibilityState !== 'visible' || authBusy) return
+    const captured = generation.current
     setAuthBusy(true)
     setAuthError(null)
     try {
-      const result = await authenticateWithBiometrics()
-      if (result.authenticated) {
-        setLocked(false)
-      } else if (result.errorCode && result.errorCode !== 'USER_CANCEL') {
-        setAuthError('Biometric unlock was unavailable. Use your PIN.')
-      }
+      await attemptSessionUnlock(generation, () => document.visibilityState, async () => {
+        const result = await authenticateWithBiometrics()
+        if (current(captured) && !result.authenticated && result.errorCode !== 'USER_CANCEL') {
+          setAuthError('Device unlock was unavailable. Use your PIN.')
+        }
+        return result.authenticated
+      }, setLocked)
     } catch {
-      setAuthError('Biometric unlock was unavailable. Use your PIN.')
+      if (current(captured)) setAuthError('Device unlock was unavailable. Use your PIN.')
     } finally {
-      setAuthBusy(false)
+      if (current(captured)) setAuthBusy(false)
     }
   }
 
   async function press(d: string) {
+    if (entered.length >= 4 || document.visibilityState !== 'visible') return
     const next = entered + d
     setEntered(next)
-    if (next.length === 4) {
-      const [salt, hash] = await Promise.all([getSetting(SK.pinSalt), getSetting(SK.pinHash)])
-      if (salt && hash && (await hashPin(next, salt)) === hash) {
-        setLocked(false)
-      } else {
-        setShake(true)
-        setTimeout(() => {
-          setEntered('')
-          setShake(false)
-        }, 350)
+    if (next.length !== 4) return
+    const captured = generation.current
+    try {
+      await attemptSessionUnlock(generation, () => document.visibilityState, async () => {
+        const [salt, hash] = await Promise.all([getSetting(SK.pinSalt), getSetting(SK.pinHash)])
+        const matches = Boolean(salt && hash && (await hashPin(next, salt)) === hash)
+        if (!matches && current(captured)) {
+          setShake(true)
+          setTimeout(() => {
+            if (!current(captured)) return
+            setEntered('')
+            setShake(false)
+          }, 350)
+        }
+        return matches
+      }, setLocked)
+    } catch {
+      if (current(captured)) {
+        setEntered('')
+        setAuthError('Could not check your PIN. Please try again.')
       }
     }
   }
@@ -73,14 +104,10 @@ export function PinLock() {
           <span key={i} className={`pin-dot${entered.length > i ? ' filled' : ''}`} />
         ))}
       </div>
-      {biometricKind !== 'none' && (
-        <button className="biometric-unlock" disabled={authBusy} onClick={unlockWithBiometrics}>
-          <span aria-hidden="true">{biometricKind === 'face' ? '◎' : '◉'}</span>
-          {authBusy
-            ? 'Checking…'
-            : biometricKind === 'face'
-              ? 'Unlock with Face ID'
-              : 'Unlock with biometrics'}
+      {deviceUnlockAvailable && (
+        <button className="biometric-unlock" disabled={authBusy} onClick={unlockWithDevice}>
+          <span aria-hidden="true">◉</span>
+          {authBusy ? 'Checking…' : 'Unlock with device'}
         </button>
       )}
       {authError && <p className="error-text" style={{ textAlign: 'center' }}>{authError}</p>}
@@ -92,7 +119,8 @@ export function PinLock() {
             <button
               key={i}
               className="pin-key"
-              onClick={() => (k === '⌫' ? setEntered(entered.slice(0, -1)) : press(k))}
+              disabled={entered.length >= 4}
+              onClick={() => (k === '⌫' ? setEntered(entered.slice(0, -1)) : void press(k))}
             >
               {k}
             </button>

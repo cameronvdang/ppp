@@ -24,7 +24,7 @@ import {
   SECURE_SECRET_KEYS,
   secureVaultStatus,
   setSecureSecret,
-} from '../native/secureVault'
+} from '../platform/secureVault'
 import { useApp } from '../state/appStore'
 import { LunaraMark } from './LunaraMark'
 import '../styles/assistant.css'
@@ -87,7 +87,7 @@ export function AssistantScreen() {
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [savedProvider, savedModel, savedBaseUrl, savedConsent, status, legacyKey, savedOpenAiKey, savedAnthropicKey] =
+      const [savedProvider, savedModel, savedBaseUrl, savedConsent, _status, legacyKey, savedOpenAiKey, savedAnthropicKey] =
         await Promise.all([
           getSetting(SK.aiProvider),
           getSetting(SK.aiModel),
@@ -101,7 +101,7 @@ export function AssistantScreen() {
       const nextProvider: AssistantProvider = savedProvider === 'openai' ? 'openai' : 'anthropic'
 
       // One-time migration from the old Dexie implementation. Plaintext is
-      // removed immediately after the secure bridge accepts it.
+      // removed immediately after the browser vault accepts it.
       if (legacyKey) {
         await setSecureSecret(SECURE_SECRET_KEYS.openAiApiKey, legacyKey)
         await removeSetting(SK.aiKey)
@@ -114,11 +114,7 @@ export function AssistantScreen() {
       setBaseUrl(savedBaseUrl || '')
       setConsent(parseAssistantConsent(savedConsent))
       setApiKey(key)
-      setVaultLabel(
-        status.persistence === 'memory'
-          ? 'memory only for this browser tab'
-          : `${status.persistence}${status.hardwareBacked ? ' · hardware protected' : ''}`,
-      )
+      setVaultLabel('Browser-managed key (WebCrypto in IndexedDB)')
       setSetupOpen(!key)
       setLoading(false)
     })().catch((reason: unknown) => {
@@ -404,7 +400,7 @@ export function AssistantScreen() {
               </>
             )}
             <p className="microcopy">
-              Storage: {vaultLabel}. Credentials never enter the cycle database or a backup.
+              Storage: {vaultLabel}. Credentials never enter the cycle database or a backup. PIN and device unlock gate the screen; they do not encrypt the browser key.
             </p>
             {apiKey && (
               <button className="text-button danger" onClick={removeKey}>

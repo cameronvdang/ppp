@@ -29,7 +29,8 @@ import {
   type RangePresetId,
 } from '../lib/dateRange'
 import { formatShort, localToday } from '../lib/dates'
-import { exportCurrentReport } from '../native/reportExport'
+import { loadReport, readyReport } from '../lib/reportLoad'
+import { exportCurrentReport } from '../platform/reportExport'
 import { useApp } from '../state/appStore'
 import '../styles/reports.css'
 
@@ -54,7 +55,8 @@ export function DoctorReport() {
   const [customStart, setCustomStart] = useState(today)
   const [customEnd, setCustomEnd] = useState(today)
 
-  const data = useLiveQuery(async () => {
+  const requestKey = JSON.stringify([today, preset, customStart, customEnd])
+  const result = useLiveQuery(() => loadReport(requestKey, async () => {
     const [allPeriodStarts, allOvulations, allLogs, legacyBirthYear, cycleLength, profile] =
       await Promise.all([
         getPeriodStarts(),
@@ -125,12 +127,14 @@ export function DoctorReport() {
       excludedLogCount: allLogs.length - logs.length,
       earliestEntry,
     }
-  }, [today, preset, customStart, customEnd])
+  }), [requestKey])
 
-  if (!data) return null
-  const age = data.birthYear ? new Date().getFullYear() - Number(data.birthYear) : null
+  const data = readyReport(result, requestKey)
+  const loadFailed = result?.key === requestKey && result.status === 'error'
+  const age = data?.birthYear ? new Date().getFullYear() - Number(data.birthYear) : null
 
   async function exportReport() {
+    if (!data) return
     setExportError(null)
     try {
       await exportCurrentReport('Lunara doctor report')
@@ -146,7 +150,7 @@ export function DoctorReport() {
           ‹
         </button>
         <h2>Doctor’s report</h2>
-        <button className="back-btn" onClick={() => void exportReport()} aria-label="Export report">
+        <button className="back-btn" disabled={!data} onClick={() => void exportReport()} aria-label="Export report">
           ⎙
         </button>
       </div>
@@ -156,260 +160,270 @@ export function DoctorReport() {
             {exportError}
           </p>
         )}
-        <h1 style={{ fontSize: 24, fontWeight: 800 }}>Cycle summary</h1>
-        <p className="muted" style={{ marginBottom: 6 }}>
-          Generated {formatShort(today)} {age ? `· age ${age}` : ''} · from self-reported data
-        </p>
-        <p className="report-range-caption">
-          Covering {describeRange(data.range)}
-        </p>
+        <div className="print-root">
+          {!data ? (
+            <p className="no-print" role={loadFailed ? 'alert' : 'status'}>
+              {loadFailed ? 'Could not load your report. Close it and try again.' : 'Building your report…'}
+            </p>
+          ) : (
+            <>
+              <h1 style={{ fontSize: 24, fontWeight: 800 }}>Cycle summary</h1>
+              <p className="muted" style={{ marginBottom: 6 }}>
+                Generated {formatShort(today)} {age ? `· age ${age}` : ''} · from self-reported data
+              </p>
+              <p className="report-range-caption">
+                Covering {describeRange(data.range)}
+              </p>
 
-        <div className="doctor-controls no-print">
-          <strong>Date range</strong>
-          <div className="range-preset-row" role="group" aria-label="Report date range">
-            {RANGE_PRESETS.map((option) => (
-              <button
-                key={option.id}
-                type="button"
-                className={`range-chip ${preset === option.id ? 'selected' : ''}`}
-                aria-pressed={preset === option.id}
-                onClick={() => {
-                  // Seed the custom fields from the window already on screen so
-                  // switching to Custom starts from what the reader just saw.
-                  if (option.id === 'custom') {
-                    setCustomStart(data.range.start)
-                    setCustomEnd(data.range.end)
-                  }
-                  setPreset(option.id)
-                }}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-          {preset === 'custom' && (
-            <div className="range-custom-row">
-              <label className="range-date-field">
-                <span>From</span>
-                <input
-                  type="date"
-                  value={customStart}
-                  max={today}
-                  onChange={(event) => {
-                    if (isISODate(event.target.value)) setCustomStart(event.target.value)
-                  }}
-                />
-              </label>
-              <label className="range-date-field">
-                <span>To</span>
-                <input
-                  type="date"
-                  value={customEnd}
-                  max={today}
-                  onChange={(event) => {
-                    if (isISODate(event.target.value)) setCustomEnd(event.target.value)
-                  }}
-                />
-              </label>
-            </div>
-          )}
-          <p className="range-summary">
-            {data.loggedDaysInRange} logged {data.loggedDaysInRange === 1 ? 'day' : 'days'} in this
-            window of {rangeLengthDays(data.range)}
-            {data.excludedLogCount > 0 && (
-              <> · {data.excludedLogCount} entries outside it are not included</>
-            )}
-            {data.earliestEntry && (
-              <> · tracking began {formatShort(data.earliestEntry)}</>
-            )}
-          </p>
-        </div>
+              <div className="doctor-controls no-print">
+                <strong>Date range</strong>
+                <div className="range-preset-row" role="group" aria-label="Report date range">
+                  {RANGE_PRESETS.map((option) => (
+                    <button
+                      key={option.id}
+                      type="button"
+                      className={`range-chip ${preset === option.id ? 'selected' : ''}`}
+                      aria-pressed={preset === option.id}
+                      onClick={() => {
+                        // Seed the custom fields from the window already on screen so
+                        // switching to Custom starts from what the reader just saw.
+                        if (option.id === 'custom') {
+                          setCustomStart(data.range.start)
+                          setCustomEnd(data.range.end)
+                        }
+                        setPreset(option.id)
+                      }}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
+                {preset === 'custom' && (
+                  <div className="range-custom-row">
+                    <label className="range-date-field">
+                      <span>From</span>
+                      <input
+                        type="date"
+                        value={customStart}
+                        max={today}
+                        onChange={(event) => {
+                          if (isISODate(event.target.value)) setCustomStart(event.target.value)
+                        }}
+                      />
+                    </label>
+                    <label className="range-date-field">
+                      <span>To</span>
+                      <input
+                        type="date"
+                        value={customEnd}
+                        max={today}
+                        onChange={(event) => {
+                          if (isISODate(event.target.value)) setCustomEnd(event.target.value)
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+                <p className="range-summary">
+                  {data.loggedDaysInRange} logged {data.loggedDaysInRange === 1 ? 'day' : 'days'} in this
+                  window of {rangeLengthDays(data.range)}
+                  {data.excludedLogCount > 0 && (
+                    <> · {data.excludedLogCount} entries outside it are not included</>
+                  )}
+                  {data.earliestEntry && (
+                    <> · tracking began {formatShort(data.earliestEntry)}</>
+                  )}
+                </p>
+              </div>
 
-        <div className="doctor-controls no-print">
-          <strong>Sensitive sections to include</strong>
-          <label className="doctor-control">
-            <span>Mood and mental-health entries</span>
-            <input
-              type="checkbox"
-              checked={includeMentalHealth}
-              onChange={(event) => setIncludeMentalHealth(event.target.checked)}
-            />
-          </label>
-          <label className="doctor-control">
-            <span>Sexual and intimacy entries</span>
-            <input
-              type="checkbox"
-              checked={includeSexualHealth}
-              onChange={(event) => setIncludeSexualHealth(event.target.checked)}
-            />
-          </label>
-          <label className="doctor-control">
-            <span>Pregnancy and ovulation test entries</span>
-            <input
-              type="checkbox"
-              checked={includeFertilityTests}
-              onChange={(event) => setIncludeFertilityTests(event.target.checked)}
-            />
-          </label>
-        </div>
+              <div className="doctor-controls no-print">
+                <strong>Sensitive sections to include</strong>
+                <label className="doctor-control">
+                  <span>Mood and mental-health entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeMentalHealth}
+                    onChange={(event) => setIncludeMentalHealth(event.target.checked)}
+                  />
+                </label>
+                <label className="doctor-control">
+                  <span>Sexual and intimacy entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeSexualHealth}
+                    onChange={(event) => setIncludeSexualHealth(event.target.checked)}
+                  />
+                </label>
+                <label className="doctor-control">
+                  <span>Pregnancy and ovulation test entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeFertilityTests}
+                    onChange={(event) => setIncludeFertilityTests(event.target.checked)}
+                  />
+                </label>
+              </div>
 
-        <div className="section-label" style={{ margin: '18px 0 10px' }}>
-          Report metadata
-        </div>
-        <ReportRow label="Selected range" value={describeRange(data.range)} />
-        <ReportRow
-          label="Entries within range"
-          value={
-            data.firstLogDate && data.lastLogDate
-              ? `${formatShort(data.firstLogDate)}–${formatShort(data.lastLogDate)} · ${data.loggedDaysInRange} days`
-              : 'No dated entries'
-          }
-        />
-        <ReportRow
-          label="Complete check-ins · selected range"
-          value={`${data.rangeCompleteness.completeCheckInDays} of ${data.rangeCompleteness.windowDays} days (${data.rangeCompleteness.completeCoveragePercent}%)`}
-        />
-        <ReportRow
-          label="Any-entry days · selected range"
-          value={`${data.rangeCompleteness.daysWithAnyEntry} of ${data.rangeCompleteness.windowDays} days (${data.rangeCompleteness.entryCoveragePercent}%)`}
-        />
-        <ReportRow
-          label="Current contraception context"
-          value={data.profile.reproductive.contraception.replaceAll('-', ' ')}
-        />
+              <div className="section-label" style={{ margin: '18px 0 10px' }}>
+                Report metadata
+              </div>
+              <ReportRow label="Selected range" value={describeRange(data.range)} />
+              <ReportRow
+                label="Entries within range"
+                value={
+                  data.firstLogDate && data.lastLogDate
+                    ? `${formatShort(data.firstLogDate)}–${formatShort(data.lastLogDate)} · ${data.loggedDaysInRange} days`
+                    : 'No dated entries'
+                }
+              />
+              <ReportRow
+                label="Complete check-ins · selected range"
+                value={`${data.rangeCompleteness.completeCheckInDays} of ${data.rangeCompleteness.windowDays} days (${data.rangeCompleteness.completeCoveragePercent}%)`}
+              />
+              <ReportRow
+                label="Any-entry days · selected range"
+                value={`${data.rangeCompleteness.daysWithAnyEntry} of ${data.rangeCompleteness.windowDays} days (${data.rangeCompleteness.entryCoveragePercent}%)`}
+              />
+              <ReportRow
+                label="Current contraception context"
+                value={data.profile.reproductive.contraception.replaceAll('-', ' ')}
+              />
 
-        <div className="section-label" style={{ margin: '24px 0 10px' }}>
-          Cycle history
-        </div>
-        <ReportRow label="Periods logged" value={String(data.periodCount)} />
-        <ReportRow
-          label="Six-cycle average"
-          value={
-            data.report.cycleWindows.six.averageDays != null
-              ? `${data.report.cycleWindows.six.averageDays} days (${data.report.cycleWindows.six.sampleSize} available)`
-              : '—'
-          }
-        />
-        <ReportRow
-          label="Twelve-cycle average"
-          value={
-            data.report.cycleWindows.twelve.averageDays != null
-              ? `${data.report.cycleWindows.twelve.averageDays} days (${data.report.cycleWindows.twelve.sampleSize} available)`
-              : '—'
-          }
-        />
-        <ReportRow
-          label="Average bleeding"
-          value={
-            data.report.bleedingTrend.averageDays != null
-              ? `${data.report.bleedingTrend.averageDays} logged days`
-              : '—'
-          }
-        />
-        <ReportRow
-          label="Cycle regularity"
-          value={
-            data.irregular.classification === 'insufficient-data'
-              ? 'Not enough data'
-              : `${data.irregular.classification} (range ${data.irregular.rangeDays}d)`
-          }
-        />
-        <ReportRow
-          label="Next period (estimate)"
-          value={
-            !data.prediction.eligibility.periodForecast
-              ? 'Paused for current context'
-              : data.prediction.prediction.nextPeriodStart
-                ? `${formatShort(data.prediction.prediction.nextPeriodStart)} ±${data.prediction.prediction.uncertaintyDays}d`
-                : '—'
-          }
-        />
+              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                Cycle history
+              </div>
+              <ReportRow label="Periods logged" value={String(data.periodCount)} />
+              <ReportRow
+                label="Six-cycle average"
+                value={
+                  data.report.cycleWindows.six.averageDays != null
+                    ? `${data.report.cycleWindows.six.averageDays} days (${data.report.cycleWindows.six.sampleSize} available)`
+                    : '—'
+                }
+              />
+              <ReportRow
+                label="Twelve-cycle average"
+                value={
+                  data.report.cycleWindows.twelve.averageDays != null
+                    ? `${data.report.cycleWindows.twelve.averageDays} days (${data.report.cycleWindows.twelve.sampleSize} available)`
+                    : '—'
+                }
+              />
+              <ReportRow
+                label="Average bleeding"
+                value={
+                  data.report.bleedingTrend.averageDays != null
+                    ? `${data.report.bleedingTrend.averageDays} logged days`
+                    : '—'
+                }
+              />
+              <ReportRow
+                label="Cycle regularity"
+                value={
+                  data.irregular.classification === 'insufficient-data'
+                    ? 'Not enough data'
+                    : `${data.irregular.classification} (range ${data.irregular.rangeDays}d)`
+                }
+              />
+              <ReportRow
+                label="Next period (estimate)"
+                value={
+                  !data.prediction.eligibility.periodForecast
+                    ? 'Paused for current context'
+                    : data.prediction.prediction.nextPeriodStart
+                      ? `${formatShort(data.prediction.prediction.nextPeriodStart)} ±${data.prediction.prediction.uncertaintyDays}d`
+                      : '—'
+                }
+              />
 
-        <div className="section-label" style={{ margin: '24px 0 10px' }}>
-          Most-reported physical symptoms
-        </div>
-        {data.symptoms.length ? (
-          data.symptoms.map((s) => <ReportRow key={s.name} label={s.name} value={`${s.count}×`} />)
-        ) : (
-          <p className="muted">None logged.</p>
-        )}
+              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                Most-reported physical symptoms
+              </div>
+              {data.symptoms.length ? (
+                data.symptoms.map((s) => <ReportRow key={s.name} label={s.name} value={`${s.count}×`} />)
+              ) : (
+                <p className="muted">None logged.</p>
+              )}
 
-        <div className="section-label" style={{ margin: '24px 0 10px' }}>
-          Symptom-phase summary
-        </div>
-        {data.report.symptomPhaseSummaries.length ? (
-          data.report.symptomPhaseSummaries.slice(0, 8).map((summary) => (
-            <ReportRow
-              key={`${summary.signal}-${summary.phase}`}
-              label={`${summary.signal} · ${summary.phase}`}
-              value={`${summary.occurrences}/${summary.completedCheckInsInPhase} complete check-ins`}
-            />
-          ))
-        ) : (
-          <p className="muted">Not enough complete check-ins for a phase comparison.</p>
-        )}
-
-        {includeMentalHealth && (
-          <>
-            <div className="section-label" style={{ margin: '24px 0 10px' }}>
-              Mood and mental-health entries
-            </div>
-            {data.moods.length
-              ? data.moods.map((item) => (
-                  <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />
-                ))
-              : <p className="muted">None logged.</p>}
-          </>
-        )}
-
-        {includeSexualHealth && (
-          <>
-            <div className="section-label" style={{ margin: '24px 0 10px' }}>
-              Sexual and intimacy entries
-            </div>
-            {data.intimacy.length
-              ? data.intimacy.map((item) => (
+              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                Symptom-phase summary
+              </div>
+              {data.report.symptomPhaseSummaries.length ? (
+                data.report.symptomPhaseSummaries.slice(0, 8).map((summary) => (
                   <ReportRow
-                    key={item.name}
-                    label={item.name.replaceAll('-', ' ')}
-                    value={`${item.count} days`}
+                    key={`${summary.signal}-${summary.phase}`}
+                    label={`${summary.signal} · ${summary.phase}`}
+                    value={`${summary.occurrences}/${summary.completedCheckInsInPhase} complete check-ins`}
                   />
                 ))
-              : <p className="muted">None logged.</p>}
-          </>
-        )}
+              ) : (
+                <p className="muted">Not enough complete check-ins for a phase comparison.</p>
+              )}
 
-        {includeFertilityTests && (
-          <>
-            <div className="section-label" style={{ margin: '24px 0 10px' }}>
-              Fertility-test observations
-            </div>
-            {data.fertilityTests.length
-              ? data.fertilityTests.map((item) => (
-                  <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />
-                ))
-              : <p className="muted">None logged.</p>}
-          </>
-        )}
+              {includeMentalHealth && (
+                <>
+                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                    Mood and mental-health entries
+                  </div>
+                  {data.moods.length
+                    ? data.moods.map((item) => (
+                        <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />
+                      ))
+                    : <p className="muted">None logged.</p>}
+                </>
+              )}
 
-        <div className="doctor-methodology">
-          <strong>Methodology and limits</strong>
-          <br />
-          Every figure above except the next-period estimate describes only{' '}
-          {describeRange(data.range)}; the estimate uses the full logged history. A shorter window
-          means fewer completed cycles, not a change in the underlying data.{' '}
-          {data.report.methodology} The six- and twelve-cycle values include only completed
-          start-to-start cycles. Consecutive dates with a selected flow level are treated as one
-          bleeding episode. BBT and OPK are observations and do not confirm an exact ovulation
-          time. The current contraception context is not applied backward because no start date
-          was recorded.
+              {includeSexualHealth && (
+                <>
+                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                    Sexual and intimacy entries
+                  </div>
+                  {data.intimacy.length
+                    ? data.intimacy.map((item) => (
+                        <ReportRow
+                          key={item.name}
+                          label={item.name.replaceAll('-', ' ')}
+                          value={`${item.count} days`}
+                        />
+                      ))
+                    : <p className="muted">None logged.</p>}
+                </>
+              )}
+
+              {includeFertilityTests && (
+                <>
+                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                    Fertility-test observations
+                  </div>
+                  {data.fertilityTests.length
+                    ? data.fertilityTests.map((item) => (
+                        <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />
+                      ))
+                    : <p className="muted">None logged.</p>}
+                </>
+              )}
+
+              <div className="doctor-methodology">
+                <strong>Methodology and limits</strong>
+                <br />
+                Every figure above except the next-period estimate describes only{' '}
+                {describeRange(data.range)}; the estimate uses the full logged history. A shorter window
+                means fewer completed cycles, not a change in the underlying data.{' '}
+                {data.report.methodology} The six- and twelve-cycle values include only completed
+                start-to-start cycles. Consecutive dates with a selected flow level are treated as one
+                bleeding episode. BBT and OPK are observations and do not confirm an exact ovulation
+                time. The current contraception context is not applied backward because no start date
+                was recorded.
+              </div>
+
+              <p className="muted" style={{ marginTop: 18, lineHeight: 1.5 }}>
+                This summary is for discussion with a healthcare provider. Lunara is not a medical
+                device, does not diagnose a condition, and does not establish why a pattern occurred.
+                Bring original dates and details when they matter clinically.
+              </p>
+            </>
+          )}
         </div>
-
-        <p className="muted" style={{ marginTop: 18, lineHeight: 1.5 }}>
-          This summary is for discussion with a healthcare provider. Lunara is not a medical
-          device, does not diagnose a condition, and does not establish why a pattern occurred.
-          Bring original dates and details when they matter clinically.
-        </p>
       </div>
     </div>
   )

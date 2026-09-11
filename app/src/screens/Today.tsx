@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { DateStrip } from '../components/DateStrip'
 import { LunaraMark } from '../components/LunaraMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
@@ -33,7 +33,6 @@ import {
 } from '../engine/predictionContext'
 import { localToday } from '../lib/dates'
 import { useHorizontalDrag } from '../lib/useHorizontalDrag'
-import { publishWidgetSnapshot, type CycleWidgetSnapshot } from '../native/widgets'
 import { useApp, type TrackerFocus } from '../state/appStore'
 
 interface DailyInsight {
@@ -317,74 +316,6 @@ export function Today() {
       selectedLog,
     }
   }, [selectedDate])
-
-  useEffect(() => {
-    if (!data || selectedDate !== today) return
-
-    let snapshot: CycleWidgetSnapshot
-    if (data.goal === 'pregnancy') {
-      const pregnancy = data.pregnancy
-      snapshot = pregnancy
-        ? {
-            generatedAt: new Date().toISOString(),
-            headline: `${pregnancy.week} weeks, ${pregnancy.dayOfWeek} days`,
-            detail: `${pregnancy.daysRemaining} days to ${
-              pregnancy.dating.provisional ? 'your estimated due date' : 'your due date'
-            } · ${pregnancyDatingStatus(pregnancy.dating)}`,
-            phase: 'pregnancy',
-            accent: 'apricot',
-          }
-        : {
-            generatedAt: new Date().toISOString(),
-            headline: 'Open Lunara',
-            detail: 'Review your pregnancy timeline.',
-            phase: 'pregnancy',
-            accent: 'apricot',
-          }
-    } else {
-      const cycleDay = data.prediction.cycleDay
-      const nextPeriodDate = data.prediction.nextPeriodStart ?? undefined
-      const daysToOvulation = data.prediction.ovulationDate
-        ? daysBetween(selectedDate, data.prediction.ovulationDate)
-        : null
-      const inPeriod = cycleDay != null && cycleDay <= 5
-      const ovulationToday = daysToOvulation === 0
-      snapshot = {
-        generatedAt: new Date().toISOString(),
-        headline: inPeriod
-          ? `Period · Day ${cycleDay}`
-          : ovulationToday
-            ? 'Ovulation may be today'
-            : cycleDay
-              ? `Cycle day ${cycleDay}`
-              : 'Open Lunara',
-        detail: ovulationToday
-          ? `Calendar estimate · about ±${data.prediction.uncertaintyDays} days`
-          : nextPeriodDate
-            ? `Next period estimate · ${nextPeriodDate}`
-            : 'Log a period date to update your private summary.',
-        cycleDay: cycleDay ?? undefined,
-        phase: inPeriod
-          ? 'period'
-          : ovulationToday
-            ? 'ovulation'
-            : data.prediction.fertileWindow &&
-                selectedDate >= data.prediction.fertileWindow.start &&
-                selectedDate <= data.prediction.fertileWindow.end
-              ? 'fertile'
-              : 'follicular',
-        nextPeriodDate,
-        fertileToday: Boolean(
-          data.prediction.fertileWindow &&
-            selectedDate >= data.prediction.fertileWindow.start &&
-            selectedDate <= data.prediction.fertileWindow.end,
-        ),
-        accent: inPeriod ? 'rose' : 'teal',
-      }
-    }
-
-    void publishWidgetSnapshot(snapshot).catch(() => undefined)
-  }, [data, selectedDate, today])
 
   if (!data) return <div className="page page-loading" aria-label="Loading today" />
 

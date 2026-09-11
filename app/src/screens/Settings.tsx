@@ -39,48 +39,27 @@ import {
   type PregnancyDatingMethod,
 } from '../engine/pregnancyDating'
 import {
-  authenticateWithBiometrics,
+  enrollDeviceUnlock,
+  removeDeviceUnlock,
   getBiometricStatus,
   type BiometricStatus,
-} from '../native/biometrics'
-import {
-  getHealthPlatformStatus,
-  importHealthData,
-  requestHealthAccess,
-  type HealthPlatformStatus,
-} from '../native/health'
-import {
-  applyHealthSamples,
-  healthImportProvider,
-  importAppleHealthPeriodHistory,
-} from '../native/healthImport'
+} from '../platform/deviceUnlock'
 import {
   cancelDailyReminder,
   cancelMaterializedReminders,
   notificationPermission,
   syncReminderPlans,
-} from '../native/notifications'
-import { isNative, nativePlatform } from '../native/runtime'
+  refreshReminderScheduler,
+} from '../platform/notifications'
 import {
-  clearSecureSecrets,
   deleteSecureSecret,
   getSecureSecret,
   SECURE_SECRET_KEYS,
   secureVaultStatus,
-} from '../native/secureVault'
-import { getWidgetStatus, type WidgetStatus } from '../native/widgets'
+} from '../platform/secureVault'
 import { useApp } from '../state/appStore'
 
 const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-
-function profileHealthPermission(
-  authorization: HealthPlatformStatus['authorization'],
-): PermissionState {
-  if (authorization === 'granted' || authorization === 'partial') return 'granted'
-  if (authorization === 'requested') return 'requested'
-  if (authorization === 'denied') return 'denied'
-  return 'not-requested'
-}
 
 function profileReminderPermission(permission: PermissionState): ReminderPermission {
   return permission === 'requested' ? 'not-requested' : permission
@@ -125,7 +104,21 @@ function pregnancyDateBounds(method: PregnancyDatingMethod) {
   return { min: addDays(today, -300), max: today }
 }
 
-export function Settings() {
+export async function setDeviceUnlockEnabled(enabled: boolean, hasPin: boolean): Promise<void> {
+  if (!enabled) {
+    await removeSetting(SK.biometricLock)
+    await removeDeviceUnlock()
+    return
+  }
+  if (!hasPin) throw new Error('Set a PIN first so you always have a fallback.')
+  await enrollDeviceUnlock()
+  await setSetting(SK.biometricLock, '1')
+}
+
+export function Settings({ onPinPresenceChange, onDeleteAllData }: {
+  onPinPresenceChange: (hasPin: boolean) => void
+  onDeleteAllData: () => void
+}) {
   const {
     setAssistantOpen,
     setCycleReportOpen,
@@ -138,10 +131,8 @@ export function Settings() {
   const [status, setStatus] = useState<string | null>(null)
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false)
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false)
-  const [vaultLabel, setVaultLabel] = useState(isNative ? 'Checking…' : 'Session memory')
+  const [vaultLabel, setVaultLabel] = useState('Checking…')
   const [biometrics, setBiometrics] = useState<BiometricStatus | null>(null)
-  const [health, setHealth] = useState<HealthPlatformStatus | null>(null)
-  const [widget, setWidget] = useState<WidgetStatus | null>(null)
   const [capabilityBusy, setCapabilityBusy] = useState(false)
   const [reminderBusy, setReminderBusy] = useState(false)
   const [reminders, setReminders] = useState<ReminderPreferences | null>(null)
@@ -155,24 +146,16 @@ export function Settings() {
       getSecureSecret(SECURE_SECRET_KEYS.anthropicApiKey),
       secureVaultStatus(),
       getBiometricStatus(),
-      getHealthPlatformStatus(),
-      getWidgetStatus(),
     ])
-      .then(([openAiKey, anthropicKey, vault, biometricStatus, healthStatus, widgetStatus]) => {
+      .then(([openAiKey, anthropicKey, _vault, biometricStatus]) => {
         if (!alive) return
         setHasOpenAiKey(Boolean(openAiKey))
         setHasAnthropicKey(Boolean(anthropicKey))
-        setVaultLabel(
-          vault.persistence === 'memory'
-            ? 'Session memory'
-            : `${vault.persistence}${vault.hardwareBacked ? ' · hardware protected' : ''}`,
-        )
+        setVaultLabel('Browser-managed key (WebCrypto in IndexedDB)')
         setBiometrics(biometricStatus)
-        setHealth(healthStatus)
-        setWidget(widgetStatus)
       })
       .catch((reason: unknown) => {
-        if (alive) setStatus(reason instanceof Error ? reason.message : 'Could not inspect native services.')
+        if (alive) setStatus(reason instanceof Error ? reason.message : 'Could not inspect browser storage and device unlock.')
       })
     return () => {
       alive = false
@@ -351,147 +334,39 @@ export function Settings() {
       return
     }
     const salt = newSalt()
-    await setSetting(SK.pinSalt, salt)
-    await setSetting(SK.pinHash, await hashPin(pin, salt))
+    const hash = await hashPin(pin, salt)
+    await db.transaction('rw', db.settings, async () => {
+      await setSetting(SK.pinSalt, salt)
+      await setSetting(SK.pinHash, hash)
+    })
+    onPinPresenceChange(true)
     setStatus('PIN lock enabled.')
   }
 
   async function removePin() {
-    await removeSetting(SK.pinHash)
-    await removeSetting(SK.pinSalt)
-    await removeSetting(SK.biometricLock)
+    await db.transaction('rw', db.settings, async () => {
+      await removeSetting(SK.pinHash)
+      await removeSetting(SK.pinSalt)
+      await removeSetting(SK.biometricLock)
+      await removeDeviceUnlock()
+    })
+    onPinPresenceChange(false)
+    setBiometrics(await getBiometricStatus())
     setStatus('PIN lock removed.')
   }
 
   async function toggleBiometricLock() {
-    if (s!.biometricLock) {
-      await removeSetting(SK.biometricLock)
-      setStatus('Biometric unlock turned off.')
-      return
-    }
-    if (!s!.hasPin) {
-      setStatus('Set a PIN first so you always have a fallback.')
-      return
-    }
-    const current = biometrics ?? (await getBiometricStatus())
-    setBiometrics(current)
-    if (!current.available || !current.enrolled) {
-      setStatus(current.reason ?? 'No enrolled biometric is available on this device.')
-      return
-    }
-    setCapabilityBusy(true)
-    try {
-      const result = await authenticateWithBiometrics('Confirm biometric unlock for Lunara')
-      if (!result.authenticated) {
-        setStatus('Biometric confirmation was cancelled.')
-        return
-      }
-      await setSetting(SK.biometricLock, '1')
-      setStatus('Biometric unlock enabled. Your PIN remains the fallback.')
-    } finally {
-      setCapabilityBusy(false)
-    }
-  }
-
-  async function syncHealthData() {
     setCapabilityBusy(true)
     setStatus(null)
     try {
-      let access = health ?? (await getHealthPlatformStatus())
-      if (!access.available) {
-        setStatus(access.reason ?? 'Health data import is not available on this device.')
-        setHealth(access)
-        return
-      }
-      access = await requestHealthAccess()
-      setHealth(access)
-      await recordHealthImportDecision(access.authorization)
-      if (access.authorization === 'denied' || access.authorization === 'unavailable') {
-        setStatus(access.reason ?? 'Health permission was not granted.')
-        return
-      }
-      const provider = healthImportProvider(access)
-      if (!provider) {
-        setStatus('This device does not expose a supported health-data provider.')
-        return
-      }
-      const today = localToday()
-      const samples = await importHealthData({
-        startDate: addDays(today, -365),
-        endDate: today,
-        types: access.grantedTypes.length ? access.grantedTypes : access.supportedTypes,
-      })
-      const result = await applyHealthSamples(samples, provider)
-      if (!samples.length && access.platform === 'healthkit') {
-        setStatus(
-          'Apple Health returned no records. For privacy, iOS does not reveal whether access was denied or the selected categories are empty.',
-        )
-      } else {
-        setStatus(
-          `Reviewed ${result.uniqueSamples} health sample${result.uniqueSamples === 1 ? '' : 's'}; ${result.daysChanged} day${result.daysChanged === 1 ? '' : 's'} added or updated.${result.fieldsSkippedForUserData ? ` Kept ${result.fieldsSkippedForUserData} manually entered value${result.fieldsSkippedForUserData === 1 ? '' : 's'}.` : ''}`,
-        )
-      }
+      const enabled = !s!.biometricLock
+      await setDeviceUnlockEnabled(enabled, s!.hasPin)
+      setBiometrics(await getBiometricStatus())
+      setStatus(enabled
+        ? 'Device unlock enabled. Your PIN remains the fallback.'
+        : 'Device unlock turned off.')
     } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : 'Health import failed.')
-    } finally {
-      setCapabilityBusy(false)
-    }
-  }
-
-  async function recordHealthImportDecision(
-    authorization: HealthPlatformStatus['authorization'],
-  ) {
-    const profile = await getHealthProfile()
-    const permission = profileHealthPermission(authorization)
-    const state =
-      authorization === 'denied'
-        ? 'declined'
-        : authorization === 'granted' ||
-            authorization === 'partial' ||
-            authorization === 'requested'
-          ? 'granted'
-          : 'not-requested'
-    const consentLedger = profile.privacy.consentLedger
-      .filter((decision) => decision.purpose !== 'health-import')
-      .concat({
-        purpose: 'health-import' as const,
-        state,
-        version: 1 as const,
-        decidedAt: new Date().toISOString(),
-      })
-    await putHealthProfile({
-      permissions: { healthData: permission },
-      privacy: { consentLedger },
-    })
-  }
-
-  async function importApplePeriods() {
-    setCapabilityBusy(true)
-    setStatus(null)
-    try {
-      const today = localToday()
-      const result = await importAppleHealthPeriodHistory({
-        startDate: addDays(today, -730),
-        endDate: today,
-      })
-      const refreshed = await getHealthPlatformStatus()
-      setHealth(refreshed)
-      if (result.authorization !== 'unavailable') {
-        await recordHealthImportDecision(result.authorization)
-      }
-      if (!result.available) {
-        setStatus(result.reason ?? 'Apple Health period import is unavailable.')
-      } else if (!result.periodSamples) {
-        setStatus(
-          'Apple Health returned no period records. For privacy, iOS does not reveal whether access was denied or Health has no menstrual-flow history.',
-        )
-      } else {
-        setStatus(
-          `Reviewed ${result.uniqueSamples} Apple Health period record${result.uniqueSamples === 1 ? '' : 's'}; ${result.daysChanged} day${result.daysChanged === 1 ? '' : 's'} added or updated.${result.fieldsSkippedForUserData ? ` Kept ${result.fieldsSkippedForUserData} manually entered period value${result.fieldsSkippedForUserData === 1 ? '' : 's'}.` : ''}`,
-        )
-      }
-    } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : 'Apple Health period import failed.')
+      setStatus(reason instanceof Error ? reason.message : 'Device unlock could not be updated. Use your PIN.')
     } finally {
       setCapabilityBusy(false)
     }
@@ -558,11 +433,8 @@ export function Settings() {
       let prepared = next
       let permission = profileReminderPermission(s!.profile.permissions.notifications)
 
-      if (isNative && hasEnabledPlans) {
+      if (hasEnabledPlans) {
         permission = await notificationPermission(requestPermission)
-        prepared = withReminderPermission(next, permission)
-      } else if (!isNative) {
-        permission = 'not-requested'
         prepared = withReminderPermission(next, permission)
       }
 
@@ -577,41 +449,37 @@ export function Settings() {
         removeSetting(SK.reminderTime),
       ])
 
-      if (isNative) {
-        if (!hasEnabledPlans || permission !== 'granted') {
-          await cancelMaterializedReminders()
-        } else {
-          await syncReminderPlans(prepared.plans, {
-            now: new Date(),
-            horizonDays: 30,
-            limit: 64,
-          })
-        }
-
-        if (permission !== 'not-requested') {
-          const consentLedger = s!.profile.privacy.consentLedger
-            .filter((decision) => decision.purpose !== 'notifications')
-            .concat({
-              purpose: 'notifications' as const,
-              state: permission === 'granted' ? 'granted' as const : 'declined' as const,
-              version: 1 as const,
-              decidedAt: new Date().toISOString(),
-            })
-          await putHealthProfile({
-            permissions: { notifications: permission },
-            privacy: { consentLedger },
-          })
-        }
+      if (!hasEnabledPlans || permission !== 'granted') {
+        await cancelMaterializedReminders()
+      } else {
+        await syncReminderPlans(prepared.plans, {
+          now: new Date(),
+          horizonDays: 30,
+          limit: 64,
+        })
       }
 
-      if (!isNative) {
-        setStatus(
-          'Saved locally. Native alarms will be scheduled when these preferences are used in the iOS or Android app.',
-        )
-      } else if (hasEnabledPlans && permission === 'denied') {
-        setStatus('Saved locally, but notifications are blocked in your device settings.')
+      if (permission !== 'not-requested') {
+        const consentLedger = s!.profile.privacy.consentLedger
+          .filter((decision) => decision.purpose !== 'notifications')
+          .concat({
+            purpose: 'notifications' as const,
+            state: permission === 'granted' ? 'granted' as const : 'declined' as const,
+            version: 1 as const,
+            decidedAt: new Date().toISOString(),
+          })
+        await putHealthProfile({
+          permissions: { notifications: permission },
+          privacy: { consentLedger },
+        })
+      }
+
+      await refreshReminderScheduler()
+
+      if (hasEnabledPlans && permission === 'denied') {
+        setStatus('Saved locally, but notifications are blocked in your browser settings.')
       } else if (hasEnabledPlans) {
-        setStatus('Private reminder schedule updated on this device.')
+        setStatus('Reminder schedule updated. Keep Lunara open; delivery may be delayed while the browser is suspended.')
       } else {
         setStatus('All local reminders are off.')
       }
@@ -646,11 +514,9 @@ export function Settings() {
     )
   }
 
-  async function wipe() {
+  function wipe() {
     if (!confirm('Delete ALL Lunara data on this device? This cannot be undone.')) return
-    await clearSecureSecrets()
-    await db.delete()
-    location.reload()
+    onDeleteAllData()
   }
 
   return (
@@ -781,9 +647,9 @@ export function Settings() {
           <span>PIN lock</span>
           <span className="muted">{s.hasPin ? 'On — tap to remove' : 'Off'}</span>
         </button>
-        {isNative && (
+        {biometrics?.available && (
           <button className="setting-row" disabled={capabilityBusy} onClick={toggleBiometricLock}>
-            <span>Biometric unlock</span>
+            <span>Unlock with device</span>
             <span className="muted">
               {s.biometricLock
                 ? 'On'
@@ -797,49 +663,11 @@ export function Settings() {
           <span>Secret storage</span>
           <span className="muted">{vaultLabel}</span>
         </div>
+        <p className="muted" style={{ padding: '8px 0' }}>
+          Credentials are encrypted with a non-extractable browser-managed key stored in IndexedDB.
+          PIN and device unlock gate the screen; they do not encrypt this key or all of your local history.
+        </p>
       </Section>
-
-      {isNative && (
-        <Section title="Device health &amp; native services">
-          {nativePlatform === 'ios' && (
-            <button className="setting-row" disabled={capabilityBusy} onClick={importApplePeriods}>
-              <span>Import period history from Apple Health</span>
-              <span className="muted">{capabilityBusy ? 'Working…' : 'Up to 2 years ›'}</span>
-            </button>
-          )}
-          <button className="setting-row" disabled={capabilityBusy} onClick={syncHealthData}>
-            <span>
-              {health?.platform === 'healthkit'
-                ? 'Import other Apple Health data'
-                : health?.platform === 'health-connect'
-                  ? 'Import from Health Connect'
-                  : 'Health data import'}
-            </span>
-            <span className="muted">
-              {capabilityBusy
-                ? 'Working…'
-                : health?.available
-                  ? health.authorization === 'granted'
-                    ? 'Connected ›'
-                    : health.authorization === 'requested'
-                      ? 'Requested ›'
-                      : 'Connect ›'
-                  : 'Unavailable'}
-            </span>
-          </button>
-          <div className="setting-row static-row">
-            <span>Home-screen widget</span>
-            <span className="muted">
-              {widget?.available ? 'Available' : widget?.publisherAvailable ? 'Native extension pending' : 'Unavailable'}
-            </span>
-          </div>
-          <p className="muted" style={{ padding: '8px 0' }}>
-            Health imports are read-only, permission-scoped, and copied into your local Lunara
-            timeline. Manual entries are never silently replaced, and nothing is uploaded by this
-            step.
-          </p>
-        </Section>
-      )}
 
       <Section title="Your data &amp; encrypted backup">
         <button className="setting-row" onClick={exportPlain}>
@@ -881,9 +709,7 @@ export function Settings() {
               <span className="reminder-kicker">QUIETLY ON YOUR DEVICE</span>
               <h3>{activeReminderCount ? `${activeReminderCount} active` : 'Your time, your rhythm'}</h3>
               <p>
-                {isNative
-                  ? 'No account or server is used to deliver these notifications.'
-                  : 'Set your preferences here; the native iOS and Android shells deliver them.'}
+                Keep Lunara open to receive reminders. Closing this tab stops delivery; browser suspension can delay notifications. No account or server is used.
               </p>
             </div>
             <span
@@ -893,9 +719,7 @@ export function Settings() {
             >
               {reminderBusy
                 ? 'Saving…'
-                : !isNative
-                  ? 'Local'
-                  : s.profile.permissions.notifications === 'denied'
+                : s.profile.permissions.notifications === 'denied'
                     ? 'Blocked'
                     : activeReminderCount
                       ? 'Ready'
@@ -1075,7 +899,7 @@ export function Settings() {
 
       <p className="muted" style={{ textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
         Lunara is open source (AGPL-3.0) and not affiliated with Flo Health Inc. Not a medical
-        device. Removing the app deletes its local history — keep an encrypted backup.
+        device. Clearing browser storage deletes local history — keep an encrypted backup.
       </p>
     </div>
   )

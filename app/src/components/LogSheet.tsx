@@ -37,7 +37,7 @@ import {
   TRACKER_GROUPS,
 } from '../db/taxonomy'
 import { formatLong } from '../lib/dates'
-import { nativeTap } from '../native/runtime'
+import { nativeTap } from '../platform/runtime'
 import type { TrackerFocus } from '../state/appStore'
 import { Sheet } from './Sheet'
 

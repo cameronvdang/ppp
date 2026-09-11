@@ -1,10 +1,9 @@
-import { App as NativeApp } from '@capacitor/app'
-import type { PluginListenerHandle } from '@capacitor/core'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AssistantScreen } from './components/AssistantScreen'
 import { CalendarScreen } from './components/CalendarScreen'
 import { DoctorReport } from './components/DoctorReport'
+import { DataWipeRecovery } from './components/DataWipeRecovery'
 import { LogSheet } from './components/LogSheet'
 import { PinLock } from './components/PinLock'
 import { TabBar } from './components/TabBar'
@@ -16,7 +15,8 @@ import { Insights } from './screens/Insights'
 import { Onboarding } from './screens/Onboarding'
 import { Settings } from './screens/Settings'
 import { Today } from './screens/Today'
-import { isNative } from './native/runtime'
+import { appScreen, initializeSessionLock, lockHiddenSession, syncPinPresence } from './lib/lockSession'
+import { runDataWipe, type DataWipeState } from './lib/dataWipe'
 import {
   CycleReportScreen,
   PerimenopauseScreen,
@@ -54,6 +54,7 @@ export default function App() {
 
   const [ready, setReady] = useState(false)
   const [onboarded, setOnboarded] = useState(false)
+  const [wipeState, setWipeState] = useState<DataWipeState>({ status: 'idle' })
 
   useEffect(() => {
     // Persist legacy/fresh-install profile state outside Dexie's read-only
@@ -89,30 +90,38 @@ export default function App() {
     return { ob: ob === '1', hasPin: !!pin, pregnancyDating }
   }, [])
 
+  const hasPinRef = useRef(false)
+  const observedPinRef = useRef<boolean | undefined>(undefined)
+  const initialLockDone = useRef(false)
+  syncPinPresence(flags?.hasPin, observedPinRef, hasPinRef)
+  const flagsReady = flags !== undefined
+
+  // Decide the initial lock before marking the UI ready, so protected content
+  // cannot paint for one frame between profile loading and the lock effect.
+  useEffect(() => {
+    initializeSessionLock(flagsReady, initialLockDone, hasPinRef, setLocked)
+  }, [flagsReady, setLocked])
+
   useEffect(() => {
     if (flags === undefined) return
     setOnboarded(flags.ob)
-    if (flags.hasPin) setLocked(true)
     setReady(true)
-  }, [flags, setLocked])
+  }, [flags])
 
   useEffect(() => {
-    if (!isNative) return
-    let listener: PluginListenerHandle | undefined
-    void NativeApp.addListener('appStateChange', async ({ isActive }) => {
-      if (!isActive && (await getSetting(SK.pinHash))) setLocked(true)
-    }).then((handle) => {
-      listener = handle
-    })
-    return () => {
-      void listener?.remove()
-    }
+    const onVisibility = () => lockHiddenSession(document.visibilityState, hasPinRef, setLocked)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [setLocked])
 
-
-  if (!ready) return <div className="page page-loading" role="status" aria-label="Loading Lunara" />
-  if (!onboarded) return <Onboarding onDone={() => setOnboarded(true)} />
-  if (locked) return <PinLock />
+  const screen = appScreen(ready, onboarded, locked, wipeState.status !== 'idle')
+  const deleteAllData = () => { void runDataWipe(setWipeState) }
+  if (screen === 'wipe' && wipeState.status !== 'idle') {
+    return <DataWipeRecovery state={wipeState} onRetry={deleteAllData} />
+  }
+  if (screen === 'loading') return <div className="page page-loading" role="status" aria-label="Loading Lunara" />
+  if (screen === 'onboarding') return <Onboarding onDone={() => setOnboarded(true)} />
+  if (screen === 'locked') return <PinLock />
 
   return (
     <>
@@ -120,7 +129,12 @@ export default function App() {
         {tab === 'today' && <Today />}
         {tab === 'insights' && <Insights />}
         {tab === 'graphs' && <Graphs />}
-        {tab === 'settings' && <Settings />}
+        {tab === 'settings' && (
+          <Settings
+            onPinPresenceChange={(hasPin) => { hasPinRef.current = hasPin }}
+            onDeleteAllData={deleteAllData}
+          />
+        )}
       </main>
       <TabBar active={tab} onChange={setTab} />
 

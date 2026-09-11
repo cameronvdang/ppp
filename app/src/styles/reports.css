@@ -337,3 +337,39 @@
   font-size: 12px;
   line-height: 1.5;
 }
+
+/* Preserve the cycle report's screen spacing inside its explicit print boundary. */
+.health-canvas > .print-root {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media print {
+  #root:has(.print-root) *:not(.print-root):not(.print-root *):not(:has(.print-root)) {
+    display: none !important;
+  }
+  #root:has(.print-root), #root :has(.print-root), .print-root {
+    display: block !important;
+    position: static !important;
+    inset: auto !important;
+    transform: none !important;
+    animation: none !important;
+    width: auto !important;
+    height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  #root .no-print, #root .sheet-backdrop, #root .dialog-scrim {
+    display: none !important;
+  }
+  .print-root * {
+    animation: none !important;
+    transition: none !important;
+  }
+  .print-root section, .print-root .health-panel {
+    overflow: visible !important;
+    break-inside: avoid;
+  }
+}

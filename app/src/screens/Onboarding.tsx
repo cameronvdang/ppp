@@ -3,7 +3,6 @@ import { LunaraMark } from '../components/LunaraMark'
 import {
   createDefaultHealthProfile,
   db,
-  getPeriodStarts,
   putHealthProfile,
   setSetting,
   SK,
@@ -23,18 +22,14 @@ import {
   type AssistantProvider,
 } from '../lib/assistant'
 import { localToday } from '../lib/dates'
-import { addDays, toEpochDay } from '../engine/cycle'
 import {
   resolvePregnancyDating,
   type PregnancyDatingMethod,
 } from '../engine/pregnancyDating'
-import type { HealthAuthorization } from '../native/health'
-import { importAppleHealthPeriodHistory } from '../native/healthImport'
-import { nativePlatform } from '../native/runtime'
 import {
   SECURE_SECRET_KEYS,
   setSecureSecret,
-} from '../native/secureVault'
+} from '../platform/secureVault'
 
 type StepId =
   | 'welcome'
@@ -418,25 +413,6 @@ function choiceLabel(value: AnswerChoice | undefined): string {
   return 'Not answered'
 }
 
-function onboardingHealthPermission(
-  authorization: HealthAuthorization,
-): HealthProfile['permissions']['healthData'] {
-  if (authorization === 'granted' || authorization === 'partial') return 'granted'
-  if (authorization === 'requested') return 'requested'
-  if (authorization === 'denied') return 'denied'
-  return 'not-requested'
-}
-
-function recentCycleLength(startsNewestFirst: string[]): number | undefined {
-  const gaps = startsNewestFirst
-    .slice(0, -1)
-    .map((date, index) => toEpochDay(date) - toEpochDay(startsNewestFirst[index + 1]))
-    .filter((gap) => gap >= 15 && gap <= 90)
-    .sort((a, b) => a - b)
-  if (!gaps.length) return undefined
-  return gaps[Math.floor(gaps.length / 2)]
-}
-
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [current, setCurrent] = useState<StepId>('welcome')
   const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT)
@@ -446,11 +422,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [baseUrl, setBaseUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [healthImportBusy, setHealthImportBusy] = useState(false)
-  const [healthImportAttempted, setHealthImportAttempted] = useState(false)
-  const [healthImportAuthorization, setHealthImportAuthorization] =
-    useState<HealthAuthorization>('not-determined')
-  const [healthImportMessage, setHealthImportMessage] = useState<string | null>(null)
   const thisYear = new Date().getFullYear()
   const birth = Number(draft.birthYear)
   const age = /^\d{4}$/.test(draft.birthYear) ? thisYear - birth : null
@@ -540,55 +511,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     }
   }
 
-  async function importApplePeriodsDuringOnboarding() {
-    setHealthImportBusy(true)
-    setHealthImportAttempted(true)
-    setHealthImportMessage(null)
-    try {
-      const today = localToday()
-      const result = await importAppleHealthPeriodHistory({
-        startDate: addDays(today, -730),
-        endDate: today,
-      })
-      setHealthImportAuthorization(result.authorization)
-      if (!result.available) {
-        setHealthImportMessage(result.reason ?? 'Apple Health period import is unavailable.')
-        return
-      }
-      if (!result.periodSamples) {
-        setHealthImportMessage(
-          'No period records were returned. Apple does not tell apps whether read access was denied or Health has no menstrual-flow history.',
-        )
-        return
-      }
-
-      const recentStarts = (await getPeriodStarts()).slice(-3).reverse()
-      const importedCycleLength = recentCycleLength(recentStarts)
-      patch({
-        periodStarts: [
-          recentStarts[0] ?? '',
-          recentStarts[1] ?? '',
-          recentStarts[2] ?? '',
-        ],
-        dateConfidence: recentStarts.length ? 'known' : draft.dateConfidence,
-        typicalCycleLength: importedCycleLength
-          ? String(importedCycleLength)
-          : draft.typicalCycleLength,
-      })
-      setHealthImportMessage(
-        recentStarts.length
-          ? `Imported ${result.uniqueSamples} period record${result.uniqueSamples === 1 ? '' : 's'} and found ${recentStarts.length} recent period start${recentStarts.length === 1 ? '' : 's'}. You can correct the dates below.`
-          : `Imported ${result.uniqueSamples} menstrual-flow record${result.uniqueSamples === 1 ? '' : 's'}, but none was marked as a cycle start. You can add recent start dates below.`,
-      )
-    } catch (error) {
-      setHealthImportMessage(
-        error instanceof Error ? error.message : 'Apple Health period import failed.',
-      )
-    } finally {
-      setHealthImportBusy(false)
-    }
-  }
-
   async function finish() {
     if (!draft.goal) return
     setSaving(true)
@@ -665,7 +587,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         },
         permissions: {
           ...defaults.permissions,
-          healthData: onboardingHealthPermission(healthImportAuthorization),
         },
         privacy: {
           ageBand:
@@ -699,11 +620,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             },
             {
               purpose: 'health-import',
-              state: healthImportAttempted
-                ? healthImportAuthorization === 'denied'
-                  ? 'declined'
-                  : 'granted'
-                : 'not-requested',
+              state: 'not-requested',
               version: 1,
               decidedAt,
             },
@@ -867,7 +784,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </article>
           <article>
             <span className="cautious">Ask first</span>
-            <div><strong>AI and health imports</strong><p>They remain separate and require an explicit setup or operating-system permission later.</p></div>
+            <div><strong>AI and health imports</strong><p>They remain separate and require explicit setup and consent.</p></div>
           </article>
         </div>
         {age !== null && age < 18 && (
@@ -966,38 +883,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             />
           ))}
         </div>
-        {nativePlatform === 'ios' && (
-          <section className="ob-health-import" aria-labelledby="apple-health-import-title">
-            <div className="ob-health-import-icon" aria-hidden="true">
-              <LunaraMark decorative size={28} />
-            </div>
-            <div className="ob-health-import-copy">
-              <span className="eyebrow">Optional shortcut</span>
-              <strong id="apple-health-import-title">Bring in period history from Apple Health</strong>
-              <p>
-                Lunara requests read-only access to menstrual-flow records, keeps their source
-                attached, and never replaces a period date you entered yourself.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="ob-health-import-button"
-              disabled={healthImportBusy}
-              onClick={importApplePeriodsDuringOnboarding}
-            >
-              {healthImportBusy
-                ? 'Checking Apple Health…'
-                : healthImportAttempted
-                  ? 'Import again'
-                  : 'Import from Apple Health'}
-            </button>
-            {healthImportMessage && (
-              <p className="ob-health-import-status" role="status">
-                {healthImportMessage}
-              </p>
-            )}
-          </section>
-        )}
         <div className="ob-date-card">
           <strong>Recent period starts</strong>
           {draft.periodStarts.map((date, index) => (
@@ -1357,7 +1242,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         </div>
         <div className="ob-why">
           <span aria-hidden="true">↗</span>
-          <p><strong>Permission comes later</strong> Lunara explains the benefit before asking iOS or Android for health access.</p>
+          <p><strong>Permission comes later</strong> Choosing a wearable records your preference; it does not connect to or import health data.</p>
         </div>
         <button className="cta" onClick={next}>Continue</button>
       </Frame>
@@ -1477,7 +1362,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             onClick={() => chooseProvider('anthropic')}
           />
           <OptionCard
-            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Stored in Keychain or Keystore on native.' }}
+            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Encrypted with a browser-managed key in IndexedDB.' }}
             selected={provider === 'openai'}
             onClick={() => chooseProvider('openai')}
           />

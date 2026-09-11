@@ -4121,6 +4121,8 @@ button.card:active {
   html,
   body {
     position: static;
+    height: auto;
+    min-height: 0;
     overflow: visible;
     background: #fff;
   }
