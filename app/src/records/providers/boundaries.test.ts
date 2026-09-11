@@ -8,7 +8,7 @@ const response = (body: unknown, headers = {}) => new Response(JSON.stringify(bo
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 describe('HTTP privacy and category boundaries', () => {
   for (const mode of ['demo', 'live']) {
-    it.each([[], ['labs', 'labs'], ['claims'], ['labs', ''], undefined])(`${mode} rejects invalid categories before fetch: %j`, async categories => {
+    it.each([[], ['labs', 'labs'], ['claims'], ['labs', ''], undefined].map(input => [input]))(`${mode} rejects invalid categories before fetch: %j`, async categories => {
       const fetch = vi.fn()
       const p = mode === 'demo' ? createDemoProvider({ fetch }) : createRelayProvider({ baseUrl: 'https://relay.test', token: 'tok' }, { fetch })
       await expect(p.startConnect({ ...input, categories: categories as any })).rejects.toThrow()

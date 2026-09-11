@@ -66,6 +66,15 @@ importers:
         specifier: ^3.90.0
         version: 3.114.17
 
+  workers/records-relay:
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(terser@5.51.2)
+      wrangler:
+        specifier: ^3.90.0
+        version: 3.114.17
+
   workers/reminders:
     devDependencies:
       vitest:

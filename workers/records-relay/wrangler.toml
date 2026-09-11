@@ -1,0 +1,10 @@
+name = "lunara-records-relay"
+main = "src/index.js"
+compatibility_date = "2026-01-01"
+
+# Required secrets; never place them in [vars]:
+# wrangler secret put FINCHNODE_API_KEY
+# wrangler secret put RELAY_CLIENT_TOKEN
+[vars]
+ALLOWED_ORIGINS = "http://localhost:5173"
+# FINCHNODE_BASE_URL defaults to https://api.finchnode.com/api/v1

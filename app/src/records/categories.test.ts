@@ -10,7 +10,7 @@ describe('categories', () => {
     expect(normalizeCategories(['labs', 'encounters', 'medications', 42])).toEqual(['medications', 'labs'])
     expect(isRecordCategory('claims')).toBe(false)
   })
-  it.each([undefined, [], ['labs', 'labs'], ['claims']])('rejects invalid outbound categories: %j', (input) => {
+  it.each([undefined, [], ['labs', 'labs'], ['claims']].map(input => [input]))('rejects invalid outbound categories: %j', (input) => {
     expect(() => requireCategories(input)).toThrow()
   })
   it('requires stable live IDs and keeps demo FHIR IDs', () => {
