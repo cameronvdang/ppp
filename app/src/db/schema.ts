@@ -664,6 +664,7 @@ export const SK = {
   pinSalt: 'pinSalt',
   pinHash: 'pinHash',
   biometricLock: 'biometricLock',
+  deviceUnlockCredential: 'deviceUnlockCredential',
   /** Legacy only: plaintext AI keys are migrated out, then removed. */
   aiKey: 'aiKey',
   aiProvider: 'aiProvider',

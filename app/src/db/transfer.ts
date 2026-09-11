@@ -2,7 +2,14 @@ import { decryptJSON, encryptJSON, type Envelope } from '../crypto/vault'
 import { db, SK, type ContentBookmark, type DailyLog, type Setting } from './schema'
 
 /** Settings that must never leave the device. */
-const SECRET_KEYS: string[] = [SK.pinSalt, SK.pinHash, SK.aiKey]
+const SECRET_KEYS: string[] = [
+  SK.pinSalt,
+  SK.pinHash,
+  SK.biometricLock,
+  'recoveryCode',
+  SK.deviceUnlockCredential,
+  SK.aiKey,
+]
 
 export interface ExportPayload {
   app: 'lunara'
