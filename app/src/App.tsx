@@ -2,6 +2,9 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import { AssistantScreen } from './components/AssistantScreen'
 import { CalendarScreen } from './components/CalendarScreen'
+import { RecordsScreen } from './screens/RecordsScreen'
+import { RecordsCategoryList } from './components/RecordsCategoryList'
+import { RecordsReturnHandler } from './components/RecordsReturnHandler'
 import { DoctorReport } from './components/DoctorReport'
 import { DataWipeRecovery } from './components/DataWipeRecovery'
 import { LogSheet } from './components/LogSheet'
@@ -28,6 +31,9 @@ import { useApp } from './state/appStore'
 
 export default function App() {
   const {
+    recordsCategory,
+    setRecordsCategory,
+    recordsReturn,
     tab,
     setTab,
     sheetDate,
@@ -132,6 +138,7 @@ export default function App() {
         {tab === 'today' && <Today />}
         {tab === 'insights' && <Insights />}
         {tab === 'graphs' && <Graphs />}
+        {tab === 'records' && <RecordsScreen />}
         {tab === 'settings' && (
           <Settings
             onPinPresenceChange={(hasPin) => { hasPinRef.current = hasPin }}
@@ -139,6 +146,13 @@ export default function App() {
           />
         )}
       </main>
+      {recordsReturn && <RecordsReturnHandler params={recordsReturn} />}
+      {recordsCategory && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close category" onClick={() => setRecordsCategory(null)} />
+          <RecordsCategoryList category={recordsCategory} onBack={() => setRecordsCategory(null)} />
+        </>
+      )}
       <TabBar active={tab} onChange={setTab} />
 
       {sheetDate && (
