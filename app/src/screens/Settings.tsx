@@ -906,7 +906,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 
       <Section title="Privacy and data" id="privacy-and-data">
         <PrivacyTable />
-        <p className="records-settings-note">Disconnect records to stop imports. Remove your AI key to stop sharing with the assistant. Skip backup uploads to keep backups on this device. Remove your reminder email to stop email reminders. Records are never shared with the assistant. Reports include them only if you choose.</p>
+        <p className="records-settings-note">Disconnect records to stop imports. Remove your AI key to stop sharing with the assistant.</p>
       </Section>
 
       <Section title="AI assistant">
