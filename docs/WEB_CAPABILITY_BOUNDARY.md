@@ -1,8 +1,8 @@
 # Web capability boundary
 
-Updated: 2026-09-11. This describes the implemented browser platform and records integration
-from Phases 1–3 from the [web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md)
-and [implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md).
+Updated: 2026-09-11. This describes the implemented browser platform, mobile installation, local calendar files and records integration.
+
+> Historical note: The earlier [web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md) and [implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md) record Phases 1–3 of the platform work.
 
 ## Fully local in the browser
 

@@ -8,7 +8,7 @@ This AGPL-3.0 fork
 replaces the Capacitor iOS and Android shells with a web-first React/Vite app
 and a PWA shell. It remains a work in progress.
 
-The [implementation plan](docs/superpowers/plans/2026-09-11-lunara-web-finchnode.md)
+> Historical note: The [implementation plan](docs/superpowers/plans/2026-09-11-lunara-web-finchnode.md)
 covers the browser platform, Aileron typography, baby pink / baby red palette,
 responsive layout, and FinchNode records integration. Phases 1–3 are implemented;
 the final Phase 4 hardening and browser review remain separate work.
