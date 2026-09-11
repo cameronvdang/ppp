@@ -7,6 +7,7 @@ import { createDemoProvider } from '../records/providers/demo'
 import { createRelayProvider } from '../records/providers/relay'
 import { loadRelaySettings, type RelaySettings } from '../records/relaySettings'
 import { categoryAvailability } from '../records/presentation'
+import { formatRecordDate } from '../records/format'
 import { countByCategory, getConnection } from '../records/store'
 import type { RecordCategory, RecordsMode } from '../records/types'
 import { useApp } from '../state/appStore'
@@ -88,9 +89,9 @@ export function RecordsScreen() {
       <section className="card records-source">
         <span className="records-badge">{connection.mode === 'demo' ? 'Sample data' : 'From your provider'}</span>
         <h2>{connection.sources.map(s => s.organization ?? s.system).join(', ') || 'Records from your provider'}</h2>
-        <p>{connection.lastSyncAt ? `Last synced ${new Date(connection.lastSyncAt).toLocaleString()}` : 'Not refreshed yet'}</p>
+        <p>{connection.lastSyncAt ? `Last synced ${formatRecordDate(connection.lastSyncAt)}` : 'Not refreshed yet'}</p>
         {connection.status === 'disconnected' && <p>Saved in this browser. Connect again to refresh.</p>}
-        {connection.importedAt && <p className="muted">Imported backup · {new Date(connection.importedAt).toLocaleDateString()}</p>}
+        {connection.importedAt && <p className="muted">Imported backup · {formatRecordDate(connection.importedAt)}</p>}
         {connection.syncStatus === 'partial' && <p>Some categories were not available</p>}
         {connection.warnings.map((w, i) => <p className="muted" key={`${w.code}-${i}`}>{w.message}</p>)}
         {!!connection.skipped && <p>{connection.skipped} items could not be read</p>}

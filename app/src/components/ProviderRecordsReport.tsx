@@ -1,6 +1,7 @@
 import { db } from '../db/schema'
 import { getConnection, listRecords } from '../records/store'
 import { recordName } from '../records/presentation'
+import { formatRecordDate } from '../records/format'
 import type { MedicalRecord, RecordsConnection } from '../records/types'
 export interface ProviderReportData { connection: RecordsConnection; conditions: MedicalRecord[]; medications: MedicalRecord[]; allergies: MedicalRecord[] }
 export async function loadProviderReport(include: boolean): Promise<ProviderReportData | null> {
@@ -16,8 +17,8 @@ export function ProviderRecordsReport({ data }: { data: ProviderReportData }) {
     <h2>Records from your provider</h2>
     {(['conditions', 'medications', 'allergies'] as const).map(category => <div key={category}>
       <h3>{category === 'conditions' ? 'Active conditions' : category === 'medications' ? 'Active medications' : 'Allergies'}</h3>
-      {data[category].length ? <ul>{data[category].map(r => <li key={r.id}>{recordName(r)} — {'status' in r ? r.status ?? 'Status not supplied' : 'Status not supplied'} — {r.date ?? 'Date not supplied'} — {r.sourceName ?? 'Source not supplied'}</li>)}</ul> : <p className="muted">No imported items in this section.</p>}
+      {data[category].length ? <ul>{data[category].map(r => <li key={r.id}>{recordName(r)} — {'status' in r ? r.status ?? 'Status not supplied' : 'Status not supplied'} — {formatRecordDate(r.date)} — {r.sourceName ?? 'Source not supplied'}</li>)}</ul> : <p className="muted">No imported items in this section.</p>}
     </div>)}
-    <p className="muted">{data.connection.mode === 'demo' ? 'Sample data. ' : ''}Imported via FinchNode on {data.connection.lastSyncAt ?? data.connection.importedAt ?? 'date not supplied'}. Not verified by Lunara.</p>
+    <p className="muted">{data.connection.mode === 'demo' ? 'Sample data. ' : ''}Imported via FinchNode on {formatRecordDate(data.connection.lastSyncAt ?? data.connection.importedAt ?? null)}. Not verified by Lunara.</p>
   </section>
 }

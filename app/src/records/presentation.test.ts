@@ -10,5 +10,7 @@ it('distinguishes unselected, missing, unavailable and refreshed empty categorie
   expect(categoryAvailability(c, 'labs')).toBe('Available')
 })
 it('displays zero observation values as text', () => {
-  expect(recordDetail({ id: 'demo:labs:1', category: 'labs', date: null, sourceName: null, sourceRecordId: '1', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: true, name: 'Zero', value: 0, unit: 'u', status: null, referenceRange: null, interpretation: null })).toBe('0 u')
+  const record = { id: 'demo:labs:1', category: 'labs' as const, date: null, sourceName: null, sourceRecordId: '1', codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: true, name: 'Zero', value: 0, unit: 'u', status: null, referenceRange: null, interpretation: null }
+  expect(recordDetail(record)).toBe('0 u · Date not supplied')
+  expect(recordDetail({ ...record, date: '2026-07-18T15:30:00Z' })).toBe('0 u · Jul 18, 2026')
 })

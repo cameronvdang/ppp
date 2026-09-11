@@ -50,7 +50,7 @@ it('loads and prints the opted-in active records with source, date and sample di
   expect(markup).toContain('Active medications')
   expect(markup).toContain('Penicillin')
   expect(markup).toContain('Northstar Health')
-  expect(markup).toContain('Sample data. Imported via FinchNode on 2026-09-11T00:00:00Z. Not verified by Lunara.')
+  expect(markup).toContain('Sample data. Imported via FinchNode on Sep 11, 2026. Not verified by Lunara.')
   expect(markup.indexOf('provider-records-report')).toBeGreaterThan(markup.indexOf('class="print-root"'))
 })
 it('keeps export disabled on opted-in failure and leaves the checkbox usable', async () => {
