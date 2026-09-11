@@ -1,0 +1,1150 @@
+openapi: 3.1.0
+info:
+  title: FinchNode Developer API
+  version: '2026-08-15'
+  summary: Consent-enforced access to normalized patient-authorized records.
+  description: >-
+    Production-grade access is free with a FinchNode account at
+    https://finchnode.com/signup, within the included free-plan allowances.
+    Live access requires production credentials, a supported source, and patient
+    authorization and consent. See https://finchnode.com/#pricing for allowances.
+    Create Hosted Connect sessions, observe truthful source-sync state, receive
+    durable lifecycle webhooks, and read app-scoped normalized records. Every
+    read is constrained by the key environment, the application's current
+    allowlist, and active user consent. API keys must remain server-side.
+servers:
+  - url: https://api.finchnode.com/api/v1
+    description: Production
+  - url: http://localhost:5001/api/v1
+    description: Local development
+tags:
+  - name: Platform
+  - name: Connect
+  - name: Records
+  - name: Consent
+security:
+  - bearerAuth: []
+paths:
+  /health:
+    get:
+      tags: [Platform]
+      summary: Check API availability
+      operationId: getApiHealth
+      security: []
+      responses:
+        '200':
+          description: API is available.
+          headers:
+            X-Request-Id:
+              $ref: '#/components/headers/RequestId'
+            FinchNode-Version:
+              $ref: '#/components/headers/ApiVersion'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Health'
+  /app:
+    get:
+      tags: [Platform]
+      summary: Resolve the application and environment for the current key
+      operationId: getCurrentApp
+      responses:
+        '200':
+          description: Current application.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/App'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /connect/sessions:
+    post:
+      tags: [Connect]
+      summary: Create a Hosted Connect session
+      description: >-
+        Categories must be a subset of the app allowlist. Reusing an
+        Idempotency-Key with the same body returns the original session and an
+        Idempotent-Replayed header. Reusing it with a different body returns
+        idempotency_conflict.
+      operationId: createConnectSession
+      parameters:
+        - $ref: '#/components/parameters/IdempotencyKey'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectSession'
+      responses:
+        '201':
+          description: Session created or idempotently recovered.
+          headers:
+            Idempotent-Replayed:
+              description: Present with value true when an existing session was returned.
+              schema:
+                type: string
+                const: 'true'
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ConnectSession'
+                  - type: object
+                    required: [url]
+                    properties:
+                      url:
+                        type: string
+                        format: uri
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '413':
+          $ref: '#/components/responses/PayloadTooLarge'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /connect/sessions/{sessionId}:
+    get:
+      tags: [Connect]
+      summary: Retrieve Connect session and source-sync state
+      operationId: getConnectSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Current session. Subject is non-null only after completion.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /connect/sessions/{sessionId}/cancel:
+    post:
+      tags: [Connect]
+      summary: Cancel an incomplete Connect session
+      operationId: cancelConnectSession
+      parameters:
+        - $ref: '#/components/parameters/SessionId'
+      responses:
+        '200':
+          description: Canceled session. Repeating the request is safe.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConnectSession'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /users:
+    get:
+      tags: [Records]
+      summary: List pseudonymous users with active share consent
+      operationId: listUsers
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+        - name: offset
+          in: query
+          deprecated: true
+          description: Legacy offset pagination. Prefer cursor.
+          schema:
+            type: integer
+            minimum: 0
+      responses:
+        '200':
+          description: Cursor-paginated app- and environment-scoped users.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /users/{subject}/records:
+    get:
+      tags: [Records]
+      summary: Retrieve a consent-filtered normalized health-record snapshot
+      operationId: getUserRecord
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/Categories'
+      responses:
+        '200':
+          description: Non-cacheable snapshot with completeness and freshness metadata.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthRecord'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+  /users/{subject}/records/{category}:
+    get:
+      tags: [Records]
+      summary: List records in one consent category
+      description: >-
+        Stable record IDs and cursor pagination make this endpoint preferable
+        for production ingestion. Save meta.changeCursor after an initial full read.
+      operationId: listCategoryRecords
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/CategoryPath'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: One page of normalized records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CategoryRecordList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /users/{subject}/records/{category}/changes:
+    get:
+      tags: [Records]
+      summary: Read incremental upserts and deletion tombstones
+      description: >-
+        Pass the changeCursor returned by the category snapshot. Apply changes
+        in sequence order. A delete change has record null and must remove the
+        stable recordId locally. Upserts may have record null if a later source
+        deletion occurred before this historical page was read.
+      operationId: listRecordChanges
+      parameters:
+        - $ref: '#/components/parameters/Subject'
+        - $ref: '#/components/parameters/CategoryPath'
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Cursor'
+      responses:
+        '200':
+          description: Incremental change page.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecordChangeList'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          $ref: '#/components/responses/Gone'
+  /consents/{receiptId}:
+    get:
+      tags: [Consent]
+      summary: Retrieve a consent receipt and current status
+      operationId: getConsentReceipt
+      parameters:
+        - $ref: '#/components/parameters/ReceiptId'
+      responses:
+        '200':
+          description: Signed receipt content with current lifecycle status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsentReceipt'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+webhooks:
+  finchnodeEvent:
+    post:
+      summary: FinchNode lifecycle event
+      description: >-
+        Verify the timestamped HMAC over the exact raw body. Deduplicate using
+        FinchNode-Event-Id. Return a 2xx within five seconds. FinchNode retries
+        failures with backoff and supports console replay.
+      parameters:
+        - name: FinchNode-Event-Id
+          in: header
+          required: true
+          schema:
+            type: string
+            pattern: '^evt_[A-Za-z0-9_-]+$'
+        - name: FinchNode-Signature
+          in: header
+          required: true
+          description: t=unix-seconds,v1=hex-hmac. Rotating the signing secret invalidates the previous secret immediately.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WebhookEvent'
+      responses:
+        '200':
+          description: Event accepted.
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: FinchNode API key
+      description: Server-side ck_test_... or ck_live_... key. X-API-Key is not accepted.
+  headers:
+    RequestId:
+      description: Identifier to include in support requests.
+      schema:
+        type: string
+        pattern: '^req_[A-Za-z0-9_-]+$'
+    ApiVersion:
+      description: Calendar version of the served contract.
+      schema:
+        type: string
+        example: '2026-08-15'
+  parameters:
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: App- and environment-scoped retry key.
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 200
+    SessionId:
+      name: sessionId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^cs_[a-f0-9]{20}$'
+    Subject:
+      name: subject
+      in: path
+      required: true
+      description: Stable within one application and unlinkable across applications.
+      schema:
+        type: string
+        pattern: '^u_[a-f0-9]{16}$'
+    ReceiptId:
+      name: receiptId
+      in: path
+      required: true
+      schema:
+        type: string
+        pattern: '^rcpt_[A-Z0-9]+$'
+    CategoryPath:
+      name: category
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/Category'
+    Limit:
+      name: limit
+      in: query
+      required: false
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 25
+    Cursor:
+      name: cursor
+      in: query
+      required: false
+      description: Opaque endpoint-specific cursor. Do not construct or reuse across endpoints.
+      schema:
+        type: string
+    Categories:
+      name: categories
+      in: query
+      required: false
+      description: Comma-separated consent-category subset. Omit for all authorized categories.
+      schema:
+        type: string
+        example: labs,medications
+  responses:
+    BadRequest:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Unauthorized:
+      description: API key is missing, invalid, or revoked.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Forbidden:
+      description: App scope, environment, or consent does not authorize the request.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    NotFound:
+      description: App-scoped resource does not exist.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Conflict:
+      description: Request conflicts with resource state or idempotency history.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    Gone:
+      description: Consent or session is no longer active.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    RateLimited:
+      description: Request budget exceeded.
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+        RateLimit-Limit:
+          schema:
+            type: integer
+        RateLimit-Remaining:
+          schema:
+            type: integer
+        RateLimit-Reset:
+          schema:
+            type: integer
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+    PayloadTooLarge:
+      description: Request body exceeds 64 KiB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorEnvelope'
+  schemas:
+    Category:
+      type: string
+      enum: [demographics, medications, conditions, labs, vitals, allergies, immunizations, encounters, documents, claims]
+    Environment:
+      type: string
+      enum: [sandbox, production]
+    Health:
+      type: object
+      additionalProperties: false
+      required: [object, status, version, timestamp]
+      properties:
+        object:
+          type: string
+          const: health
+        status:
+          type: string
+          const: ok
+        version:
+          type: string
+          example: '2026-08-15'
+        timestamp:
+          type: string
+          format: date-time
+    App:
+      type: object
+      additionalProperties: false
+      required: [id, object, name, environment, status, categories]
+      properties:
+        id:
+          type: string
+          format: uuid
+        object:
+          type: string
+          const: app
+        name:
+          type: string
+        environment:
+          $ref: '#/components/schemas/Environment'
+        status:
+          type: string
+          enum: [sandbox, review, live]
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+    CreateConnectSession:
+      type: object
+      additionalProperties: false
+      properties:
+        externalId:
+          type: string
+          maxLength: 200
+          description: Opaque caller reference. Do not place email, name, or health information here.
+        categories:
+          type: array
+          minItems: 1
+          uniqueItems: true
+          items:
+            $ref: '#/components/schemas/Category'
+        syncMode:
+          type: string
+          enum: [one-time, continuous]
+        durationDays:
+          type: integer
+          minimum: 1
+          maximum: 730
+          default: 365
+        returnUrl:
+          type: string
+          format: uri
+          maxLength: 2048
+    ConnectSessionStatus:
+      type: string
+      enum: [pending, collect-consented, system-selected, completed, abandoned, canceled, expired, failed]
+    SyncStatus:
+      type: string
+      enum: [not_started, queued, syncing, complete, partial, failed, reauthorization_required]
+    SyncWarning:
+      type: object
+      additionalProperties: true
+      required: [code, message]
+      properties:
+        category:
+          oneOf:
+            - $ref: '#/components/schemas/Category'
+            - type: 'null'
+        resourceType:
+          type: [string, 'null']
+        code:
+          type: string
+        message:
+          type: string
+        retryable:
+          type: boolean
+    SyncState:
+      type: object
+      additionalProperties: false
+      required: [status, syncId, startedAt, completedAt, grantedCategories, availableCategories, missingCategories, warnings, failure]
+      properties:
+        status:
+          $ref: '#/components/schemas/SyncStatus'
+        syncId:
+          type: [string, 'null']
+          format: uuid
+        startedAt:
+          type: [string, 'null']
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        grantedCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        availableCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        missingCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncWarning'
+        failure:
+          oneOf:
+            - type: 'null'
+            - type: object
+              additionalProperties: false
+              required: [code, message, retryable]
+              properties:
+                code:
+                  type: string
+                message:
+                  type: string
+                retryable:
+                  type: boolean
+    ConnectSession:
+      type: object
+      additionalProperties: false
+      required: [id, object, status, categories, syncMode, persistentSyncRequested, durationDays, subject, organization, createdAt, expiresAt, completedAt, externalId, returnUrl, environment, sync]
+      properties:
+        id:
+          type: string
+          pattern: '^cs_[a-f0-9]{20}$'
+        object:
+          type: string
+          const: connect_session
+        status:
+          $ref: '#/components/schemas/ConnectSessionStatus'
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        syncMode:
+          type: string
+          enum: [one-time, continuous]
+        persistentSyncRequested:
+          type: boolean
+        durationDays:
+          type: integer
+        subject:
+          type: [string, 'null']
+        organization:
+          type: [string, 'null']
+        createdAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: [string, 'null']
+          format: date-time
+        externalId:
+          type: [string, 'null']
+        returnUrl:
+          type: [string, 'null']
+          format: uri
+        environment:
+          $ref: '#/components/schemas/Environment'
+        sync:
+          $ref: '#/components/schemas/SyncState'
+    Source:
+      type: object
+      additionalProperties: false
+      required: [system, organization]
+      properties:
+        system:
+          type: [string, 'null']
+        organization:
+          type: [string, 'null']
+    User:
+      type: object
+      additionalProperties: false
+      required: [id, object, categories, sources, consentedAt]
+      properties:
+        id:
+          type: string
+          pattern: '^u_[a-f0-9]{16}$'
+        object:
+          type: string
+          const: user
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+        consentedAt:
+          type: [string, 'null']
+          format: date-time
+    UserList:
+      type: object
+      additionalProperties: false
+      required: [object, data, hasMore, total, nextCursor, nextOffset]
+      properties:
+        object:
+          type: string
+          const: list
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/User'
+        hasMore:
+          type: boolean
+        total:
+          type: [integer, 'null']
+          description: Null for cursor pagination; populated only by legacy offset mode.
+        nextCursor:
+          type: [string, 'null']
+        nextOffset:
+          type: [integer, 'null']
+    Coding:
+      type: object
+      additionalProperties: false
+      required: [system, code, display]
+      properties:
+        system:
+          type: [string, 'null']
+        code:
+          type: [string, 'null']
+        display:
+          type: [string, 'null']
+    RecordBase:
+      type: object
+      required: [id, resourceType, sourceRecordId, source, sourceName, codes, sourceUpdatedAt, syncedAt]
+      properties:
+        id:
+          type: string
+          pattern: '^rec_[a-f0-9]{24}$'
+        resourceType:
+          type: string
+        sourceRecordId:
+          type: [string, 'null']
+        source:
+          type: [string, 'null']
+        sourceName:
+          type: [string, 'null']
+        codes:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coding'
+        sourceUpdatedAt:
+          type: [string, 'null']
+          format: date-time
+        syncedAt:
+          type: [string, 'null']
+          format: date-time
+    DemographicRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [name, birthDate, gender, address, phone, email]
+          properties:
+            name: { type: string }
+            birthDate: { type: [string, 'null'], format: date }
+            gender: { type: [string, 'null'] }
+            address: { type: [string, 'null'] }
+            phone: { type: [string, 'null'] }
+            email: { type: [string, 'null'], format: email }
+    MedicationRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [name, dosage, frequency, status, startDate, endDate, prescriber, reason]
+          properties:
+            name: { type: string }
+            dosage: { type: [string, 'null'] }
+            frequency: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+            startDate: { type: [string, 'null'] }
+            endDate: { type: [string, 'null'] }
+            prescriber: { type: [string, 'null'] }
+            reason: { type: [string, 'null'] }
+    ConditionRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [name, status, verificationStatus, severity, onsetDate, recordedDate]
+          properties:
+            name: { type: string }
+            status: { type: [string, 'null'] }
+            verificationStatus: { type: [string, 'null'] }
+            severity: { type: [string, 'null'] }
+            onsetDate: { type: [string, 'null'] }
+            recordedDate: { type: [string, 'null'] }
+    ObservationRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [name, value, unit, status, date, referenceRange, interpretation]
+          properties:
+            name: { type: string }
+            value: {}
+            unit: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+            date: { type: [string, 'null'] }
+            referenceRange: { type: [string, 'null'] }
+            interpretation: { type: [string, 'null'] }
+    AllergyRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [substance, reaction, severity, status, verificationStatus, recordedDate]
+          properties:
+            substance: { type: string }
+            reaction: { type: [string, 'null'] }
+            severity: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+            verificationStatus: { type: [string, 'null'] }
+            recordedDate: { type: [string, 'null'] }
+    ImmunizationRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [name, code, status, date, manufacturer, lotNumber]
+          properties:
+            name: { type: string }
+            code: { type: [string, 'null'] }
+            status: { type: [string, 'null'] }
+            date: { type: [string, 'null'] }
+            manufacturer: { type: [string, 'null'] }
+            lotNumber: { type: [string, 'null'] }
+    EncounterRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [type, status, class, startDate, endDate, location, provider, reason]
+          properties:
+            type: { type: string }
+            status: { type: [string, 'null'] }
+            class: { type: [string, 'null'] }
+            startDate: { type: [string, 'null'] }
+            endDate: { type: [string, 'null'] }
+            location: { type: [string, 'null'] }
+            provider: { type: [string, 'null'] }
+            reason: { type: [string, 'null'] }
+    DocumentRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          required: [type, status, documentStatus, description, createdDate, indexedDate, contentType]
+          properties:
+            type: { type: string }
+            status: { type: [string, 'null'] }
+            documentStatus: { type: [string, 'null'] }
+            description: { type: [string, 'null'] }
+            createdDate: { type: [string, 'null'] }
+            indexedDate: { type: [string, 'null'] }
+            contentType: { type: [string, 'null'] }
+    ClaimRecord:
+      allOf:
+        - $ref: '#/components/schemas/RecordBase'
+        - type: object
+          properties:
+            status: { type: [string, 'null'] }
+            outcome: { type: [string, 'null'] }
+            claimType: { type: [string, 'null'] }
+            providerName: { type: [string, 'null'] }
+    NormalizedRecord:
+      anyOf:
+        - $ref: '#/components/schemas/DemographicRecord'
+        - $ref: '#/components/schemas/MedicationRecord'
+        - $ref: '#/components/schemas/ConditionRecord'
+        - $ref: '#/components/schemas/ObservationRecord'
+        - $ref: '#/components/schemas/AllergyRecord'
+        - $ref: '#/components/schemas/ImmunizationRecord'
+        - $ref: '#/components/schemas/EncounterRecord'
+        - $ref: '#/components/schemas/DocumentRecord'
+        - $ref: '#/components/schemas/ClaimRecord'
+        - $ref: '#/components/schemas/RecordBase'
+    SnapshotSource:
+      type: object
+      additionalProperties: false
+      required: [system, organization, lastSyncedAt]
+      properties:
+        system: { type: string }
+        organization: { type: [string, 'null'] }
+        lastSyncedAt: { type: [string, 'null'], format: date-time }
+    ConsentAccess:
+      type: object
+      additionalProperties: false
+      required: [status, receiptIds, expiresAt, receipts]
+      properties:
+        status:
+          type: string
+          const: active
+        receiptIds:
+          type: array
+          items: { type: string }
+        expiresAt:
+          type: [string, 'null']
+          format: date-time
+        receipts:
+          type: array
+          items:
+            type: object
+            additionalProperties: false
+            required: [id, categories, source, expiresAt]
+            properties:
+              id: { type: string }
+              categories:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Category'
+              source: { type: string }
+              expiresAt: { type: [string, 'null'], format: date-time }
+    RecordMetadata:
+      type: object
+      additionalProperties: false
+      required: [preparedAt, schemaVersion, syncStatus, dataAsOf, lastSuccessfulSyncAt, availableCategories, missingCategories, warnings, sources, changeCursor, disclaimer]
+      properties:
+        preparedAt: { type: string, format: date-time }
+        schemaVersion: { type: integer }
+        syncStatus: { type: string, enum: [not_started, complete, partial] }
+        dataAsOf: { type: [string, 'null'], format: date-time }
+        lastSuccessfulSyncAt: { type: [string, 'null'], format: date-time }
+        availableCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        missingCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        warnings:
+          type: array
+          items:
+            $ref: '#/components/schemas/SyncWarning'
+        sources:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        changeCursor: { type: string }
+        disclaimer: { type: string }
+    HealthRecordData:
+      type: object
+      additionalProperties: false
+      properties:
+        demographics:
+          oneOf:
+            - type: 'null'
+            - allOf:
+                - $ref: '#/components/schemas/DemographicRecord'
+                - type: object
+                  properties:
+                    records:
+                      type: array
+                      items:
+                        $ref: '#/components/schemas/DemographicRecord'
+        medications:
+          type: array
+          items:
+            $ref: '#/components/schemas/MedicationRecord'
+        medicationAdministrations:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        medicationDispenses:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ConditionRecord'
+        labs:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObservationRecord'
+        diagnosticReports:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        vitals:
+          type: array
+          items:
+            $ref: '#/components/schemas/ObservationRecord'
+        allergies:
+          type: array
+          items:
+            $ref: '#/components/schemas/AllergyRecord'
+        immunizations:
+          type: array
+          items:
+            $ref: '#/components/schemas/ImmunizationRecord'
+        encounters:
+          type: array
+          items:
+            $ref: '#/components/schemas/EncounterRecord'
+        appointments:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        careTeam:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/DocumentRecord'
+        clinicalNotes:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordBase'
+        claims:
+          type: object
+          additionalProperties: false
+          required: [coverages, explanationsOfBenefit]
+          properties:
+            coverages:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClaimRecord'
+            explanationsOfBenefit:
+              type: array
+              items:
+                $ref: '#/components/schemas/ClaimRecord'
+    HealthRecord:
+      type: object
+      additionalProperties: false
+      required: [id, object, categories, consent, sources, data, meta]
+      properties:
+        id: { type: string, pattern: '^u_[a-f0-9]{16}$' }
+        object: { type: string, const: health_record }
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        consent:
+          $ref: '#/components/schemas/ConsentAccess'
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/SnapshotSource'
+        data:
+          $ref: '#/components/schemas/HealthRecordData'
+        meta:
+          $ref: '#/components/schemas/RecordMetadata'
+    CategoryRecordList:
+      type: object
+      additionalProperties: false
+      required: [object, category, data, hasMore, nextCursor, meta]
+      properties:
+        object: { type: string, const: list }
+        category:
+          $ref: '#/components/schemas/Category'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/NormalizedRecord'
+        hasMore: { type: boolean }
+        nextCursor: { type: [string, 'null'] }
+        meta:
+          $ref: '#/components/schemas/RecordMetadata'
+    RecordChange:
+      type: object
+      additionalProperties: false
+      required: [id, object, sequence, category, changeType, recordId, recordType, source, sourceRecordId, syncId, changedAt, record]
+      properties:
+        id: { type: string, pattern: '^chg_[0-9]+$' }
+        object: { type: string, const: record_change }
+        sequence: { type: integer, minimum: 1 }
+        category:
+          $ref: '#/components/schemas/Category'
+        changeType: { type: string, enum: [upsert, delete] }
+        recordId: { type: string, pattern: '^rec_[a-f0-9]{24}$' }
+        recordType: { type: string }
+        source: { type: string }
+        sourceRecordId: { type: string }
+        syncId: { type: [string, 'null'], format: uuid }
+        changedAt: { type: string, format: date-time }
+        record:
+          oneOf:
+            - $ref: '#/components/schemas/NormalizedRecord'
+            - type: 'null'
+    RecordChangeList:
+      type: object
+      additionalProperties: false
+      required: [object, category, data, hasMore, nextCursor]
+      properties:
+        object: { type: string, const: list }
+        category:
+          $ref: '#/components/schemas/Category'
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/RecordChange'
+        hasMore: { type: boolean }
+        nextCursor: { type: string }
+    ConsentReceipt:
+      type: object
+      additionalProperties: false
+      required: [id, object, subject, action, status, purpose, categories, requestedCategories, syncMode, syncStatus, dataAsOf, grantedScopes, organization, source, signedAt, expiresAt, revokedAt, policyVersion]
+      properties:
+        id: { type: string }
+        object: { type: string, const: consent_receipt }
+        subject: { type: string }
+        action: { type: string, const: share }
+        status: { type: string, enum: [active, revoked, expired] }
+        purpose: { type: string }
+        categories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        requestedCategories:
+          type: array
+          items:
+            $ref: '#/components/schemas/Category'
+        syncMode: { type: string, enum: [one-time, continuous] }
+        syncStatus:
+          oneOf:
+            - $ref: '#/components/schemas/SyncStatus'
+            - type: 'null'
+        dataAsOf: { type: [string, 'null'], format: date-time }
+        grantedScopes:
+          type: array
+          items: { type: string }
+        organization: { type: [string, 'null'] }
+        source: { type: [string, 'null'] }
+        signedAt: { type: string, format: date-time }
+        expiresAt: { type: [string, 'null'], format: date-time }
+        revokedAt: { type: [string, 'null'], format: date-time }
+        policyVersion: { type: string }
+    WebhookEvent:
+      type: object
+      additionalProperties: false
+      required: [id, object, type, createdAt, data]
+      properties:
+        id: { type: string }
+        object: { type: string, const: event }
+        type:
+          type: string
+          enum: [consent.granted, consent.revoked, consent.expired, deletion.requested, sync.completed, sync.partial, sync.failed, records.updated]
+        createdAt: { type: string, format: date-time }
+        data:
+          type: object
+          additionalProperties: true
+          required: [subject]
+          properties:
+            subject: { type: [string, 'null'] }
+    ErrorEnvelope:
+      type: object
+      additionalProperties: false
+      required: [error]
+      properties:
+        error:
+          type: object
+          additionalProperties: false
+          required: [type, code, message, requestId]
+          properties:
+            type: { type: string, enum: [invalid_request_error, api_error] }
+            code: { type: string }
+            message: { type: string }
+            requestId: { type: string }
