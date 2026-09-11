@@ -70,12 +70,12 @@ export function RecordsScreen() {
     {showConnect && <section className="card records-connect">
       <h2 className="section-label">What leaves this device</h2>
       <p>Sample data: PPP sends FinchNode the categories you pick and a random code.</p>
-      <p className="muted">Your provider: your connector sends FinchNode your chosen categories, a random code, and a link back to PPP. Your connector then uses your record code to request your records from FinchNode. Your connector key goes only to your connector.</p>
+      <p className="muted">Your provider: your connector sends the categories you pick to FinchNode and brings your records back. Your connector key stays with your connector.</p>
       <fieldset className="records-checklist"><legend>Choose categories from your provider</legend>
         {RECORD_CATEGORIES.map(category => <label key={category}><input type="checkbox" checked={categories.includes(category)} onChange={e => setCategories(previous => e.target.checked ? [...previous, category] : previous.filter(c => c !== category))} />{CATEGORY_LABELS[category]}</label>)}
       </fieldset>
       <label className="records-consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
-        <span>I agree to send my chosen categories and a random code to FinchNode, through my connector for my provider. For my provider, my connector also sends FinchNode a link back to PPP. PPP keeps my record contents encrypted on this device. They are never shared with the assistant. They are included in exports and encrypted backups I choose to upload. Reports include them only if I choose.</span>
+        <span>I agree to send the categories I pick to FinchNode (through my connector for my provider). PPP keeps my records encrypted on this device and never shares them with the assistant.</span>
       </label>
       <div className="records-actions">
         <button className="cta" disabled={busy || !consent || categories.length === 0} onClick={() => void action(() => start('demo'))}>Try with sample data</button>
