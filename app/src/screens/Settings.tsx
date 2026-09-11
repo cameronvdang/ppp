@@ -58,6 +58,10 @@ import {
   secureVaultStatus,
 } from '../platform/secureVault'
 import { useApp } from '../state/appStore'
+import { PrivacyTable } from '../components/PrivacyTable'
+import { getConnection } from '../records/store'
+import { loadRelaySettings, saveRelayToken, saveRelayUrl } from '../records/relaySettings'
+export { saveRelayToken, saveRelayUrl } from '../records/relaySettings'
 
 const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
 
@@ -869,6 +873,14 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         </div>
       </div>
 
+      <RecordsSettingsCard />
+
+      <Section title="Privacy and data">
+        <PrivacyTable />
+        <p className="records-settings-note">Full details in PRIVACY.md in the repository.</p>
+        <p className="records-settings-note">Disconnect records to stop imports, remove your AI key to stop assistant sharing, and skip backup uploads to keep backups local. Remove your reminder email to stop email reminders. Records never enter AI context and enter reports only when you choose them.</p>
+      </Section>
+
       <Section title="AI assistant">
         <button className="setting-row" onClick={() => setAssistantOpen(true)}>
           <span>Open Lunara AI</span>
@@ -914,4 +926,49 @@ function Section({ title, children }: { title: string; children: React.ReactNode
       </div>
     </div>
   )
+}
+
+function RecordsSettingsCard() {
+  const savedUrl = useLiveQuery(() => getSetting(SK.recordsRelayUrl), [])
+  const connection = useLiveQuery(getConnection, [])
+  const [url, setUrl] = useState('')
+  const [token, setToken] = useState('')
+  const [tokenSaved, setTokenSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [revision, setRevision] = useState(0)
+  const setTab = useApp(s => s.setTab)
+  useEffect(() => { setUrl(savedUrl ?? ''); setToken(''); setTokenSaved(false) }, [savedUrl])
+  useEffect(() => {
+    let active = true
+    const inspect = () => { void loadRelaySettings().then(r => { if (active) setTokenSaved(!!r.token && r.baseUrl === savedUrl) }, () => { if (active) setTokenSaved(false) }) }
+    inspect()
+    window.addEventListener('focus', inspect)
+    return () => { active = false; window.removeEventListener('focus', inspect) }
+  }, [savedUrl, revision])
+  async function saveUrl() {
+    setBusy(true); setMessage('')
+    try { const canonical = await saveRelayUrl(url); setUrl(canonical ?? ''); setRevision(n => n + 1); setMessage('Relay URL saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the relay URL.') }
+    finally { setBusy(false) }
+  }
+  async function saveToken() {
+    setBusy(true); setMessage('')
+    try { await saveRelayToken(url, token); setToken(''); setRevision(n => n + 1); setMessage('Relay token saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the relay token.') }
+    finally { setBusy(false) }
+  }
+  return <Section title="Medical records">
+    <div className="records-settings-fields">
+      <p>Mode: {connection?.mode === 'live' ? 'Live' : 'Sample data'} · {connection?.status ?? 'disconnected'}</p>
+      <label htmlFor="records-relay-url">Relay URL</label>
+      <input id="records-relay-url" type="url" autoComplete="off" placeholder="https://your-relay.example" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => void saveUrl()} />
+      <p className="muted">Use your single-owner relay with a dedicated FinchNode application. Changing the URL disconnects live access and removes its old token. Cached records stay viewable.</p>
+      <label htmlFor="records-relay-token">Required relay token · {tokenSaved ? 'Saved' : 'Not set'}</label>
+      <input id="records-relay-token" type="password" autoComplete="new-password" value={token} onChange={e => setToken(e.target.value)} placeholder="Enter your relay client token" />
+      <button className="cta records-secondary" disabled={busy || !token.trim() || !url.trim()} onClick={() => void saveToken()}>Save token</button>
+      {message && <p role="status">{message}</p>}
+    </div>
+    <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span><span aria-hidden="true">›</span></button>
+  </Section>
 }

@@ -373,3 +373,8 @@
     break-inside: avoid;
   }
 }
+.provider-records-report { margin-top: 24px; }
+.provider-records-report h2 { font-size: 20px; }
+.provider-records-report h3 { margin-top: 16px; font-size: 16px; }
+.provider-records-report li { margin: 8px 0; line-height: 1.5; overflow-wrap: anywhere; }
+@media print { .provider-records-report h2, .provider-records-report h3 { break-after: avoid; } .provider-records-report li { break-inside: avoid; } }

@@ -33,6 +33,7 @@ import { loadReport, readyReport } from '../lib/reportLoad'
 import { exportCurrentReport } from '../platform/reportExport'
 import { useApp } from '../state/appStore'
 import '../styles/reports.css'
+import { loadProviderReport, ProviderRecordsReport } from './ProviderRecordsReport'
 
 function countItems(values: string[][]): { name: string; count: number }[] {
   const counts = new Map<string, number>()
@@ -46,6 +47,8 @@ function countItems(values: string[][]): { name: string; count: number }[] {
 
 export function DoctorReport() {
   const setReportOpen = useApp((s) => s.setReportOpen)
+  const [includeProviderRecords, setIncludeProviderRecords] = useState(false)
+  const [providerRequestRevision, setProviderRequestRevision] = useState(0)
   const [includeMentalHealth, setIncludeMentalHealth] = useState(false)
   const [includeSexualHealth, setIncludeSexualHealth] = useState(false)
   const [includeFertilityTests, setIncludeFertilityTests] = useState(false)
@@ -55,8 +58,9 @@ export function DoctorReport() {
   const [customStart, setCustomStart] = useState(today)
   const [customEnd, setCustomEnd] = useState(today)
 
-  const requestKey = JSON.stringify([today, preset, customStart, customEnd])
+  const requestKey = JSON.stringify([today, preset, customStart, customEnd, includeProviderRecords, providerRequestRevision])
   const result = useLiveQuery(() => loadReport(requestKey, async () => {
+    const providerRecords = await loadProviderReport(includeProviderRecords)
     const [allPeriodStarts, allOvulations, allLogs, legacyBirthYear, cycleLength, profile] =
       await Promise.all([
         getPeriodStarts(),
@@ -102,6 +106,7 @@ export function DoctorReport() {
       ]),
     )
     return {
+      providerRecords,
       birthYear: profile.birthYear ? String(profile.birthYear) : legacyBirthYear,
       prediction: contextualPrediction,
       profile,
@@ -160,6 +165,41 @@ export function DoctorReport() {
             {exportError}
           </p>
         )}
+              <div className="doctor-controls no-print">
+                <strong>Sensitive sections to include</strong>
+                <label className="doctor-control">
+                  <span>Records from your provider</span>
+                  <input type="checkbox" checked={includeProviderRecords} onChange={event => {
+                    setIncludeProviderRecords(event.target.checked)
+                    setProviderRequestRevision(revision => revision + 1)
+                  }} />
+                </label>
+                <label className="doctor-control">
+                  <span>Mood and mental-health entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeMentalHealth}
+                    onChange={(event) => setIncludeMentalHealth(event.target.checked)}
+                  />
+                </label>
+                <label className="doctor-control">
+                  <span>Sexual and intimacy entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeSexualHealth}
+                    onChange={(event) => setIncludeSexualHealth(event.target.checked)}
+                  />
+                </label>
+                <label className="doctor-control">
+                  <span>Pregnancy and ovulation test entries</span>
+                  <input
+                    type="checkbox"
+                    checked={includeFertilityTests}
+                    onChange={(event) => setIncludeFertilityTests(event.target.checked)}
+                  />
+                </label>
+              </div>
+
         <div className="print-root">
           {!data ? (
             <p className="no-print" role={loadFailed ? 'alert' : 'status'}>
@@ -236,33 +276,6 @@ export function DoctorReport() {
                 </p>
               </div>
 
-              <div className="doctor-controls no-print">
-                <strong>Sensitive sections to include</strong>
-                <label className="doctor-control">
-                  <span>Mood and mental-health entries</span>
-                  <input
-                    type="checkbox"
-                    checked={includeMentalHealth}
-                    onChange={(event) => setIncludeMentalHealth(event.target.checked)}
-                  />
-                </label>
-                <label className="doctor-control">
-                  <span>Sexual and intimacy entries</span>
-                  <input
-                    type="checkbox"
-                    checked={includeSexualHealth}
-                    onChange={(event) => setIncludeSexualHealth(event.target.checked)}
-                  />
-                </label>
-                <label className="doctor-control">
-                  <span>Pregnancy and ovulation test entries</span>
-                  <input
-                    type="checkbox"
-                    checked={includeFertilityTests}
-                    onChange={(event) => setIncludeFertilityTests(event.target.checked)}
-                  />
-                </label>
-              </div>
 
               <div className="section-label" style={{ margin: '18px 0 10px' }}>
                 Report metadata
@@ -402,6 +415,8 @@ export function DoctorReport() {
                     : <p className="muted">None logged.</p>}
                 </>
               )}
+
+              {includeProviderRecords && data.providerRecords && <ProviderRecordsReport data={data.providerRecords} />}
 
               <div className="doctor-methodology">
                 <strong>Methodology and limits</strong>

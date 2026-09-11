@@ -53,10 +53,11 @@ export async function secureVaultStatus(): Promise<SecureVaultStatus> {
   return { available: true, persistence: 'indexeddb-webcrypto', hardwareBacked: false, platform: 'web' }
 }
 
-export async function setSecureSecret(key: string, value: string): Promise<void> {
+export async function setSecureSecret(key: string, value: string, beforeWrite?: () => Promise<void>): Promise<void> {
   assertValidKey(key)
   if (typeof value !== 'string') throw new Error('Secret value must be a string.')
   await withSealingKey(async (sealingKey) => {
+    await beforeWrite?.()
     const blob = await seal(sealingKey, value)
     await withStore('readwrite', (store) => store.put(blob, key))
   })

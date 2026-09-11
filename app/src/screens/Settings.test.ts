@@ -6,7 +6,7 @@ import * as notifications from '../platform/notifications'
 import * as secureVault from '../platform/secureVault'
 import { KEY_DB_NAME } from '../platform/keyStore'
 import { installLifecycleLocks } from '../platform/__tests__/lifecycleLocks'
-import { setDeviceUnlockEnabled } from './Settings'
+import { saveRelayUrl, saveRelayToken, setDeviceUnlockEnabled } from './Settings'
 import { wipeLocalData } from '../lib/dataWipe'
 import type { HealthSample } from '../lib/healthImport'
 import {
@@ -203,4 +203,103 @@ describe('Settings browser privacy actions', () => {
     expect(await db.dailyLogs.count()).toBe(1)
     expect(await getSetting(SK.pinHash)).toBe('pin-hash')
   })
+})
+
+import { loadRelaySettings } from '../records/relaySettings'
+import { getConnection, listRecords, putSnapshot } from '../records/store'
+import { grantRecordsConsent, startConnection, syncSnapshot, completePendingConnection } from '../records/connect'
+import type { ConnectSessionState, RecordsProvider, RecordsSnapshot } from '../records/providers/types'
+const relayId = 'cs_0123456789abcdef0123'
+const recordsSnapshot: RecordsSnapshot = { records: [], syncStatus: 'complete', sync: { status: 'complete' }, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], sources: [], warnings: [], failure: null, consentReceiptIds: [], skipped: 0, additionalItems: 0, synthetic: false }
+describe('Settings records relay binding', () => {
+  beforeEach(async () => {
+    installLifecycleLocks()
+    for (const table of db.tables) await table.clear()
+    await secureVault.destroySecureVault()
+    vi.stubGlobal('location', { origin: 'https://app.test' })
+  })
+  afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+  const connected = async () => {
+    await saveRelayUrl('https://relay-a.test')
+    await saveRelayToken('https://relay-a.test', 'tok-A')
+    await grantRecordsConsent()
+    const provider: RecordsProvider = { mode: 'live', startConnect: vi.fn(async () => ({ sessionId: relayId, redirectUrl: 'https://connect.test/s', completed: false, subject: null, expiresAt: null })), getSession: vi.fn(async (): Promise<ConnectSessionState> => ({ id: relayId, status: 'completed', subject: 'u_0123456789abcdef', sync: { status: 'complete' }, grantedCategories: ['labs'], availableCategories: ['labs'], missingCategories: [], warnings: [], failure: null, expiresAt: null })), fetchSnapshot: vi.fn(async () => recordsSnapshot) }
+    await startConnection(['labs'], { provider, navigate: vi.fn() })
+    await completePendingConnection({ isReturn: true, sessionId: relayId, invalidSession: false }, { provider })
+    await putSnapshot([{ id: 'live:labs:rec_000000000000000000000001', category: 'labs', sourceRecordId: 'lab-1', sourceName: 'Clinic', date: null, codes: [], syncedAt: '2026-09-11T00:00:00Z', synthetic: false, name: 'Cached lab', value: 1, unit: null, status: null, referenceRange: null, interpretation: null }], ['labs'], { expectedGeneration: (await getConnection()).generation })
+    vi.mocked(provider.fetchSnapshot).mockClear()
+    return provider
+  }
+  it.each(['https://relay-b.test', ''])('disconnects URL edits to %s, retains the snapshot and removes the token', async next => {
+    const provider = await connected(), before = await getConnection(), rows = await listRecords()
+    await saveRelayUrl(next)
+    expect((await getConnection()).status).toBe('disconnected')
+    expect((await getConnection()).generation).toBe(before.generation + 1)
+    expect((await getConnection()).subject).toBe(before.subject)
+    expect((await getConnection()).pendingSession).toBeUndefined()
+    expect(await listRecords()).toEqual(rows)
+    expect(await secureVault.getSecureSecret(secureVault.SECURE_SECRET_KEYS.recordsRelayToken)).toBeNull()
+    await syncSnapshot({ provider })
+    expect(provider.fetchSnapshot).not.toHaveBeenCalled()
+  })
+  it('canonical-equivalent URLs keep the connection and token', async () => {
+    await connected()
+    const before = await getConnection()
+    await saveRelayUrl('https://RELAY-A.test:443///')
+    expect(await getConnection()).toEqual(before)
+    expect(await loadRelaySettings()).toEqual({ baseUrl: 'https://relay-a.test', token: 'tok-A', tokenRelayBaseUrl: 'https://relay-a.test' })
+  })
+  it.each(['http://localhost.evil', 'http://127.0.0.1.evil', 'https://user:pass@relay.test', 'https://relay.test?key=x', 'https://relay.test#x'])('rejects unsafe saved URL %s before writes', async input => {
+    await saveRelayUrl('https://relay-a.test')
+    await expect(saveRelayUrl(input)).rejects.toThrow()
+    expect(await getSetting(SK.recordsRelayUrl)).toBe('https://relay-a.test')
+  })
+  it('only reports a token saved when its binding matches and rejects a stale form', async () => {
+    await saveRelayUrl('https://relay-a.test')
+    await secureVault.setSecureSecret(secureVault.SECURE_SECRET_KEYS.recordsRelayToken, JSON.stringify({ relayBaseUrl: 'https://relay-a.test.evil', token: 'tok' }))
+    expect((await loadRelaySettings()).token).toBeNull()
+    await saveRelayUrl('https://relay-b.test')
+    await expect(saveRelayToken('https://relay-a.test', 'tok-A')).rejects.toThrow(/changed in another tab/)
+    await expect(saveRelayToken('https://relay-b.test', '')).rejects.toThrow(/required/)
+    expect((await loadRelaySettings()).token).toBeNull()
+  })
+  it('serializes a suspended token save with endpoint changes and cleans the old credential', async () => {
+    await saveRelayUrl('https://relay-a.test')
+    let release!: () => void, entered!: () => void
+    const waiting = new Promise<void>(r => { entered = r }), held = new Promise<void>(r => { release = r })
+    const save = secureVault.setSecureSecret
+    vi.spyOn(secureVault, 'setSecureSecret').mockImplementationOnce(async (...args) => { entered(); await held; return save(...args) })
+    const saving = saveRelayToken('https://relay-a.test', 'tok-A')
+    await waiting
+    const changing = saveRelayUrl('https://relay-b.test')
+    release()
+    await Promise.all([saving, changing])
+    expect(await getSetting(SK.recordsRelayUrl)).toBe('https://relay-b.test')
+    expect((await loadRelaySettings()).token).toBeNull()
+  })
+  it('reports token cleanup failure after disabling live access', async () => {
+    const p = await connected()
+    vi.spyOn(secureVault, 'deleteSecureSecret').mockRejectedValueOnce(new Error('private vault details'))
+    await expect(saveRelayUrl('https://relay-b.test')).rejects.toThrow(/old token could not be removed/)
+    expect((await getConnection()).status).toBe('disconnected')
+    expect((await loadRelaySettings()).token).toBeNull()
+    await syncSnapshot({ provider: p })
+    expect(p.fetchSnapshot).not.toHaveBeenCalled()
+  })
+})
+it('does not recreate a relay credential when its save queued behind vault destruction', async () => {
+  installLifecycleLocks()
+  for (const table of db.tables) await table.clear()
+  await saveRelayUrl('https://relay-a.test')
+  let release!: () => void, entered!: () => void
+  const waiting = new Promise<void>(r => { entered = r }), held = new Promise<void>(r => { release = r })
+  const destroying = secureVault.destroySecureVault(async () => { entered(); await held; await db.settings.clear() })
+  await waiting
+  const saving = saveRelayToken('https://relay-a.test', 'must-not-reappear')
+  const rejected = expect(saving).rejects.toThrow(/changed in another tab/)
+  release()
+  await destroying
+  await rejected
+  expect(await secureVault.getSecureSecret(secureVault.SECURE_SECRET_KEYS.recordsRelayToken)).toBeNull()
+  vi.unstubAllGlobals()
 })

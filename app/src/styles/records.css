@@ -27,3 +27,18 @@
 .records-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--pink-300); border-top-color: var(--red-800); border-radius: 50%; margin-right: 10px; animation: records-spin 1s linear infinite; }
 @keyframes records-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .records-spinner { animation: none; } }
+.records-settings-fields { display: grid; gap: 10px; padding: 16px 0; }
+.records-settings-fields label { font-weight: 700; }
+.records-settings-fields input { width: 100%; padding: 12px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg); }
+.records-settings-fields p, .records-settings-note { font-size: 14px; line-height: 1.5; }
+.records-settings-note { padding-bottom: 16px; }
+.privacy-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+.privacy-table th, .privacy-table td { padding: 12px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); overflow-wrap: anywhere; }
+.privacy-table thead th { color: var(--ink-900); }
+@media (max-width: 560px) {
+  .privacy-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .privacy-table, .privacy-table tbody, .privacy-table tr, .privacy-table td, .privacy-table tbody th { display: block; }
+  .privacy-table tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .privacy-table th, .privacy-table td { border: 0; padding: 5px 0; }
+  .privacy-table td::before { content: attr(data-label) ': '; font-weight: 700; }
+}
