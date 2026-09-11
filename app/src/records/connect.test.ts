@@ -99,6 +99,8 @@ import { wipeLocalData } from '../lib/dataWipe'
 import * as sealing from '../crypto/sealed'
 import { createDemoProvider } from './providers/demo'
 import demoFixture from './__fixtures__/demo-records.json'
+import { applyImport, collectExport } from '../db/transfer'
+import { RECORD_CATEGORIES } from './categories'
 const demoSnapshot = { ...snapshot, records: snapshot.records.map(r => ({ ...r, id: 'demo:labs:sample-lab', synthetic: true })), synthetic: true }
 const ready = async (p = provider()) => {
   await startConnection(['labs', 'medications'], { ...deps, provider: p })
@@ -121,6 +123,32 @@ it('runs demo orchestration through the actual provider against the captured con
   expect(await startConnection(['demographics', 'medications', 'conditions', 'allergies', 'labs', 'vitals', 'immunizations'], { ...deps, provider: p })).toBe('connected')
   expect(await listRecords()).toHaveLength(12)
   expect(fetch).toHaveBeenCalledTimes(2)
+})
+it('clears every demo backup row before live creation, including missing categories in a partial snapshot', async () => {
+  const fetch = vi.fn(async (url: RequestInfo | URL) => new Response(JSON.stringify(String(url).endsWith('/connect/sessions') ? { id: 'demo-1', status: 'completed' } : demoFixture)))
+  await startConnection([...RECORD_CATEGORIES], { ...deps, provider: createDemoProvider({ fetch }) })
+  await applyImport(await collectExport())
+  expect((await listRecords()).some(r => r.id.startsWith('demo:medications:'))).toBe(true)
+  const p = provider([{ ...completed, grantedCategories: ['labs', 'medications'] }])
+  vi.mocked(p.startConnect).mockImplementationOnce(async () => {
+    expect((await getConnection()).mode).toBe('live')
+    expect(await db.medicalRecords.count()).toBe(0)
+    return { sessionId: id, redirectUrl: 'https://connect.test/s', completed: false, subject: null, expiresAt: null }
+  })
+  vi.mocked(p.fetchSnapshot).mockResolvedValue({ ...snapshot, syncStatus: 'partial', sync: { status: 'partial' }, grantedCategories: ['labs', 'medications'], missingCategories: ['medications'] })
+  await startConnection(['labs', 'medications'], { ...deps, provider: p })
+  await completePendingConnection(ret, { ...deps, provider: p })
+  expect((await listRecords()).some(r => r.id.startsWith('demo:'))).toBe(false)
+  expect(await listRecords('medications')).toEqual([])
+  expect(await listRecords('labs')).toEqual(snapshot.records)
+})
+it('clears live cached rows even when the new demo connection fails', async () => {
+  await ready()
+  expect(await db.medicalRecords.count()).toBeGreaterThan(0)
+  const p: RecordsProvider = { mode: 'demo', startConnect: vi.fn(async () => { throw new Error('Unavailable') }), getSession: vi.fn(), fetchSnapshot: vi.fn() }
+  expect(await startConnection(['labs', 'medications'], { ...deps, provider: p })).toBe('error')
+  expect(await getConnection()).toMatchObject({ mode: 'demo', status: 'error' })
+  expect(await listRecords()).toEqual([])
 })
 it('makes no requests without consent or a nonempty category selection', async () => {
   const p = provider()

@@ -82,7 +82,8 @@ export function transitionConnection(update: (current: RecordsConnection) => Rec
       if (options.consent !== 'remove') consentLedger.push({ purpose: 'medical-records', state: options.consent, version: 1, decidedAt: new Date().toISOString() })
       await db.healthProfiles.put({ ...profile, privacy: { ...profile.privacy, consentLedger } })
     }
-    if (options.clear) await db.medicalRecords.clear()
+    // Cached rows belong to their mode, including categories absent from a partial refresh.
+    if (options.clear || current.mode !== next.mode) await db.medicalRecords.clear()
     else await db.medicalRecords.where('category').anyOf(RECORD_CATEGORIES.filter(c => !next.categories.includes(c))).delete()
     await db.recordsConnection.clear()
     await db.recordsConnection.put(next)
