@@ -9,12 +9,9 @@ replaces the Capacitor iOS and Android shells with a web-first React/Vite app
 and a PWA shell. It remains a work in progress.
 
 The [implementation plan](docs/superpowers/plans/2026-09-11-lunara-web-finchnode.md)
-separates the working browser platform from upcoming changes. Aileron typography,
-the baby pink / baby red palette, and responsive layout changes are **planned
-for Phase 2, Tasks 9–12**. The Aileron dependency is installed, but font imports
-and the palette work are not implemented yet. FinchNode medical records,
-the records relay, and the full privacy documentation are **planned for Phase 3,
-Tasks 13–23**.
+covers the browser platform, Aileron typography, baby pink / baby red palette,
+responsive layout, and FinchNode records integration. Phases 1–3 are implemented;
+the final Phase 4 hardening and browser review remain separate work.
 
 Lunara is an open-source alternative to Flo®. It is not affiliated with,
 endorsed by, or connected to Flo Health Inc.
@@ -48,34 +45,65 @@ rules still apply; adding an origin to CSP does not grant access at the server.
 
 ## Privacy
 
-[PRIVACY.md](PRIVACY.md) is planned for **Task 23** and does not exist yet.
-The current boundary is documented in
-[Web capability boundary](docs/WEB_CAPABILITY_BOUNDARY.md).
+See [PRIVACY.md](PRIVACY.md) for the network-destination table and storage boundary,
+and [Web capability boundary](docs/WEB_CAPABILITY_BOUNDARY.md) for browser limits.
 
-- **Local first:** core tracking uses browser storage without an account or
-  a Lunara-hosted user database. Clearing site data removes local history.
-- **Opt-in transfers:** AI requests and encrypted backup uploads require user
-  action. Email reminders require a separately deployed worker; FinchNode demo
-  and live records transfers are planned for Phase 3.
-- **Sealed secrets, limited encryption scope:** vault secrets are encrypted
-  with a browser-managed key today. Sealed medical-record bodies are planned
-  for Phase 3; record indexes and connection metadata will remain plaintext,
-  as existing logs and profiles do today. PIN and device unlock gate the screen,
-  not the key; code running on this site's origin can access the vault.
+- **Local first:** core tracking uses browser storage without an account or a
+  Lunara-hosted user database. Clearing site data removes local history.
+- **Opt-in transfers:** records connect/refresh, AI messages and encrypted backup
+  uploads require user action. Records are never sent to the AI assistant.
+- **Limited encryption scope:** medical-record bodies and vault secrets are sealed
+  with a browser-managed key. Record indexes, connection metadata, existing logs
+  and profiles remain plaintext. PIN and device unlock gate the screen. Export
+  files contain opened records unless you choose file encryption; explicit backup
+  uploads encrypt the entire export payload.
 
 ## Medical records
 
-FinchNode sample records and live imports from your provider are planned for
-Phase 3 (Tasks 13–23). The Records interface, sealed record storage, and
-single-owner relay are not present yet. Task 23 will replace this placeholder
-with sample-data and live-setup instructions and the completed privacy link.
+Open **Records**, choose categories, and tick the consent checkbox. Select
+**Try with sample data** to import FinchNode's fictional Northstar Health records
+without an account or API key. With all categories selected, seven summary cards
+appear; **Lab results** contains three rows. Open a category to read compact
+records with their date and source. The sample-data banner stays visible.
+
+For live records from your provider:
+
+1. Deploy [workers/records-relay](workers/records-relay/README.md) for one owner
+   with a dedicated FinchNode application. Configure the FinchNode API key and a
+   high-entropy relay client token as Worker secrets, plus exact allowed origins.
+2. Append the relay's exact origin to `connect-src` in `app/public/_headers`
+   (or your host's equivalent). No wildcard relay allowance is included.
+3. In **Settings → Medical records**, save the relay URL and its required token.
+   The token is sealed in the vault and bound to that canonical URL.
+4. Open Records, consent to at least one category, and choose **Connect my provider**.
+   Complete Hosted Connect. Lunara resumes only the pending session you started,
+   polls its sync state, and imports your granted categories.
+
+Use **Refresh** to update records. Partial refreshes keep missing categories cached
+and label them **Not refreshed**. Additional unsupported items are counted and
+shown on the source card. Recovery actions distinguish **Start again**, **Check
+again**, and **Refresh**. Changing the relay URL disconnects live access, removes
+the old token, and leaves cached records viewable.
+
+In the doctor's report, **Records from your provider** is off by default; tick it
+to include active conditions, active medications and allergies with source and
+date. Records are included in exported backups and explicit encrypted backup
+uploads, and are never included in AI context. Imported backup snapshots remain
+viewable but disconnected until you explicitly connect again.
+
+**Disconnect and delete** removes local imported records and declines local
+records consent. Revoke source-side authorization in your provider portal or
+FinchNode's consent controls too. **Delete all data** also clears the app and vault.
+See [PRIVACY.md](PRIVACY.md) for deletion, export and relay trust details.
 
 ## Develop
 
 Run the app tests from the repository root:
 
 ```sh
-pnpm test
+pnpm --filter @lunara/app test
+(cd app && npx tsc --noEmit && npx vite build)
+(cd workers/records-relay && pnpm test)
 ```
 
 The seeded [estimate audit](app/src/engine/estimateAudit.test.ts) exercises
@@ -90,8 +118,8 @@ also checks TypeScript before generating the production bundle.
   client-encrypted backup uploads.
 - [workers/reminders/](workers/reminders/) — optional self-hosted generic email
   reminders; the browser app does not currently wire up email subscriptions.
-- [workers/records-relay/](workers/records-relay/) — **planned for Phase 3**;
-  this directory does not exist yet.
+- [workers/records-relay/](workers/records-relay/) — stateless, single-owner
+  FinchNode relay with required token authentication and strict category routes.
 - [docs/FEATURE_PARITY.md](docs/FEATURE_PARITY.md) — feature inventory and web
   capability changes.
 

@@ -1,7 +1,7 @@
 # Web capability boundary
 
-Updated: 2026-09-11. This describes the implemented browser platform and marks
-future work from the [web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md)
+Updated: 2026-09-11. This describes the implemented browser platform and records integration
+from Phases 1–3 from the [web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md)
 and [implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md).
 
 ## Fully local in the browser
@@ -13,14 +13,15 @@ After the initial app load, these features need no account or hosted backend:
 - Predictions, uncertainty ranges, pattern analysis, pregnancy dating, TTC and
   perimenopause summaries, and reports with browser print/save-as-PDF.
 - Bundled educational content and bookmarks.
-- Plain or passphrase-encrypted file export/import. The current payload contains
-  daily logs, filtered settings, and content bookmarks; it does not include all
-  database tables. Canonical profile, regimen, adherence, and medical-record
-  transfers are planned for Phase 3, Task 18.
+- Plain or passphrase-encrypted file export/import. The v2 payload contains
+  daily logs, filtered settings, content bookmarks, canonical health profiles,
+  regimens, adherence events, opened medical records and connection metadata
+  without pending/creation state. Security settings and vault credentials are excluded.
+  Imported connections stay disconnected and viewable locally.
 - Sealed vault secrets using a non-extractable browser-managed WebCrypto key
-  stored in IndexedDB. Existing logs and profiles remain plaintext. Sealed
-  medical-record bodies are planned for Phase 3; record indexes and connection
-  metadata will remain plaintext. Same-origin code can use the key to read
+  stored in IndexedDB. Medical-record bodies are also sealed. Existing
+  logs and profiles, record IDs/categories/dates, and connection metadata
+  (organizations, warnings, subjects and pending-session IDs) remain plaintext. Same-origin code can use the key to read
   sealed values, so this does not protect against malicious site code or a
   compromised browser profile.
 - A PIN screen gate and, where the browser exposes a suitable WebAuthn platform
@@ -44,11 +45,18 @@ service.
 
 | Capability | Current boundary |
 | --- | --- |
-| FinchNode demo records — planned, Phase 3 | The future sample-data action will request synthetic records for selected categories. No demo Records flow exists yet. |
-| FinchNode live records via relay — planned, Phase 3 | The future connect/refresh actions will use a self-hosted single-owner relay with a dedicated FinchNode application and client token. The relay and provider can see records in transit; sealed browser storage does not hide them from those services. |
+| FinchNode demo records | "Try with sample data" sends chosen categories and a random external ID to the public demo API. The seven category cards and lists display fictional Northstar Health records. |
+| FinchNode live records via relay | Explicit connect/refresh uses the [stateless records relay](../workers/records-relay/README.md), with a dedicated FinchNode application and a required client token bound to its canonical URL. Chosen categories, random external ID and return URL are sent on creation; subject IDs identify snapshot reads. The trusted relay and FinchNode can see records in transit. Exact Origin checks are additional to authentication; independent users require per-user authentication and ownership checks. |
 | AI companion | A user-sent message calls Anthropic or OpenAI with the conversation and only the selected tracker context, using the user's own supported credential. Provider availability and browser CORS still apply. |
-| Encrypted backup | Explicit upload/restore actions contact the user's configured backup Worker. It stores an opaque encrypted export payload, not every current database table. Restore needs the retained recovery code. |
+| Encrypted backup | Explicit upload/restore actions contact the user's configured backup Worker. It stores the client-encrypted v2 export payload, including imported records and canonical profile/regimen/adherence tables, with security settings excluded. Restore needs the retained recovery code. |
 | Email reminders | The optional self-hosted reminder Worker accepts an email and fixed clock time, stores subscription/unsubscribe metadata, and uses an email delivery provider for generic messages. It needs separate deployment and subscription setup; the browser app has no email subscription flow wired up. |
+
+Records never enter AI context and enter the doctor report only when ticked.
+Requested report data must load successfully before export. Complete snapshots
+replace selected/granted categories; partial snapshots retain missing cached rows.
+Disconnect/delete and wipe invalidate in-flight work using persisted generations;
+changing a relay URL disables live refresh and removes its old bound token.
+See [PRIVACY.md](../PRIVACY.md) for the full threat model and deletion scope.
 
 Custom relay, backup, or Ollama / AI endpoints must have their exact origins
 appended to the existing `connect-src` allowlist in
