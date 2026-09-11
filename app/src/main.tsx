@@ -16,6 +16,7 @@ import './styles/base.css'
 import './styles/app.css'
 import './styles/health-import.css'
 import './styles/records.css'
+import './styles/mobile.css'
 import './styles/desktop.css'
 
 const ret = readReturnParams(window.location.search)

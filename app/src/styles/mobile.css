@@ -1,0 +1,16 @@
+.install-card {
+  margin: 0 16px 16px;
+  padding: 16px;
+  padding-left: max(16px, env(safe-area-inset-left));
+  padding-right: max(16px, env(safe-area-inset-right));
+  border-radius: var(--radius-card);
+  background: var(--card);
+  box-shadow: var(--shadow-card);
+}
+.install-card h2 { font-size: 18px; margin-bottom: 8px; }
+.install-card p, .install-card li { line-height: 1.5; }
+.install-card ol { padding-left: 20px; margin: 8px 0 0; }
+.install-card .cta { margin-top: 12px; }
+.install-card-settings { margin: 0; box-shadow: none; }
+.install-share-glyph { width: 20px; height: 24px; vertical-align: middle; margin-left: 4px; }
+.install-dismiss { display: block; min-height: 44px; padding: 8px; margin-top: 4px; background: none; text-decoration: underline; }

@@ -1,5 +1,6 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
+import { InstallCard } from '../components/InstallCard'
 import { DateStrip } from '../components/DateStrip'
 import { PppMark } from '../components/PppMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
@@ -430,7 +431,9 @@ export function Today() {
           </button>
         </section>
 
-        <section className="daily-insights-section" aria-labelledby="pregnancy-daily-insights-title">
+        <InstallCard variant="today" />
+
+      <section className="daily-insights-section" aria-labelledby="pregnancy-daily-insights-title">
           <div className="section-heading daily-heading">
             <h2 id="pregnancy-daily-insights-title">
               My daily insights
@@ -735,6 +738,8 @@ export function Today() {
           <strong>Sex</strong>
         </button>
       </section>
+
+      <InstallCard variant="today" />
 
       <section className="daily-insights-section" aria-labelledby="daily-insights-title">
         <div className="section-heading daily-heading">

@@ -1,3 +1,4 @@
+import { InstallCard, useInstallState } from '../components/InstallCard'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -143,6 +144,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     setTtcDetailOpen,
     setTrackerCustomizeOpen,
   } = useApp()
+  const installState = useInstallState()
   const fileInput = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false)
@@ -884,6 +886,10 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
           </p>
         </div>
       </div>
+
+      {installState.mode !== 'unsupported' && <Section title="Home screen">
+        {installState.mode === 'installed' ? <p className="records-settings-note">Installed on this device.</p> : <InstallCard variant="settings" />}
+      </Section>}
 
       <RecordsSettingsCard />
 
