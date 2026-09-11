@@ -3,12 +3,23 @@ import type { VitePWAOptions } from 'vite-plugin-pwa'
 
 export const pwaOptions: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
-  includeAssets: ['icons/apple-touch-icon.png'],
+  includeAssets: ['icons/apple-touch-icon.png', 'splash/*.png'],
   manifest: {
     name: 'PPP',
     short_name: 'PPP',
     description: 'Private cycle, fertility, pregnancy and perimenopause companion. Your data stays in your browser.',
     display: 'standalone',
+    id: '/',
+    scope: '/',
+    display_override: ['standalone', 'minimal-ui'],
+    orientation: 'portrait',
+    lang: 'en',
+    categories: ['health', 'lifestyle'],
+    prefer_related_applications: false,
+    shortcuts: [
+      { name: 'Log today', short_name: 'Log', url: '/?action=log', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+      { name: 'Records', short_name: 'Records', url: '/?tab=records', icons: [{ src: 'icons/icon-192.png', sizes: '192x192', type: 'image/png' }] },
+    ],
     start_url: '/',
     background_color: '#FFF7F8',
     theme_color: '#FFF7F8',

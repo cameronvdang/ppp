@@ -1,6 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App'
+import type { Tab } from './components/TabBar'
 import { readReturnParams, stripReturnParams } from './records/returnHandler'
 import { useApp } from './state/appStore'
 import { StartupErrorBoundary } from './components/StartupErrorBoundary'
@@ -19,6 +20,15 @@ import './styles/desktop.css'
 
 const ret = readReturnParams(window.location.search)
 if (ret.isReturn) { stripReturnParams(); useApp.getState().setRecordsReturn(ret) }
+
+const params = new URLSearchParams(window.location.search)
+const tab = params.get('tab'); const action = params.get('action')
+if (tab || action) {
+  if (tab && ['today', 'insights', 'graphs', 'records', 'settings'].includes(tab)) useApp.getState().setTab(tab as Tab)
+  if (action === 'log') useApp.getState().setLaunchAction('log')
+  params.delete('tab'); params.delete('action')
+  history.replaceState(null, '', window.location.pathname + (params.size ? `?${params}` : '') + window.location.hash)
+}
 
 void initializeRuntime()
 

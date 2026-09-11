@@ -30,3 +30,9 @@ describe('pwa config', () => {
     expect(pwaOptions.workbox?.navigateFallbackDenylist?.some((re) => re.test('/?records=return'))).toBe(false)
   })
 })
+
+it('is installable with an id, scope, portrait standalone display and two shortcuts', () => {
+  expect(pwaOptions.manifest).toMatchObject({ id: '/', scope: '/', display: 'standalone', orientation: 'portrait', name: 'PPP', short_name: 'PPP' })
+  expect(pwaOptions.manifest?.display_override?.[0]).toBe('standalone')
+  expect(pwaOptions.manifest?.shortcuts?.map((s) => s.url)).toEqual(['/?action=log', '/?tab=records'])
+})

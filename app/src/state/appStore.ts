@@ -6,6 +6,8 @@ import type { Tab } from '../components/TabBar'
 export type TrackerFocus = 'flow' | 'symptoms' | 'intimacy'
 
 interface AppState {
+  launchAction: 'log' | null
+  setLaunchAction: (action: 'log' | null) => void
   recordsCategory: RecordCategory | null
   setRecordsCategory: (category: RecordCategory | null) => void
   recordsReturn: ReturnParams | null
@@ -43,6 +45,8 @@ interface AppState {
 }
 
 export const useApp = create<AppState>((set) => ({
+  launchAction: null,
+  setLaunchAction: (launchAction) => set({ launchAction }),
   recordsCategory: null,
   setRecordsCategory: (recordsCategory) => set({ recordsCategory }),
   recordsReturn: null,

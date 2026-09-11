@@ -1,5 +1,5 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { DateStrip } from '../components/DateStrip'
 import { PppMark } from '../components/PppMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
@@ -217,6 +217,8 @@ function symptomPatternForDate(
 export function Today() {
   const {
     openSheet,
+    launchAction,
+    setLaunchAction,
     setCalendarOpen,
     setArticleSlug,
     setTab,
@@ -225,6 +227,12 @@ export function Today() {
     setPregnancyDetailOpen,
     setPerimenopauseOpen,
   } = useApp()
+  useEffect(() => {
+    if (launchAction === 'log') {
+      openSheet(localToday())
+      setLaunchAction(null)
+    }
+  }, [launchAction, openSheet, setLaunchAction])
   const today = localToday()
   const [selectedDate, setSelectedDate] = useState(today)
   // Which way the last change moved, so the incoming day animates in from the
