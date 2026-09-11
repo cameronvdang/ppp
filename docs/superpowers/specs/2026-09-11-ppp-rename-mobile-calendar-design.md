@@ -200,7 +200,9 @@ state. In `installed` mode both disappear.
   (`copyFor`): "PPP" in private-preview mode, otherwise "PPP reminder" /
   "PPP check-in" / "PPP update". Definition labels such as "Ovulation test"
   are never used; calendars are the most-shared surface.
-- UID `ppp-reminder-<plan.id>@ppp.local`.
+- UIDs are stable opaque ids: `ppp-r-<index>@ppp.local`, where index is the
+  plan definition's position in `REMINDER_DEFINITIONS`; plans without a
+  definition use `ppp-r-h<fnv1a hash of plan.id>@ppp.local`.
 
 ### C4. UI
 

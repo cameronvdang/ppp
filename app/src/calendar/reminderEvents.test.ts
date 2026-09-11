@@ -26,13 +26,31 @@ describe('reminderCalendarEvents', () => {
     prefs.plans = prefs.plans.map((p, i) => ({ ...p, enabled: i < 2, localTime: '20:30' }))
     const ev = reminderCalendarEvents(prefs, '2026-09-11')
     expect(ev).toHaveLength(2)
-    expect(ev[0]).toMatchObject({ uid: `ppp-reminder-${prefs.plans[0].id}@ppp.local`, summary: 'PPP', time: '20:30', durationMinutes: 15, alarmMinutesBefore: 0 })
+    expect(ev[0]).toMatchObject({ uid: 'ppp-r-0@ppp.local', summary: 'PPP', time: '20:30', durationMinutes: 15, alarmMinutesBefore: 0 })
     expect(ev[0].description).not.toMatch(/period|fertile|medication|pregnan/i)
   })
   it('uses the category title when private previews are off', () => {
     const prefs = withReminderGlobals(defaultReminderPreferences({ timeZone: 'UTC', startDate: '2026-09-11' }), { privatePreviews: false })
     prefs.plans = prefs.plans.map((p) => ({ ...p, enabled: p.id === 'settings-bbt' }))
     expect(reminderCalendarEvents(prefs, '2026-09-11')[0].summary).toBe('PPP check-in')
+  })
+  it('keeps opaque UIDs stable across plan ordering, enabled subsets and preview modes', () => {
+    const prefs = defaultReminderPreferences({ timeZone: 'UTC', startDate: '2026-09-11' })
+    prefs.plans = prefs.plans.map(plan => ({ ...plan, enabled: true }))
+    const ids = reminderCalendarEvents(prefs, '2026-09-11').map(event => event.uid)
+    expect(ids).toEqual(prefs.plans.map((_, i) => `ppp-r-${i}@ppp.local`))
+    prefs.plans.reverse()
+    prefs.plans[1].enabled = false
+    prefs.privatePreviews = false
+    expect(reminderCalendarEvents(prefs, '2026-09-12').map(event => event.uid)).toEqual(ids.reverse().filter((_, i) => i !== 1))
+  })
+  it('hashes unknown plan IDs without exposing their contents', () => {
+    const prefs = defaultReminderPreferences({ timeZone: 'UTC', startDate: '2026-09-11' })
+    prefs.plans = [{ ...prefs.plans[0], enabled: true, id: 'hello' }]
+    expect(reminderCalendarEvents(prefs, '2026-09-11')[0].uid).toBe('ppp-r-h4f9f2cab@ppp.local')
+    prefs.plans[0].localTime = '10:00'
+    prefs.privatePreviews = false
+    expect(reminderCalendarEvents(prefs, '2026-09-12')[0].uid).toBe('ppp-r-h4f9f2cab@ppp.local')
   })
 })
 

@@ -1,5 +1,5 @@
 import { addDays, daysBetween } from '../engine/cycle'
-import type { ReminderPreferences } from '../engine/reminderPreferences'
+import { REMINDER_DEFINITIONS, type ReminderPreferences } from '../engine/reminderPreferences'
 import { copyFor, type ReminderRecurrence } from '../engine/reminders'
 import type { IcsTimedEvent, IsoDate } from './ics'
 
@@ -48,6 +48,17 @@ export function rruleFor(recurrence: ReminderRecurrence, today: IsoDate): { rrul
   return { start, rrule }
 }
 
+function reminderUid(planId: string): string {
+  const index = REMINDER_DEFINITIONS.findIndex(definition => planId === `settings-${definition.id}`)
+  if (index !== -1) return `ppp-r-${index}@ppp.local`
+  let hash = 0x811c9dc5
+  for (let i = 0; i < planId.length; i++) {
+    hash ^= planId.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+  return `ppp-r-h${(hash >>> 0).toString(16)}@ppp.local`
+}
+
 export function reminderCalendarEvents(prefs: ReminderPreferences, today: IsoDate): IcsTimedEvent[] {
   return prefs.plans.filter(plan => plan.enabled).flatMap(plan => {
     const recurrence = rruleFor(plan.recurrence, today)
@@ -55,7 +66,7 @@ export function reminderCalendarEvents(prefs: ReminderPreferences, today: IsoDat
     if ('endDate' in plan.recurrence && plan.recurrence.endDate && plan.recurrence.endDate < recurrence.start) return []
     const copy = copyFor(plan.kind, prefs.privatePreviews ? 'private' : plan.preview?.mode)
     return [{
-      uid: `ppp-reminder-${plan.id}@ppp.local`, summary: copy.title, description: copy.body,
+      uid: reminderUid(plan.id), summary: copy.title, description: copy.body,
       date: recurrence.start, time: plan.localTime, durationMinutes: 15,
       rrule: recurrence.rrule,
       rdates: recurrence.rdates?.map(date => ({ date, time: plan.localTime })),

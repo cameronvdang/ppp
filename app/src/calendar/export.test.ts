@@ -59,6 +59,17 @@ describe('calendar export', () => {
     expect(ics).toContain('TRIGGER:PT0M\r\n')
     expect(ics).not.toContain('TZID')
     expect(ics).not.toContain('Basal temperature')
+    expect(ics).not.toMatch(/opk|bbt|pregnan|contracep|medication|cycle|lifestyle/i)
+  })
+  it('keeps every reminder category out of private calendar bytes', async () => {
+    const prefs = defaultReminderPreferences({ timeZone: 'UTC', startDate: '2026-09-11' })
+    prefs.plans.forEach(plan => { plan.enabled = true })
+    await setSetting(REMINDER_SETTINGS_KEY, serializeReminderPreferences(prefs))
+    const share = vi.fn<Share>(async () => {})
+    const result = await exportRemindersCalendar({ today: '2026-09-11', share })
+    expect(result.events).toBe(prefs.plans.length)
+    const ics = share.mock.calls[0][1]
+    expect(ics).not.toMatch(/opk|bbt|pregnan|contracep|medication|cycle|lifestyle/i)
   })
   it('validates the full file before sharing and propagates delivery failures', async () => {
     await db.dailyLogs.bulkPut([{ date: '2026-07-01', flow: 'medium' }, { date: '2026-07-29', flow: 'medium' }])
