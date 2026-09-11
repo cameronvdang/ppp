@@ -601,6 +601,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           localOnly: true,
           onboardingVersion: 2,
           consentLedger: [
+            { purpose: 'medical-records', state: 'not-requested', version: 1, decidedAt },
             {
               purpose: 'local-health-storage',
               state: draft.privacyAccepted ? 'granted' : 'declined',
