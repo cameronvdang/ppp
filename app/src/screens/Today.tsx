@@ -62,7 +62,7 @@ function pregnancyDatingStatus(dating: PregnancyDatingResult): string {
   return dating.provisional ? 'provisional estimate' : 'clinician assigned'
 }
 
-function phaseFor(
+export function phaseFor(
   goal: Goal,
   cycleDay: number | null,
   daysToOvulation: number | null,
@@ -80,11 +80,11 @@ function phaseFor(
       body: 'It has been a while since a period was logged, so PPP paused its estimates. Add your most recent period to restart them.',
     }
   }
-  if (cycleDay && cycleDay <= 5) {
+  if (cyclePhase?.phase === 'period') {
     return {
       tone: 'period',
       eyebrow: 'Period:',
-      title: `Day ${cycleDay}`,
+      title: cyclePhase.detail.replace(' of your period', ''),
       body: 'Your period day, based on the flow dates you logged.',
     }
   }
