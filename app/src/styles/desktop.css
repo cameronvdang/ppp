@@ -1,0 +1,89 @@
+/* Scrims do not occupy space in the unchanged phone shell. */
+.dialog-scrim { display: none; }
+
+/* Desktop shell: rail navigation and a centred reading column. */
+@media screen and (min-width: 900px) {
+  :root {
+    --content-width: 760px;
+    --rail-width: 220px;
+  }
+
+  #root {
+    flex-direction: row;
+  }
+
+  main {
+    order: 2;
+    flex: 1;
+    min-width: 0;
+    padding-top: 32px;
+    padding-bottom: 48px;
+  }
+
+  .tabbar {
+    order: 1;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    width: var(--rail-width);
+    border-right: 1px solid var(--line-soft);
+    border-top: none;
+    background: var(--pink-100);
+    padding: 28px 12px;
+  }
+
+  .page { max-width: var(--content-width); margin-inline: auto; }
+
+  .tabbar-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    max-width: none;
+  }
+
+  .tabbar-item {
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius-sm);
+  }
+
+  .tabbar-item.is-active {
+    background: var(--pink-200);
+  }
+
+  .tabbar-label {
+    font-size: 15px;
+  }
+
+  .overlay,
+  .sheet,
+  .health-overlay {
+    left: 50%;
+    right: auto;
+    width: min(680px, calc(100vw - 48px));
+    transform: translateX(-50%);
+    animation: none; /* old fill-mode: both animations override centering */
+    border-radius: var(--radius-large);
+    box-shadow: var(--shadow-float);
+    max-height: calc(100vh - 48px);
+    top: 24px;
+    bottom: auto;
+  }
+
+  .overlay-body, .sheet-body, .health-scroll {
+    overflow-y: auto;
+    min-height: 0;
+  }
+
+  #root > .dialog-scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: rgba(58, 34, 38, 0.18);
+    z-index: 99;
+  }
+  .overlay, .sheet, .health-overlay { z-index: 100; }
+}

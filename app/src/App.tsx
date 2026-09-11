@@ -34,8 +34,11 @@ export default function App() {
     sheetFocus,
     closeSheet,
     calendarOpen,
+    setCalendarOpen,
     assistantOpen,
+    setAssistantOpen,
     reportOpen,
+    setReportOpen,
     cycleReportOpen,
     setCycleReportOpen,
     pregnancyDetailOpen,
@@ -141,22 +144,63 @@ export default function App() {
       {sheetDate && (
         <LogSheet date={sheetDate} initialFocus={sheetFocus ?? undefined} onClose={closeSheet} />
       )}
-      {calendarOpen && <CalendarScreen />}
-      {assistantOpen && <AssistantScreen />}
-      {reportOpen && <DoctorReport />}
-      {cycleReportOpen && <CycleReportScreen onBack={() => setCycleReportOpen(false)} />}
+      {calendarOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close calendar" onClick={() => setCalendarOpen(false)} />
+          <CalendarScreen />
+        </>
+      )}
+      {assistantOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close assistant" onClick={() => setAssistantOpen(false)} />
+          <AssistantScreen />
+        </>
+      )}
+      {reportOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close report" onClick={() => setReportOpen(false)} />
+          <DoctorReport />
+        </>
+      )}
+      {cycleReportOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close cycle report" onClick={() => setCycleReportOpen(false)} />
+          <CycleReportScreen onBack={() => setCycleReportOpen(false)} />
+        </>
+      )}
       {pregnancyDetailOpen && flags?.pregnancyDating && (
-        <PregnancyDetailScreen
-          dating={flags.pregnancyDating}
-          onBack={() => setPregnancyDetailOpen(false)}
-        />
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close pregnancy guide" onClick={() => setPregnancyDetailOpen(false)} />
+          <PregnancyDetailScreen
+            dating={flags.pregnancyDating}
+            onBack={() => setPregnancyDetailOpen(false)}
+          />
+        </>
       )}
-      {perimenopauseOpen && <PerimenopauseScreen onBack={() => setPerimenopauseOpen(false)} />}
-      {ttcDetailOpen && <TtcDetailScreen onBack={() => setTtcDetailOpen(false)} />}
+      {perimenopauseOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close perimenopause view" onClick={() => setPerimenopauseOpen(false)} />
+          <PerimenopauseScreen onBack={() => setPerimenopauseOpen(false)} />
+        </>
+      )}
+      {ttcDetailOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close fertility view" onClick={() => setTtcDetailOpen(false)} />
+          <TtcDetailScreen onBack={() => setTtcDetailOpen(false)} />
+        </>
+      )}
       {trackerCustomizeOpen && (
-        <TrackerCustomizeScreen onBack={() => setTrackerCustomizeOpen(false)} />
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close without saving" onClick={() => setTrackerCustomizeOpen(false)} />
+          <TrackerCustomizeScreen onBack={() => setTrackerCustomizeOpen(false)} />
+        </>
       )}
-      {articleSlug && <ArticleScreen slug={articleSlug} onClose={() => setArticleSlug(null)} />}
+      {articleSlug && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close article" onClick={() => setArticleSlug(null)} />
+          <ArticleScreen slug={articleSlug} onClose={() => setArticleSlug(null)} />
+        </>
+      )}
     </>
   )
 }

@@ -12,6 +12,7 @@ import '@fontsource/aileron/800.css'
 import './styles/base.css'
 import './styles/app.css'
 import './styles/health-import.css'
+import './styles/desktop.css'
 
 void initializeRuntime()
 
