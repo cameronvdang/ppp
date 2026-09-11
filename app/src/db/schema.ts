@@ -669,6 +669,7 @@ export async function putHealthProfile(
 
 /** Well-known settings keys. */
 export const SK = {
+  installCardDismissedAt: 'installCardDismissedAt',
   recordsRelayUrl: 'recordsRelayUrl',
   onboarded: 'onboarded',
   goal: 'goal',

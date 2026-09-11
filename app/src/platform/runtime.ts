@@ -1,9 +1,11 @@
+import { startInstallListener } from './install'
 import { startReminderScheduler } from './notifications'
 
 export const isNative = false as const
 export const nativePlatform = 'web' as const
 
 export async function initializeRuntime(): Promise<void> {
+  if (typeof window !== 'undefined') startInstallListener()
   document.documentElement.dataset.runtime = 'web'
   if (import.meta.env.PROD) {
     const { registerSW } = await import('virtual:pwa-register')
