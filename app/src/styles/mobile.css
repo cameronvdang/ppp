@@ -43,3 +43,13 @@ button.cal-day::before, button.date-cell::before { content: ''; position: absolu
   .today-quick-actions { gap: 8px; }
   .quick-action-circle { width: 56px; height: 56px; }
 }
+
+.calendar-settings { padding: 16px; }
+.calendar-settings p { line-height: 1.5; margin-bottom: 12px; }
+.calendar-settings .setting-row { text-align: left; }
+.calendar-settings .setting-row:disabled { opacity: 0.55; }
+.calendar-cycle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.calendar-cycles { display: flex; gap: 4px; }
+.calendar-cycles button { min-width: 44px; min-height: 44px; border-radius: 12px; background: var(--pink-50); }
+.calendar-cycles button[aria-pressed='true'] { background: var(--pink-200); }
+.calendar-notice { padding: 0 16px; line-height: 1.5; }

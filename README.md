@@ -43,6 +43,23 @@ the **exact origin** of any custom records relay, backup endpoint, or Ollama / A
 host to the existing CSP `connect-src` allowlist. Browser CORS and mixed-content
 rules still apply; adding an origin to CSP does not grant access at the server.
 
+### Add to your home screen
+
+On iOS Safari, tap **Share**, then **Add to Home Screen**. On Android Chrome,
+use **Add to home screen** in the app when the browser offers installation.
+Settings also has a Home screen section. Installed PPP opens full screen and
+can load its cached shell offline after the first successful load.
+
+### Add to your calendar
+
+Open **Settings → Calendar** to export a cycle forecast or your enabled reminders
+as a local `.ics` file. Today also has a Calendar quick action when a forecast is
+available. Your calendar app imports the shared or downloaded file; nothing is
+uploaded by PPP. Discreet titles default on, and forecasts cover three cycles
+or six when selected. Re-importing updates the same event IDs. Estimates are not
+for contraception. Reminder times follow the local wall clock; quiet hours are
+not applied by the calendar export.
+
 ## Privacy
 
 See [PRIVACY.md](PRIVACY.md) for the network-destination table and storage boundary,

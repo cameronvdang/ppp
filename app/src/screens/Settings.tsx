@@ -1,3 +1,5 @@
+import { exportForecastCalendar, exportRemindersCalendar } from '../calendar/export'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
 import { InstallCard, useInstallState } from '../components/InstallCard'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
@@ -891,6 +893,8 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         {installState.mode === 'installed' ? <p className="records-settings-note">Installed on this device.</p> : <InstallCard variant="settings" />}
       </Section>}
 
+      <CalendarSettingsCard />
+
       <RecordsSettingsCard />
 
       <Section title="Privacy and data">
@@ -988,5 +992,65 @@ function RecordsSettingsCard() {
       {message && <p role="status">{message}</p>}
     </div>
     <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span><span aria-hidden="true">›</span></button>
+  </Section>
+}
+
+function CalendarSettingsCard() {
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const today = localToday()
+  const data = useLiveQuery(async () => {
+    const [forecast, discreet, cycles, raw, legacyTime] = await Promise.all([
+      computePersonalizedForecast(today), getSetting(SK.calendarDiscreet), getSetting(SK.calendarCycles),
+      getSetting(REMINDER_SETTINGS_KEY), getSetting(SK.reminderTime),
+    ])
+    const prefs = parseReminderPreferences(raw, { timeZone: DEVICE_TIME_ZONE, startDate: today, legacyTime })
+    return {
+      discreet: discreet !== '0', cycles: cycles ?? '3',
+      hasForecast: forecast.prediction.nextPeriodStart !== null && forecast.predictionContext.eligibility.periodForecast,
+      hasReminders: prefs.plans.some(plan => plan.enabled),
+    }
+  }, [today])
+
+  async function savePreference(key: string, value: string) {
+    setSaving(true)
+    try { await setSetting(key, value) }
+    catch { setNotice('Could not save calendar preferences.') }
+    finally { setSaving(false) }
+  }
+
+  async function exportCalendar(kind: 'forecast' | 'reminders') {
+    if (busy || saving) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const result = await (kind === 'forecast' ? exportForecastCalendar() : exportRemindersCalendar())
+      if (!result.cancelled) setNotice(result.skipped ?? 'Calendar file ready.')
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setNotice('Could not create the calendar file.')
+    } finally { setBusy(false) }
+  }
+
+  return <Section title="Calendar">
+    <div className="calendar-settings">
+      <p>Your calendar app imports the file. Nothing is sent to PPP. Re-importing updates the same events.</p>
+      <p>Estimates are not for contraception. Quiet hours are not applied to calendar reminders.</p>
+      <label className="reminder-privacy-row">
+        <span><strong>Discreet titles</strong><small>Use neutral titles on calendars that may be shared.</small></span>
+        <span className="reminder-switch">
+          <input type="checkbox" role="switch" aria-label="Discreet titles" checked={data?.discreet ?? true} disabled={!data || busy || saving} onChange={event => void savePreference(SK.calendarDiscreet, event.currentTarget.checked ? '1' : '0')} />
+          <span aria-hidden="true" />
+        </span>
+      </label>
+      <div className="calendar-cycle-row"><span>Cycles</span><div className="calendar-cycles" role="group" aria-label="Cycles">
+        {['3', '6'].map(cycles => <button key={cycles} type="button" aria-pressed={(data?.cycles ?? '3') === cycles} disabled={!data || busy || saving} onClick={() => void savePreference(SK.calendarCycles, cycles)}>{cycles}</button>)}
+      </div></div>
+      <button type="button" className="setting-row" disabled={!data?.hasForecast || busy || saving} aria-describedby="calendar-forecast-reason" onClick={() => void exportCalendar('forecast')}>Add cycle forecast to calendar</button>
+      <p id="calendar-forecast-reason" className="muted">{!data ? 'Checking forecast…' : !data.hasForecast ? 'Log two period starts first.' : ''}</p>
+      <button type="button" className="setting-row" disabled={!data?.hasReminders || busy || saving} aria-describedby="calendar-reminders-reason" onClick={() => void exportCalendar('reminders')}>Add reminders to calendar</button>
+      <p id="calendar-reminders-reason" className="muted">{!data ? 'Checking reminders…' : !data.hasReminders ? 'Turn on a reminder first.' : ''}</p>
+      {notice && <p role="status">{notice}</p>}
+    </div>
   </Section>
 }

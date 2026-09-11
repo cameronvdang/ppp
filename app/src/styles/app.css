@@ -8217,7 +8217,7 @@ button.card:active {
 .today-quick-actions {
   padding: 1px 5px 3px;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 8px;
 }
 

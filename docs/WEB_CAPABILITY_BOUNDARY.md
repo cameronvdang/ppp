@@ -13,6 +13,10 @@ After the initial app load, these features need no account or hosted backend:
 - Predictions, uncertainty ranges, pattern analysis, pregnancy dating, TTC and
   perimenopause summaries, and reports with browser print/save-as-PDF.
 - Bundled educational content and bookmarks.
+- Calendar files for eligible forecasts and enabled reminders, generated locally
+  and delivered only through a user-selected share or download action. Discreet
+  titles default on. Reminder times float with local time; calendar apps control
+  delivery and PPP quiet hours do not apply.
 - Plain or passphrase-encrypted file export/import. The v2 payload contains
   daily logs, filtered settings, content bookmarks, canonical health profiles,
   regimens, adherence events, opened medical records and connection metadata

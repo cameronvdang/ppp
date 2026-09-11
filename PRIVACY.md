@@ -15,6 +15,7 @@ PPP stores your core tracking history in this browser without a PPP-hosted user 
 | AI provider (BYOK) | User sends a message | The message plus only the ticked categories | Yes |
 | Backup relay | User explicitly uploads via the backup action | Client-encrypted backup blob, including imported records | Yes |
 | Reminder worker | User enters an email | Email + time only, no health words | Yes |
+| Your calendar app | User taps Add to calendar | An .ics file with estimated dates or reminder times, generated on this device | Yes |
 | Anything else | Never | — | — |
 
 This table uses the same wording as `PRIVACY_DESTINATIONS` in the app's Privacy and data settings. Disconnect records to stop imports, remove saved AI credentials to stop assistant sharing, and skip the explicit backup action to keep backups local. Remove your reminder email through the separately configured reminder service to stop email reminders; the browser app currently has no email subscription flow. Core tracking does not require any of these services. Public sample records can be tried without an account or an API key.
@@ -62,3 +63,20 @@ Clearing this site's browser data removes the local databases, key and cached sh
 ## No tracking
 
 PPP includes no analytics, third-party scripts, cookies or fingerprinting. The static-host security headers in [app/public/_headers](app/public/_headers) restrict scripts to this origin and connections to the documented services. Apply equivalent headers on hosts that do not support `_headers`, and add only the exact origins of services you explicitly configure. Fonts and app assets are bundled. The service worker precaches the app shell only and never runtime-caches FinchNode, relay, AI, backup or same-origin API responses.
+
+## Calendar files
+
+Calendar exports are generated on this device and leave only when you choose the
+share or download action. Nothing is uploaded to PPP or a calendar service by
+the app. Your chosen calendar app may sync or share the file under its own settings.
+
+Forecast files contain estimated period, fertile and ovulation windows when
+eligible, for three cycles by default or up to six. Discreet titles are on by
+default and omit category metadata. Descriptive titles can be enabled in Settings.
+Later period windows widen with uncertainty. Estimates are not for contraception.
+
+Reminder files contain enabled plans with the same neutral titles and bodies as
+notifications. Their times float with your calendar's local wall clock, including
+when you travel. Quiet hours are not applied to calendar reminders; your calendar
+app controls delivery. Stable event IDs allow re-importing to update the same
+events. Cancelling the share sheet does not trigger a download.

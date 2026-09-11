@@ -1,3 +1,4 @@
+import { exportForecastCalendar } from '../calendar/export'
 import { computePersonalizedForecast } from '../lib/personalizedForecast'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
@@ -233,6 +234,20 @@ export function Today() {
   }, [launchAction, openSheet, setLaunchAction])
   const today = localToday()
   const [selectedDate, setSelectedDate] = useState(today)
+  const [calendarNotice, setCalendarNotice] = useState<string | null>(null)
+  const [calendarBusy, setCalendarBusy] = useState(false)
+
+  async function addToCalendar() {
+    if (calendarBusy) return
+    setCalendarBusy(true)
+    setCalendarNotice(null)
+    try {
+      const result = await exportForecastCalendar()
+      if (!result.cancelled) setCalendarNotice(result.skipped ?? 'Calendar file ready.')
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setCalendarNotice('Could not create the calendar file.')
+    } finally { setCalendarBusy(false) }
+  }
   // Which way the last change moved, so the incoming day animates in from the
   // side it came from instead of always rising from below.
   const [enterFrom, setEnterFrom] = useState<'none' | 'next' | 'previous'>('none')
@@ -711,8 +726,13 @@ export function Today() {
           </span>
           <strong>Sex</strong>
         </button>
+        {data.prediction.nextPeriodStart !== null && <button type="button" className="quick-action" aria-label="Add to calendar" onClick={() => void addToCalendar()} disabled={calendarBusy}>
+          <span className="quick-action-circle" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M10 10h20v22H10zM10 17h20M15 7v7M25 7v7M15 22h3M22 22h3M15 27h3" /></svg></span>
+          <strong>Calendar</strong>
+        </button>}
       </section>
 
+      {calendarNotice && <p className="calendar-notice" role="status">{calendarNotice}</p>}
       <InstallCard variant="today" />
 
       <section className="daily-insights-section" aria-labelledby="daily-insights-title">

@@ -99,15 +99,16 @@ export async function decryptImport(env: Envelope, passphrase: string): Promise<
 }
 
 /** Share-sheet first (iOS → Save to Files → iCloud Drive), download fallback. */
-export async function shareOrDownload(filename: string, contents: string): Promise<void> {
-  const blob = new Blob([contents], { type: 'application/json' })
-  const file = new File([blob], filename, { type: 'application/json' })
+export async function shareOrDownload(filename: string, contents: string, mime = 'application/json'): Promise<void | 'cancelled'> {
+  const blob = new Blob([contents], { type: mime })
+  const file = new File([blob], filename, { type: mime })
   if (navigator.canShare?.({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: filename })
+      await navigator.share({ files: [file], title: mime === 'text/calendar' ? 'PPP calendar' : filename })
       return
-    } catch {
-      // fall through to download (user cancel or share failure)
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') return 'cancelled'
+      // A share failure falls back to a local download.
     }
   }
   const url = URL.createObjectURL(blob)

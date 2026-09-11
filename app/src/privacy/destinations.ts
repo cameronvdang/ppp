@@ -4,5 +4,6 @@ export const PRIVACY_DESTINATIONS: { destination: string; when: string; sent: st
   { destination: 'AI provider (BYOK)', when: 'User sends a message', sent: 'The message plus only the ticked categories', offByDefault: true },
   { destination: 'Backup relay', when: 'User explicitly uploads via the backup action', sent: 'Client-encrypted backup blob, including imported records', offByDefault: true },
   { destination: 'Reminder worker', when: 'User enters an email', sent: 'Email + time only, no health words', offByDefault: true },
+  { destination: 'Your calendar app', when: 'User taps Add to calendar', sent: 'An .ics file with estimated dates or reminder times, generated on this device', offByDefault: true },
   { destination: 'Anything else', when: 'Never', sent: '—', offByDefault: true },
 ]
