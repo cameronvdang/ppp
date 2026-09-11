@@ -16,6 +16,9 @@ export default defineConfig({
       replacement: pwaRequire.resolve(`workbox-window/${workboxWindowModule}`),
     }],
   },
+  build: {
+    rollupOptions: { output: { manualChunks: { vendor: ['react', 'react-dom', 'dexie'] } } },
+  },
   test: {
     environment: 'node',
     css: { include: [/tokens\.css(?:\?|$)/] },

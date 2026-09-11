@@ -1,11 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useRef, useState } from 'react'
-import { AssistantScreen } from './components/AssistantScreen'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CalendarScreen } from './components/CalendarScreen'
-import { RecordsScreen } from './screens/RecordsScreen'
-import { RecordsCategoryList } from './components/RecordsCategoryList'
 import { RecordsReturnHandler } from './components/RecordsReturnHandler'
-import { DoctorReport } from './components/DoctorReport'
 import { DataWipeRecovery } from './components/DataWipeRecovery'
 import { LogSheet } from './components/LogSheet'
 import { PinLock } from './components/PinLock'
@@ -20,14 +16,17 @@ import { Settings } from './screens/Settings'
 import { Today } from './screens/Today'
 import { appScreen, initializeSessionLock, lockHiddenSession, syncPinPresence } from './lib/lockSession'
 import { runDataWipe, type DataWipeState } from './lib/dataWipe'
-import {
-  CycleReportScreen,
-  PerimenopauseScreen,
-  PregnancyDetailScreen,
-  TrackerCustomizeScreen,
-  TtcDetailScreen,
-} from './screens/healthFeatures'
+import { PerimenopauseScreen } from './screens/PerimenopauseScreen'
+import { PregnancyDetailScreen } from './screens/PregnancyDetailScreen'
+import { TrackerCustomizeScreen } from './screens/TrackerCustomizeScreen'
+import { TtcDetailScreen } from './screens/TtcDetailScreen'
 import { useApp } from './state/appStore'
+
+const AssistantScreen = lazy(() => import('./components/AssistantScreen').then(m => ({ default: m.AssistantScreen })))
+const DoctorReport = lazy(() => import('./components/DoctorReport').then(m => ({ default: m.DoctorReport })))
+const CycleReportScreen = lazy(() => import('./screens/CycleReportScreen').then(m => ({ default: m.CycleReportScreen })))
+const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then(m => ({ default: m.RecordsScreen })))
+const RecordsCategoryList = lazy(() => import('./components/RecordsCategoryList').then(m => ({ default: m.RecordsCategoryList })))
 
 export default function App() {
   const {
@@ -138,7 +137,7 @@ export default function App() {
         {tab === 'today' && <Today />}
         {tab === 'insights' && <Insights />}
         {tab === 'graphs' && <Graphs />}
-        {tab === 'records' && <RecordsScreen />}
+        {tab === 'records' && <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <RecordsScreen /> </Suspense>}
         {tab === 'settings' && (
           <Settings
             onPinPresenceChange={(hasPin) => { hasPinRef.current = hasPin }}
@@ -150,7 +149,7 @@ export default function App() {
       {recordsCategory && (
         <>
           <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close category" onClick={() => setRecordsCategory(null)} />
-          <RecordsCategoryList category={recordsCategory} onBack={() => setRecordsCategory(null)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <RecordsCategoryList category={recordsCategory} onBack={() => setRecordsCategory(null)} /> </Suspense>
         </>
       )}
       <TabBar active={tab} onChange={setTab} />
@@ -167,19 +166,19 @@ export default function App() {
       {assistantOpen && (
         <>
           <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close assistant" onClick={() => setAssistantOpen(false)} />
-          <AssistantScreen />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <AssistantScreen /> </Suspense>
         </>
       )}
       {reportOpen && (
         <>
           <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close report" onClick={() => setReportOpen(false)} />
-          <DoctorReport />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <DoctorReport /> </Suspense>
         </>
       )}
       {cycleReportOpen && (
         <>
           <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close cycle report" onClick={() => setCycleReportOpen(false)} />
-          <CycleReportScreen onBack={() => setCycleReportOpen(false)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <CycleReportScreen onBack={() => setCycleReportOpen(false)} /> </Suspense>
         </>
       )}
       {pregnancyDetailOpen && flags?.pregnancyDating && (

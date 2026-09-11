@@ -1,3 +1,5 @@
+import { DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL, type AssistantProvider } from './assistantModels'
+export { ANTHROPIC_MODELS, DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL, type AssistantProvider } from './assistantModels'
 import Anthropic from '@anthropic-ai/sdk'
 import { providerFetch } from './providerFetch'
 
@@ -23,7 +25,6 @@ export interface ChatMessage {
   content: string
 }
 
-export type AssistantProvider = 'anthropic' | 'openai'
 
 /**
  * How an Anthropic credential authenticates.
@@ -52,14 +53,6 @@ export interface AssistantConfig {
 
 export type ApprovedAssistantContext = Record<string, unknown>
 
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-5'
-export const DEFAULT_OPENAI_MODEL = 'gpt-5.6-terra'
-
-export const ANTHROPIC_MODELS = [
-  { id: 'claude-opus-5', label: 'Claude Opus 5 · most capable' },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 · balanced' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 · fastest' },
-] as const
 
 type FetchLike = typeof fetch
 

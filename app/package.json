@@ -8,7 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "splash": "node scripts/splash.mjs"
+    "splash": "node scripts/splash.mjs",
+    "check:chunks": "node scripts/check-chunks.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

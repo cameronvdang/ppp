@@ -20,7 +20,7 @@ import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_OPENAI_MODEL,
   type AssistantProvider,
-} from '../lib/assistant'
+} from '../lib/assistantModels'
 import { localToday } from '../lib/dates'
 import {
   resolvePregnancyDating,
