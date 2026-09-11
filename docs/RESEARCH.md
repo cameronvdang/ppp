@@ -230,8 +230,8 @@ services
 Code can be built locally, but real permission, background-delivery, biometric,
 and widget behavior must be verified on physical devices.
 
-See [NATIVE_ARCHITECTURE.md](./NATIVE_ARCHITECTURE.md) and
-[LOCAL_CAPABILITY_BOUNDARY.md](./LOCAL_CAPABILITY_BOUNDARY.md) for the detailed
+See the [web design spec](./superpowers/specs/2026-09-10-lunara-web-finchnode-design.md) and
+[WEB_CAPABILITY_BOUNDARY.md](./WEB_CAPABILITY_BOUNDARY.md) for the detailed
 boundary.
 
 ## Product and visual direction

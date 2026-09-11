@@ -1,6 +1,13 @@
 # Feature-depth delivery map
 
-Updated: 2026-07-26
+Updated: 2026-09-11 for the web fork.
+
+The feature inventory below retains the earlier product-depth assessment, with
+platform boundaries updated for Phase 1. Aileron, palette, and layout work
+(Phase 2, Tasks 9–12), and FinchNode records, relay, and privacy work (Phase 3,
+Tasks 13–23) remain planned. See the
+[web capability boundary](WEB_CAPABILITY_BOUNDARY.md) and
+[implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md).
 
 ## Target and status language
 
@@ -20,11 +27,14 @@ Status terms:
 - **External** — completion requires a platform account, credential, service,
   licensed content, or specialist review.
 - **Excluded** — intentionally outside the requested scope.
+- **Removed in the web fork** — the native capability or bridge is no longer
+  included; any retained browser counterpart is listed separately.
 
-The latest completed repository verification in this implementation pass was
-the web production build plus **151 passing automated tests**, a freshly
-synced Capacitor bundle, and successful unsigned iOS-simulator and Android
-debug builds. Native release readiness is a separate standard.
+The 2026-07-26 results of 151 tests, Capacitor sync, and native debug builds are
+historical, not evidence for the current web build. Current verification uses
+`pnpm test` and `pnpm build` from the repository root; the estimate audit must
+stay at zero violations. Browser/device behavior still needs validation beyond
+automated tests.
 
 ## Adaptive setup and durable profile
 
@@ -40,7 +50,7 @@ debug builds. Native release readiness is a separate standard.
 | Pregnancy setup | Verified locally | Clinician EDD, LMP, conception, day-3/day-5 transfer, source authority, provisional status, and number of babies |
 | Perimenopause setup | Foundation | Mode and relevant symptom questions exist; surgery, hormone-therapy, last-bleed, and transition-specific history remain |
 | Tracker personalization | Verified locally | User chooses tracking areas; full category reordering and visibility remain editable later |
-| Privacy/permission education | Foundation | Local and AI boundaries are explained; full notification, health-import, motion, denial, retry, and revocation paths are not all in onboarding |
+| Privacy/permission education | Foundation | Local and AI boundaries are explained; full browser notification and device-unlock denial, retry, and revocation paths are not all in onboarding; native health-import UI is removed |
 | Review summary and correction | Verified locally | Summary reflects forecast eligibility and missing context; a richer purpose-by-purpose edit/review page remains useful |
 
 This is intentionally not a five-screen funnel. Irrelevant modules are removed
@@ -63,9 +73,9 @@ by branch rules, while prediction-critical and consent-critical questions stay.
 | Medication/contraception adherence events | Foundation | Tracker events exist; a first-class dated regimen, dose, pack/change schedule, and history model is still missing |
 | Tracker visibility/reordering | Verified locally | Stored locally |
 | Edit/delete history and provenance | Foundation | Current value editing works; audit history and source provenance are incomplete |
-| Local import/export | Verified locally | Plain and passphrase-encrypted export/import |
+| Local import/export | Verified locally | Plain and passphrase-encrypted daily logs, filtered settings, and content bookmarks; canonical profile/regimen/adherence and medical-record transfers are planned for Task 18 |
 | Local wipe | Verified locally | Settings can clear device data |
-| Encrypted core database at rest | Missing | Core records still use WebView/Dexie storage |
+| Encrypted core database at rest | Missing | Existing logs and profiles remain plaintext in browser Dexie/IndexedDB; vault secrets are sealed separately, and sealed medical-record bodies are planned for Phase 3 |
 | Zero-knowledge backup relay | Foundation | Client encryption and opaque blob relay exist; recovery UX, production abuse controls, and deployment are not release-ready |
 
 ## Forecasts and safety policy
@@ -112,24 +122,30 @@ by branch rules, while prediction-critical and consent-critical questions stay.
 | BBT/OPK observation series | Verified locally | Plotting series only; no exact ovulation confirmation |
 | Cycle report UI | Verified locally | Methodology, data sufficiency, patterns, bleeding, phase summaries, and fertility observations |
 | Doctor summary | Implemented | Print/save-as-PDF view, methodology, data range, and opt-in sensitive sections |
-| Native PDF/share flow | Missing | Browser print exists; platform-native document generation and sharesheet are not wired |
-| Imported-source provenance/conflict UI | Missing | Health samples have source fields, but reconciliation and report provenance are incomplete |
+| Native PDF/share bridge | Removed in the web fork | Native document-generation and sharesheet integration is not included |
+| Browser report and file sharing | Implemented | Reports use browser print/save-as-PDF; JSON file export uses Web Share where supported with a download fallback |
+| Imported-source provenance/conflict UI | Missing | Pure health-import helpers retain source fields; native health access is removed and FinchNode record workflows are planned for Phase 3 |
 
-## Reminders and native platform
+## Reminders and platform
 
 | Capability | Status | Current boundary |
 |---|---|---|
 | Reminder-plan engine | Verified locally | Once, dates, daily, weekdays, interval, and monthly recurrence; IANA time zones, DST handling, quiet hours, snooze/completion, and bounded materialization |
 | Reminder kinds | Verified locally | Cycle, period, pregnancy, BBT/OPK/tests, medication, contraception, prenatal vitamin, water, sleep, weight, movement, and journaling |
 | Privacy-safe notification copy | Verified locally | Private and broad-category preview modes exclude results, fertility status, medication names, and pregnancy detail |
-| Native notification adapter | Implemented | Schedules/cancels pending requests and exposes open/complete/snooze actions |
-| Reminder settings and persistence | Implemented | Seven reviewed presets, per-plan enable/time controls, quiet hours, preview privacy, local migration/persistence, permission requests, and native rescheduling are wired; native action completion/snooze persistence still needs device-level lifecycle QA |
-| Capacitor iOS and Android shells | Implemented | Native projects, bundled offline assets, and debug build workflows exist |
-| Keychain/Keystore vault | Implemented | Secret store/read/delete bridges exist; physical-device and recovery validation remain |
-| PIN/biometric gate | Implemented | UI and native bridges exist; retry throttling and production recovery policy remain |
-| HealthKit/Health Connect import | Implemented | Permission-scoped types and native bridges exist; provenance, conflict, revocation, and physical-device QA remain |
-| iOS/Android widgets | Implemented | Redacted foreground snapshot publishing exists; background extensions redraw the last snapshot |
-| Store distribution | External | Signing, developer accounts, privacy declarations, store metadata, and review |
+| Native notification adapter | Removed in the web fork | Native scheduling and native notification action callbacks are removed |
+| Browser in-session reminders | Implemented | Notifications API delivery needs permission and an open Lunara tab; suspension can delay delivery and closing all tabs stops it; completion/snooze action callbacks are not wired |
+| Reminder settings and persistence | Implemented | Presets, per-plan enable/time controls, quiet hours, preview privacy, local migration/persistence, and permission requests remain; the browser scheduler restores and refreshes saved plans |
+| Capacitor iOS and Android shells | Removed in the web fork | Native projects and native build scripts are removed |
+| Browser PWA shell | Implemented | Production assets are precached for offline use after the initial load and service-worker installation; network API traffic is not runtime-cached |
+| Keychain/Keystore vault | Removed in the web fork | Native secret-store bridges are removed |
+| Browser WebCrypto vault | Implemented | Secrets are sealed in IndexedDB with a non-extractable browser-managed key; no hardware-backed claim, and same-origin code can read them |
+| Native biometric bridge | Removed in the web fork | Native Face ID/Touch ID and Android authentication bridges are removed |
+| PIN and WebAuthn device unlock | Implemented | PIN remains a local screen gate; device unlock requires a PIN, enrollment, and browser/platform support; neither gate protects the vault key cryptographically |
+| HealthKit/Health Connect import | Removed in the web fork | Native permission/import bridges and UI are removed; pure import helpers remain for future file-based workflows |
+| iOS/Android widgets | Removed in the web fork | Native widget extensions and snapshot publishing are removed |
+| Native store distribution | Removed in the web fork | App Store/Play signing and native release workflows are outside this browser fork |
+| Static web deployment | Implemented | Build app/dist and serve over HTTPS; configure response headers on the host and validate supported browser behavior |
 
 ## Content and assistant
 
@@ -139,8 +155,9 @@ by branch rules, while prediction-critical and consent-critical questions stay.
 | Original pregnancy/TTC/peri guides | Foundation | Useful local content exists; it is not a comprehensive reviewed corpus |
 | Audio, video, and courses | Missing | Requires original or licensed media, transcripts, accessibility, and editorial review |
 | OpenAI assistant | Implemented | BYO project key, official API transport, `store: false`, and explicit context-category toggles; requires network, billing, and provider access |
-| Ollama assistant | Implemented | User-owned local/LAN provider path; on-device size/performance and physical-device networking are not validated |
-| Secret storage for API keys | Implemented | Native vault is used; keys are not committed to source or stored in IndexedDB |
+| Anthropic assistant | Implemented | BYO API key or claude setup-token credential path, selected tracker context, and browser transport; provider access and CORS rules apply |
+| Ollama assistant | Missing | No dedicated Ollama provider/UI exists; transport code accepts a custom OpenAI Responses-compatible base URL, but Ollama compatibility is not established and exact-origin CSP permission plus browser CORS are required |
+| Secret storage for API keys | Implemented | Browser vault seals keys in IndexedDB; saved credentials are excluded from exports and backups; PIN/device unlock only gate the screen |
 | Urgent-message interception | Foundation | Deterministic safety interception exists; comprehensive clinical evaluation and localized crisis handling remain external |
 | Reviewed retrieval corpus and eval program | Missing / External | Requires editorial versioning, clinician governance, red-team cases, monitoring, and incident response |
 
@@ -158,7 +175,14 @@ required because any health app needs a safe response to explicitly reported
 urgent symptoms; it does not diagnose a condition or reproduce a Symptom
 Checker.
 
-## Remaining release blockers
+## Historical native release blockers
+
+The list below is preserved from the 2026-07-26 native-app assessment. Its
+native SQLite, notification-action, health-import, device-build, and store
+requirements are not the current web roadmap. Current work follows the
+[web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md)
+and implementation plan linked above; the clinical, accessibility, and privacy
+review concerns remain relevant.
 
 1. Migrate core health data from Dexie/WebView storage to encrypted native
    SQLite with versioned migration and rollback tests.

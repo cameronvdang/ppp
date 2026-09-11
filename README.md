@@ -1,156 +1,118 @@
 # Lunara
 
-> **⚠️ Unfinished — this is a work in progress.**
-> Lunara is not on the App Store or Google Play, and there is no installer to
-> double-click. You build it from this repository and run it on your own phone.
-> Features are landing continuously and things will break. Do not rely on it as
-> your only record of your health data.
+An open-source, local-first browser companion for cycle, fertility, pregnancy, and perimenopause tracking.
 
-**An open-source, local-first cycle, fertility, pregnancy, and perimenopause companion.**
+## Fork notice
 
-Lunara ships through native iOS and Android shells powered by Capacitor. Core
-tracking works without an account or Lunara-hosted user database. Optional
-backup and AI features transmit data only after you enable them; their scope and
-security boundaries are documented in the repository.
+This AGPL-3.0 fork of [upstream Lunara](https://github.com/Blueturboguy07/lunara)
+replaces the Capacitor iOS and Android shells with a web-first React/Vite app
+and a PWA shell. It remains a work in progress.
 
-Lunara is an open-source alternative to Flo®. It is not affiliated with, endorsed by, or connected to Flo Health Inc.
+The [implementation plan](docs/superpowers/plans/2026-09-11-lunara-web-finchnode.md)
+separates the working browser platform from upcoming changes. Aileron typography,
+the baby pink / baby red palette, and responsive layout changes are **planned
+for Phase 2, Tasks 9–12**. The Aileron dependency is installed, but font imports
+and the palette work are not implemented yet. FinchNode medical records,
+the records relay, and the full privacy documentation are **planned for Phase 3,
+Tasks 13–23**.
 
-## Why
+Lunara is an open-source alternative to Flo®. It is not affiliated with,
+endorsed by, or connected to Flo Health Inc.
 
-- **No subscription gate.** Tracking, pattern insights, reports, pregnancy
-  guidance, and perimenopause tools are part of the open-source app.
-- **Local first by architecture.** Core logs live in the app's local storage.
-  Optional backup stores a client-encrypted blob; optional AI shares only the
-  categories you select for that request.
-- **No 54-screen onboarding funnel. No paywall gauntlet. No nagging.**
+## Run it
 
----
-
-## Getting Lunara onto your phone
-
-There is no download. You compile the app on a computer and install it on your
-own phone over a cable. **What you need depends on the phone you have:**
-
-| Your phone | Your computer | Works? | What you'll use |
-| --- | --- | --- | --- |
-| iPhone | Mac | ✅ | Xcode |
-| Android | Mac | ✅ | Android Studio |
-| Android | Windows | ✅ | Android Studio |
-| iPhone | Windows | ❌ | Not possible — see below |
-
-**iPhone + Windows is not possible.** Apple only allows iOS apps to be built and
-signed on macOS with Xcode; there is no supported Windows path, and no amount of
-setup works around it. Your options are to borrow a Mac, or run Lunara as a web
-app in your phone's browser (`pnpm dev`, then open the printed network URL on
-your phone) — the browser version keeps your data on the phone but has no
-widgets, notifications, or Health integration.
-
-### 1. Install the shared prerequisites
-
-You need [Git](https://git-scm.com/downloads), [Node.js LTS](https://nodejs.org/en/download),
-and pnpm. With Node installed:
+Use **Node.js 24** and **pnpm 9**. From the repository root:
 
 ```sh
-npm install -g pnpm
-```
-
-### 2. Get the code and build the web bundle
-
-```sh
-git clone https://github.com/Blueturboguy07/lunara.git
-cd lunara
 pnpm install
-pnpm --filter @lunara/app native:sync
+pnpm dev
 ```
 
-`native:sync` type-checks, builds the web bundle, and copies it into the native
-iOS and Android projects. **Re-run it after every code change** — the native
-shells load a copied bundle, not your live source.
+For a production build and local preview:
 
-### 3a. iPhone (requires a Mac)
+```sh
+pnpm build
+pnpm preview
+```
 
-1. Install **Xcode** from the Mac App Store, then open it once so it finishes
-   installing its components.
-2. Open the iOS project:
-   ```sh
-   pnpm --filter @lunara/app native:ios
-   ```
-3. In Xcode, select the **App** target → **Signing & Capabilities**. Under
-   *Team*, pick your Apple ID. A **free** Apple ID works — you do not need the
-   $99/year Developer Program. If you have never added your Apple ID, use
-   *Add an Account…* in the Team dropdown.
-4. If Xcode reports the bundle identifier is unavailable, change it to something
-   unique to you (for example `app.lunara.mobile.yourname`).
-5. Plug in your iPhone, unlock it, and tap **Trust** if asked. Select it from the
-   device dropdown at the top of the Xcode window.
-6. Press **▶ Run**.
-7. The first launch will fail with *"Untrusted Developer."* On your iPhone go to
-   **Settings → General → VPN & Device Management**, tap your Apple ID, and tap
-   **Trust**. Then open Lunara again.
+Deploy `app/dist` to any static host over HTTPS. The production PWA can load its
+cached shell offline after the initial successful load and service-worker
+installation. Browser support and retained site storage affect availability.
 
-> With a free Apple ID the app stops working after **7 days**. Re-run step 6 to
-> renew it. A paid Developer Program account extends this to a year.
+The build copies [app/public/_headers](app/public/_headers) into `app/dist`.
+Only hosts that support the `_headers` format apply it automatically; on other
+hosts, map those directives to the host's response-header configuration. Append
+the **exact origin** of any custom records relay, backup endpoint, or Ollama / AI
+host to the existing CSP `connect-src` allowlist. Browser CORS and mixed-content
+rules still apply; adding an origin to CSP does not grant access at the server.
 
-### 3b. Android (Mac or Windows)
+## Privacy
 
-1. Install [**Android Studio**](https://developer.android.com/studio). On first
-   launch let it install the default SDK and platform tools.
-2. On your phone, enable developer mode: **Settings → About phone**, tap
-   **Build number** seven times. Then in **Settings → System → Developer
-   options**, turn on **USB debugging**.
-3. Open the Android project:
-   ```sh
-   pnpm --filter @lunara/app native:android
-   ```
-4. Plug in your phone and tap **Allow** on the USB-debugging prompt.
-5. Pick your phone from the device dropdown in Android Studio and press **▶ Run**.
+[PRIVACY.md](PRIVACY.md) is planned for **Task 23** and does not exist yet.
+The current boundary is documented in
+[Web capability boundary](docs/WEB_CAPABILITY_BOUNDARY.md).
 
-### If something goes wrong
+- **Local first:** core tracking uses browser storage without an account or
+  a Lunara-hosted user database. Clearing site data removes local history.
+- **Opt-in transfers:** AI requests and encrypted backup uploads require user
+  action. Email reminders require a separately deployed worker; FinchNode demo
+  and live records transfers are planned for Phase 3.
+- **Sealed secrets, limited encryption scope:** vault secrets are encrypted
+  with a browser-managed key today. Sealed medical-record bodies are planned
+  for Phase 3; record indexes and connection metadata will remain plaintext,
+  as existing logs and profiles do today. PIN and device unlock gate the screen,
+  not the key; code running on this site's origin can access the vault.
 
-- **`pnpm: command not found`** — Node's global bin isn't on your PATH. Close and
-  reopen your terminal, then try again.
-- **`cap: command not found`** — you skipped `pnpm install`, or ran the command
-  from the wrong folder. Run it from the repository root.
-- **Xcode "No account for team"** — you haven't picked a Team under Signing &
-  Capabilities (step 3a.3).
-- **Android Studio doesn't see your phone** — the cable is charge-only, or USB
-  debugging is off. Try a different cable first; it is usually the cable.
-- **Your changes don't show up** — re-run `pnpm --filter @lunara/app native:sync`.
+## Medical records
 
-## Structure
-
-- `app/` — React/Vite product layer plus Capacitor iOS and Android projects
-- `workers/backup/` — stateless zero-knowledge backup relay (Cloudflare Worker + R2)
-- `workers/reminders/` — opt-in generic email reminders (no health terms, ever)
-- `docs/NATIVE_ARCHITECTURE.md` — current runtime and platform design
-- `docs/FEATURE_PARITY.md` — honest implementation and release-readiness map
+FinchNode sample records and live imports from your provider are planned for
+Phase 3 (Tasks 13–23). The Records interface, sealed record storage, and
+single-owner relay are not present yet. Task 23 will replace this placeholder
+with sample-data and live-setup instructions and the completed privacy link.
 
 ## Develop
 
+Run the app tests from the repository root:
+
 ```sh
-pnpm install
-pnpm dev      # run the app in a browser
-pnpm test     # engine unit tests
-pnpm --filter @lunara/app native:sync
+pnpm test
 ```
 
-The cycle engine is covered by a seeded fuzz audit
-(`app/src/engine/estimateAudit.test.ts`) that exercises every user-facing
-estimate across 360 generated histories. It must stay at zero violations —
-run `pnpm test` before touching any prediction math.
+The seeded [estimate audit](app/src/engine/estimateAudit.test.ts) exercises
+user-facing estimates across **360 generated histories** and must remain at
+**zero violations**. Run the tests when changing prediction math; `pnpm build`
+also checks TypeScript before generating the production bundle.
 
-## The AI companion is optional and bring-your-own-key
+## Structure
 
-Lunara ships no shared API key and works fully without AI. If you enable it, you
-supply your own credential:
+- [app/](app/) — React/Vite browser app, local data, web adapters, and PWA shell.
+- [workers/backup/](workers/backup/) — optional Worker/R2 storage for
+  client-encrypted backup uploads.
+- [workers/reminders/](workers/reminders/) — optional self-hosted generic email
+  reminders; the browser app does not currently wire up email subscriptions.
+- [workers/records-relay/](workers/records-relay/) — **planned for Phase 3**;
+  this directory does not exist yet.
+- [docs/FEATURE_PARITY.md](docs/FEATURE_PARITY.md) — feature inventory and web
+  capability changes.
 
-- **Anthropic** — an API key, or a token from `claude setup-token` to bill
-  answers to a Claude subscription instead of API credits.
+## AI companion
+
+The AI companion is optional and bring-your-own-key. Lunara ships no shared
+credential, and core tracking works without AI. The current UI supports:
+
+- **Anthropic** — an API key or a token from `claude setup-token`.
 - **OpenAI** — a project API key.
 
-Credentials are stored in the iOS Keychain / Android Keystore, never in the
-cycle database and never in a backup. Nothing from your tracker is sent unless
-you tick the specific categories for that message.
+These are implemented credential paths, subject to provider access and browser
+network policies. Requests send your conversation and only the tracker-context
+categories selected for that request. The OpenAI path requests `store: false`.
+AI calls require a reachable provider; a dedicated Ollama integration is not
+currently exposed in the UI.
+
+Saved AI credentials are sealed in the browser vault using a non-extractable
+WebCrypto key stored in IndexedDB. They are excluded from exports and backups.
+This is not a hardware-backed Keychain/Keystore: anyone able to run code on this
+site in your browser could read them. PIN and device unlock are screen gates.
 
 ## Disclaimer
 
