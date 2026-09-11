@@ -18,6 +18,7 @@ export default defineConfig({
   },
   test: {
     environment: 'node',
+    css: { include: [/tokens\.css(?:\?|$)/] },
     include: ['src/**/*.test.ts', '*.test.ts'],
   },
 })

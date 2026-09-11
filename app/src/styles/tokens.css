@@ -1,68 +1,88 @@
-/*
- * Lunara's visual language: warm mineral paper, ink, coral, tidal teal, and
- * small sunlit accents. The serif/sans pairing gives intimate health data an
- * editorial tone while remaining native-feeling and highly legible.
- */
+/* Lunara's visual language: baby pink surfaces, baby red cycle signals,
+ * warm ink, and Aileron for display and body text. */
 :root {
   color-scheme: light;
 
-  /* Core palette */
-  --ink-950: #2b2024;
-  --ink-900: #38292f;
-  --ink-800: #4e3b42;
-  --ink-650: #6f5a62;
-  --ink-500: #8e7980;
-  --ink-300: #b9a9ad;
+  /* Baby pink surfaces */
+  --pink-50: #FFF7F8;
+  --pink-100: #FFEEF1;
+  --pink-200: #FCDDE3;
+  --pink-300: #F4C2C2;
+  --pink-400: #EFA9B3;
+  --pink-500: #E58E9C;
 
-  --paper-50: #fffdf9;
-  --paper-100: #fbf7f0;
-  --paper-150: #f7f0e8;
-  --paper-200: #f1e7dc;
-  --paper-300: #e8d8cb;
+  /* Baby red actions and cycle signal */
+  --red-200: #FBC4C4;
+  --red-300: #F5A0A0;
+  --red-400: #F08080;
+  --red-500: #E86464;
+  --red-600: #D64D4D;
+  --red-700: #C0393B;
+  --red-800: #9E2C2E;
 
-  --rose-700: #b83e58;
-  --rose-600: #d64b68;
-  --rose-500: #ea6079;
-  --rose-400: #f17d8d;
-  --rose-300: #f6b4bd;
-  --rose-200: #f9d2d6;
-  --rose-100: #fbe8e7;
-  --coral-400: #f28b75;
+  /* Warm ink */
+  --ink-950: #2E1B1F;
+  --ink-900: #3A2226;
+  --ink-800: #4F3238;
+  --ink-650: #6F4E56;
+  --ink-500: #8E6E76;
+  --ink-300: #BFA6AB;
 
-  --teal-700: #216f70;
-  --teal-600: #2f8584;
-  --teal-500: #45a29f;
-  --teal-300: #9bcfca;
-  --teal-200: #cae7e1;
-  --teal-100: #e5f2ee;
+  /* Semantic */
+  --bg: var(--pink-50);
+  --card: rgba(255, 255, 255, 0.86);
+  --cta-bg: var(--red-700);
+  --cta-fg: #FFFFFF;
+  --period: var(--red-500);
+  --fertile: var(--red-300);
+  --phase-follicular: var(--pink-300);
+  --phase-luteal: var(--pink-400);
+  --chart-bbt: var(--red-800);
+  --danger: var(--red-800);
+  --warning: #C9862B;
+  --success: #5E8C6A;
 
-  --yellow-600: #d49a2d;
-  --yellow-500: #edb846;
-  --yellow-300: #f7d88e;
-  --yellow-200: #fbe8b8;
-  --yellow-100: #fff3d6;
-
-  --clay-500: #b78368;
-  --clay-200: #ead1c3;
-  --clay-100: #f3e3d9;
-  --purple-500: #856f9d;
-  --red-500: #c94747;
-
-  /* Compatibility aliases used by existing views */
+  /* Legacy aliases: the existing stylesheets keep working unchanged */
+  --paper-50: var(--pink-50);
+  --paper-100: var(--pink-50);
+  --paper-150: var(--pink-100);
+  --paper-200: var(--pink-200);
+  --paper-300: var(--pink-300);
+  --rose-700: var(--red-700);
+  --rose-600: var(--red-600);
+  --rose-500: var(--red-500);
+  --rose-400: var(--red-400);
+  --rose-300: var(--red-300);
+  --rose-200: var(--red-200);
+  --rose-100: var(--pink-100);
+  --coral-400: var(--red-400);
+  --teal-700: var(--red-700);
+  --teal-600: var(--red-600);
+  --teal-500: var(--pink-500);
+  --teal-300: var(--pink-400);
+  --teal-200: var(--pink-300);
+  --teal-100: var(--pink-100);
+  --yellow-600: var(--warning);
+  --yellow-500: #E0A046;
+  --yellow-300: #F3CF8E;
+  --yellow-200: #F9E4BC;
+  --yellow-100: #FDF2DA;
+  --clay-500: var(--pink-500);
+  --clay-200: var(--pink-300);
+  --clay-100: var(--pink-200);
+  --purple-500: var(--ink-650);
   --plum-900: var(--ink-900);
   --plum-500: var(--ink-500);
-  --orange-500: #d88938;
-  --bg: var(--paper-100);
-  --card: rgba(255, 253, 249, 0.92);
+  --orange-500: var(--warning);
 
   /* Surfaces and lines */
-  --surface-raised: rgba(255, 254, 251, 0.94);
-  --surface-glass: rgba(255, 253, 249, 0.78);
-  --line-soft: rgba(82, 57, 65, 0.09);
-  --line-medium: rgba(82, 57, 65, 0.16);
-  --shadow-card: 0 12px 36px rgba(75, 45, 50, 0.07);
-  --shadow-float: 0 22px 60px rgba(75, 45, 50, 0.15);
-  --shadow-rose: 0 14px 28px rgba(213, 72, 99, 0.22);
+  --surface-raised: rgba(255, 255, 255, 0.94);
+  --surface-glass: rgba(255, 255, 255, 0.78);
+  --line-soft: rgba(58, 34, 38, 0.09);
+  --line-medium: rgba(58, 34, 38, 0.16);
+  --shadow-card: 0 12px 36px rgba(58, 34, 38, 0.07);
+  --shadow-float: 0 22px 60px rgba(58, 34, 38, 0.15);
+  --shadow-rose: 0 14px 28px rgba(192, 57, 59, 0.22);
 
   /* Shape */
   --radius-xs: 8px;
