@@ -27,9 +27,9 @@
 .page > :nth-child(n + 6) { animation-delay: 200ms; }
 
 .page h1,
-.page h2:not(.group-title),
+.page h2:not(:where(.group-title)),
 .overlay h1,
-.overlay h2:not(.group-title) {
+.overlay h2:not(:where(.group-title)) {
   font-family: var(--font-display);
   font-weight: var(--weight-display);
   letter-spacing: var(--tracking-tight);
@@ -44,7 +44,7 @@
   color: var(--ink-950);
 }
 
-.page h2:not(.group-title) {
+.page h2:not(:where(.group-title)) {
   font-size: 27px;
   font-weight: var(--weight-display);
   line-height: 1.08;
@@ -278,7 +278,7 @@ button.card:active {
   gap: 20px;
 }
 
-.section-heading h2:not(.group-title) {
+.section-heading h2:not(:where(.group-title)) {
   margin-top: 5px;
 }
 

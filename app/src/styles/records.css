@@ -1,5 +1,5 @@
 .records-page > p { line-height: 1.6; margin-bottom: 20px; }
-.records-page h2:not(.group-title) { font-size: 20px; }
+.records-page h2:not(:where(.group-title)) { font-size: 20px; }
 .records-connect p, .records-source p { line-height: 1.55; margin: 10px 0; }
 .records-banner { background: var(--pink-200); border: 1px solid var(--pink-400); border-radius: var(--radius-sm); padding: 16px; line-height: 1.5; color: var(--ink-900); margin-bottom: 16px; }
 .records-checklist { border: 0; padding: 12px 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
