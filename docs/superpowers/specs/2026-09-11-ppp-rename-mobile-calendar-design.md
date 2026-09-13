@@ -321,3 +321,30 @@ Design:
   version of the destinations table.
 
 Plan: `docs/superpowers/plans/2026-09-11-ppp-copy.md` (Task 16).
+
+## 13. Addendum: remove machine-generated UI patterns (2026-09-12)
+
+The user asked to remove eyebrows and "general AI subtitles", and to research
+the common tells of AI-generated interfaces so all of them are removed. The
+tells, from published guides on the subject (TeneX Studio, 925 Studios,
+Developers Digest, solodesign.cc, Inspire Studio) plus this reviewer's own
+inspection:
+
+1. A small uppercase, letter-spaced label ("eyebrow" or "kicker") above every
+   headline, sometimes as a pill.
+2. A tagline subline under every title that restates or decorates it.
+3. Repetitive block anatomy: label, headline, subline, arrow button.
+4. Rows of exactly three equal cards with icon, title and two-line blurb.
+5. Arrow glyphs (→ ↗ ›) inside button and link text; "Learn more" pills.
+6. Em dashes in copy.
+7. Lofty or motivational microcopy ("Read, ask, notice", "Your time, your
+   rhythm", "A clearer map of your changing body") and soft adjectives
+   ("gentle", "calm", "quietly", "companion").
+8. Decorative gradient heroes with orbiting shapes (kept here only where they
+   carry the cycle ring; no new ones).
+
+Design: delete patterns 1 to 7 everywhere in the app UI; keep every fact by
+folding it into a sentence-case heading or the first sentence; group labels in
+Settings and Records become normal sentence-case headings; the copy guard
+gains checks for the banned classes, glyphs, adjectives and uppercase styles.
+Plan: `docs/superpowers/plans/2026-09-12-ppp-declutter.md` (Task 17).
