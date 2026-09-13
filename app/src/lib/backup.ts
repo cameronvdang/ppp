@@ -26,7 +26,7 @@ export async function restoreBackup(endpoint: string, recoveryCode: string): Pro
   if (!res.ok) throw new Error(`Restore failed (${res.status})`)
   const envelope = (await res.json()) as Envelope
   const payload = await decryptJSON<ExportPayload>(envelope, recoveryCode).catch(() => {
-    throw new Error('Could not decrypt — is the recovery code correct?')
+    throw new Error('Could not decrypt. Is the recovery code correct?')
   })
   return applyImport(payload)
 }

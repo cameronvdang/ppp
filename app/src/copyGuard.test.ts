@@ -19,7 +19,7 @@ const ADJECTIVES = /\b(gentle|gently|calm|quietly|companion|without judgment)\b/
 const DECORATIVE_COPY = /\b(Read, ask, notice|Your time, your rhythm|Bring the question you keep circling|Your key, your conversation, your choice|A clearer map of your changing body|Your rhythm will appear here|Three readings unlock the line|For this part of your cycle|Chosen for your focus)\b/i
 const UI_DIRS = ['screens', 'components', 'privacy']
 const UI_COPY_FILES = ['records/providers/http.ts', 'records/connect.ts', 'platform/notifications.ts']
-const UI_ERROR_FILES = ['lib/assistant.ts', 'records/providers/relay.ts', 'records/relaySettings.ts']
+const UI_ERROR_FILES = ['lib/assistant.ts', 'lib/backup.ts', 'records/providers/relay.ts', 'records/relaySettings.ts']
 // Educational content and reminder bodies are also displayed by these screens.
 // Keep the existing jargon and sentence-length scope; apply decoration rules to
 // these shared strings as well, so imported copy cannot bypass the new check.
