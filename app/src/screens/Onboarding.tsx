@@ -1391,9 +1391,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <div className="onboarding-finish">
         <div className="ob-finish-orbit"><Moonseed /><span /><span /></div>
         <h1>Review your setup.</h1>
-        <p className="lead">
-          PPP will start uncertain, show why, and learn from complete check-ins and real cycle history.
-        </p>
         <div className="ob-commitment">
           <strong>I’ll use estimates as context, not contraception or diagnosis.</strong>
           <span>Predictions can be wrong, especially with irregular cycles, hormonal contraception, postpartum changes, or limited data.</span>

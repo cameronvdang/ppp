@@ -57,7 +57,7 @@ describe('report export readiness and print boundaries', () => {
     const stale = render()
     expect(stale).toContain('Building your report')
     expect(stale).not.toContain('Cycle summary')
-    expect(stale).not.toContain('Your cycle, in context.')
+    expect(stale).not.toContain('Cycle report')
     expect(exportButtons(stale)[0]).toContain('disabled=""')
 
     queryState.result = { key: result.key, status: 'error' }

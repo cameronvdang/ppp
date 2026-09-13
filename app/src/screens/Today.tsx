@@ -102,7 +102,7 @@ export function phaseFor(
   if (goal === 'peri') {
     return {
       tone: 'peri',
-      title: cycleDay ? `Cycle day ${cycleDay}` : 'Notice the pattern',
+      title: cycleDay ? `Cycle day ${cycleDay}` : 'No cycle day yet',
       body: 'Cycle timing and the symptoms you choose to log are summarized privately.',
     }
   }

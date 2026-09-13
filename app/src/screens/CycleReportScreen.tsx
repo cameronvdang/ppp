@@ -74,7 +74,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
             ) : (
               <>
                 <section className="health-hero">
-                  <h1 className="health-display">Your cycle, in context.</h1>
+                  <h1 className="health-display">Cycle report</h1>
                   <p>Generated {formatShort(today)}</p>
                   <div className="health-hero-number">
                     {data.report.averageCycleDays ?? 'Not available'}

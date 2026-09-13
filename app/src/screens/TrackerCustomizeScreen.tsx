@@ -90,7 +90,7 @@ export function TrackerCustomizeScreen({ onBack }: TrackerCustomizeScreenProps) 
       <div className="health-scroll">
         <main className="health-canvas">
           <section className="health-hero">
-            <h1 className="health-display">Keep only what matters.</h1>
+            <h1 className="health-display">Customize tracking</h1>
             <p className="health-lede" style={{ marginTop: 12 }}>
               Reorder sections and hide the ones you do not use. Existing entries are never
               deleted.
