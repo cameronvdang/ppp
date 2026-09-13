@@ -97,7 +97,6 @@
   --font-sans: 'Aileron', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --tracking-tight: -0.02em;
   --weight-display: 800;
-  --tracking-label: 0.12em;
 
   /* Timing */
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);

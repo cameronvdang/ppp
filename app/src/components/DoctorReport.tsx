@@ -152,7 +152,7 @@ export function DoctorReport() {
     <div className="overlay">
       <div className="overlay-head no-print">
         <button className="back-btn" onClick={() => setReportOpen(false)} aria-label="Back">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <h2>Doctor’s report</h2>
         <button className="back-btn" disabled={!data} onClick={() => void exportReport()} aria-label="Export report">
@@ -277,9 +277,9 @@ export function DoctorReport() {
               </div>
 
 
-              <div className="section-label" style={{ margin: '18px 0 10px' }}>
+              <h3 className="group-title" style={{ margin: '18px 0 10px' }}>
                 Report details
-              </div>
+              </h3>
               <ReportRow label="Selected range" value={describeRange(data.range)} />
               <ReportRow
                 label="Entries within range"
@@ -302,16 +302,16 @@ export function DoctorReport() {
                 value={data.profile.reproductive.contraception.replaceAll('-', ' ')}
               />
 
-              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+              <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                 Cycle history
-              </div>
+              </h3>
               <ReportRow label="Periods logged" value={String(data.periodCount)} />
               <ReportRow
                 label="Six-cycle average"
                 value={
                   data.report.cycleWindows.six.averageDays != null
                     ? `${data.report.cycleWindows.six.averageDays} days (${data.report.cycleWindows.six.sampleSize} available)`
-                    : '—'
+                    : 'Not available'
                 }
               />
               <ReportRow
@@ -319,7 +319,7 @@ export function DoctorReport() {
                 value={
                   data.report.cycleWindows.twelve.averageDays != null
                     ? `${data.report.cycleWindows.twelve.averageDays} days (${data.report.cycleWindows.twelve.sampleSize} available)`
-                    : '—'
+                    : 'Not available'
                 }
               />
               <ReportRow
@@ -327,7 +327,7 @@ export function DoctorReport() {
                 value={
                   data.report.bleedingTrend.averageDays != null
                     ? `${data.report.bleedingTrend.averageDays} logged days`
-                    : '—'
+                    : 'Not available'
                 }
               />
               <ReportRow
@@ -345,22 +345,22 @@ export function DoctorReport() {
                     ? 'Paused for current context'
                     : data.prediction.prediction.nextPeriodStart
                       ? `${formatShort(data.prediction.prediction.nextPeriodStart)} ±${data.prediction.prediction.uncertaintyDays}d`
-                      : '—'
+                      : 'Not available'
                 }
               />
 
-              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+              <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                 Most-reported physical symptoms
-              </div>
+              </h3>
               {data.symptoms.length ? (
                 data.symptoms.map((s) => <ReportRow key={s.name} label={s.name} value={`${s.count}×`} />)
               ) : (
                 <p className="muted">None logged.</p>
               )}
 
-              <div className="section-label" style={{ margin: '24px 0 10px' }}>
+              <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                 Symptom-phase summary
-              </div>
+              </h3>
               {data.report.symptomPhaseSummaries.length ? (
                 data.report.symptomPhaseSummaries.slice(0, 8).map((summary) => (
                   <ReportRow
@@ -375,9 +375,9 @@ export function DoctorReport() {
 
               {includeMentalHealth && (
                 <>
-                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                  <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                     Mood and mental-health entries
-                  </div>
+                  </h3>
                   {data.moods.length
                     ? data.moods.map((item) => (
                         <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />
@@ -388,9 +388,9 @@ export function DoctorReport() {
 
               {includeSexualHealth && (
                 <>
-                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                  <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                     Sexual and intimacy entries
-                  </div>
+                  </h3>
                   {data.intimacy.length
                     ? data.intimacy.map((item) => (
                         <ReportRow
@@ -405,9 +405,9 @@ export function DoctorReport() {
 
               {includeFertilityTests && (
                 <>
-                  <div className="section-label" style={{ margin: '24px 0 10px' }}>
+                  <h3 className="group-title" style={{ margin: '24px 0 10px' }}>
                     Fertility-test observations
-                  </div>
+                  </h3>
                   {data.fertilityTests.length
                     ? data.fertilityTests.map((item) => (
                         <ReportRow key={item.name} label={item.name} value={`${item.count} days`} />

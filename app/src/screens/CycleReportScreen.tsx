@@ -45,7 +45,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
     <div className="health-overlay">
       <header className="health-topbar no-print">
         <button className="health-icon-button" onClick={onBack} aria-label="Close cycle report">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="health-topbar-title">Private cycle report</div>
         <button
@@ -54,7 +54,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
           aria-label="Export report"
           disabled={!data}
         >
-          ↗
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 15V2m-4 4 4-4 4 4M7 10H4v12h16V10h-3" /></svg>
         </button>
       </header>
 
@@ -74,10 +74,10 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
             ) : (
               <>
                 <section className="health-hero">
-                  <div className="health-kicker">Generated {formatShort(today)}</div>
                   <h1 className="health-display">Your cycle, in context.</h1>
+                  <p>Generated {formatShort(today)}</p>
                   <div className="health-hero-number">
-                    {data.report.averageCycleDays ?? '—'}
+                    {data.report.averageCycleDays ?? 'Not available'}
                     <small>average days</small>
                   </div>
                 </section>
@@ -91,13 +91,13 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                     <div className="health-metric">
                       <strong>
                         {data.report.shortestCycleDays == null
-                          ? '—'
+                          ? 'Not available'
                           : `${data.report.shortestCycleDays}–${data.report.longestCycleDays}`}
                       </strong>
                       <span>cycle-length range · days</span>
                     </div>
                     <div className="health-metric">
-                      <strong>{data.report.averageBleedingDays ?? '—'}</strong>
+                      <strong>{data.report.averageBleedingDays ?? 'Not available'}</strong>
                       <span>average logged bleeding days</span>
                     </div>
                     <div className="health-metric">
@@ -119,7 +119,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                   <div className="health-metric-grid" style={{ marginTop: 13 }}>
                     {[data.report.cycleWindows.six, data.report.cycleWindows.twelve].map((window) => (
                       <div className="health-metric" key={window.windowCycles}>
-                        <strong>{window.averageDays ?? '—'}</strong>
+                        <strong>{window.averageDays ?? 'Not available'}</strong>
                         <span>
                           latest {window.windowCycles} · {window.sampleSize} available ·{' '}
                           {window.trendDirection}
@@ -153,7 +153,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                     </div>
                   ) : (
                     <div className="health-empty" style={{ marginTop: 12 }}>
-                      <strong>No completed cycle yet</strong>
+                      <strong>No completed cycles yet.</strong>
                       <p>Two period starts create the first cycle-length observation.</p>
                     </div>
                   )}
@@ -184,8 +184,8 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                     </>
                   ) : (
                     <div className="health-empty" style={{ marginTop: 12 }}>
-                      <strong>No flow episodes logged yet</strong>
-                      <p>Log a flow level on each bleeding day to make this summary useful.</p>
+                      <strong>No flow logged yet.</strong>
+                      <p>Log a flow level on each bleeding day.</p>
                     </div>
                   )}
                 </section>
@@ -223,10 +223,9 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                       })
                     ) : (
                       <div className="health-empty">
-                        <strong>No repeatable pattern yet</strong>
+                        <strong>No patterns yet.</strong>
                         <p>
-                          Patterns need at least three entries across two completed cycles. PPP
-                          does not turn one unusual day into a conclusion.
+                          Patterns need at least three entries across two completed cycles.
                         </p>
                       </div>
                     )}
@@ -296,7 +295,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                     </div>
                   ) : (
                     <p className="health-lede" style={{ marginTop: 10 }}>
-                      Symptoms, moods, and events will appear here after you log them.
+                      No symptoms, moods, or events logged yet.
                     </p>
                   )}
                 </section>
@@ -327,8 +326,7 @@ export function CycleReportScreen({ onBack }: CycleReportScreenProps) {
                 </section>
 
                 <p className="health-note">
-                  {data.report.methodology} Bring the original dates and details—not only this
-                  summary—to a healthcare appointment.
+                  {data.report.methodology} Bring this summary and the original dates and details to a healthcare appointment.
                 </p>
                 <button className="health-action no-print" disabled={!data} onClick={() => void exportReport()}>
                   Print or save as PDF

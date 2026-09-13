@@ -101,7 +101,7 @@ export function CalendarScreen() {
     <div className="overlay">
       <div className="overlay-head">
         <button className="back-btn" onClick={() => setCalendarOpen(false)} aria-label="Back">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <button
           className="calendar-title-button"
@@ -113,10 +113,10 @@ export function CalendarScreen() {
         </button>
         <div className="row" style={{ gap: 4 }}>
           <button className="back-btn" onClick={() => shift(-1)} aria-label="Previous month">
-            ‹
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
           </button>
           <button className="back-btn" onClick={() => shift(1)} aria-label="Next month">
-            ›
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
           </button>
         </div>
       </div>

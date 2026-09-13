@@ -5,5 +5,5 @@ export const PRIVACY_DESTINATIONS: { destination: string; when: string; sent: st
   { destination: 'Your backup service', when: 'When you upload a backup', sent: 'An encrypted copy of your data', offByDefault: true },
   { destination: 'Reminder emails', when: 'When you enter an email', sent: 'Your email address and reminder time', offByDefault: true },
   { destination: 'Your calendar app', when: 'When you tap Add to calendar', sent: 'A calendar file with estimated dates or reminder times', offByDefault: true },
-  { destination: 'Anything else', when: 'Never', sent: '—', offByDefault: true },
+  { destination: 'Anything else', when: 'Never', sent: 'Nothing', offByDefault: true },
 ]

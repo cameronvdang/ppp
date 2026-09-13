@@ -422,7 +422,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
     if (!code) {
       code = generateRecoveryCode()
       await setSetting('recoveryCode', code)
-      alert(`Your recovery code — write it down, it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
+      alert(`Your recovery code. Write it down; it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
     }
     await setSetting(SK.backupEndpoint, endpoint)
     try {
@@ -563,14 +563,13 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         ))}
       </Section>
 
-      <Section title="Personalize">
+      <Section title="Personalise">
         <button className="setting-row" onClick={() => setTrackerCustomizeOpen(true)}>
           <span>Customize daily trackers</span>
-          <span className="muted">reorder &amp; hide ›</span>
+          <span className="muted">Reorder &amp; hide</span>
         </button>
         <button className="setting-row" onClick={() => setCycleReportOpen(true)}>
           <span>Cycle report &amp; patterns</span>
-          <span className="muted">›</span>
         </button>
         {s.goal === 'pregnancy' && (
           <>
@@ -650,28 +649,26 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
               onClick={() => setPregnancyDetailOpen(true)}
             >
               <span>Pregnancy week &amp; checklist</span>
-              <span className="muted">{s.pregnancyDating ? '›' : 'add dating source first'}</span>
+              <span className="muted">{s.pregnancyDating ? 'Open' : 'Add dating source first'}</span>
             </button>
           </>
         )}
         {s.goal === 'ttc' && (
           <button className="setting-row" onClick={() => setTtcDetailOpen(true)}>
             <span>TTC daily guide</span>
-            <span className="muted">›</span>
           </button>
         )}
         {s.goal === 'peri' && (
           <button className="setting-row" onClick={() => setPerimenopauseOpen(true)}>
             <span>Perimenopause timeline</span>
-            <span className="muted">›</span>
           </button>
         )}
       </Section>
 
-      <Section title="Privacy &amp; lock">
+      <Section title="Privacy and lock">
         <button className="setting-row" onClick={s.hasPin ? removePin : setPin}>
           <span>PIN lock</span>
-          <span className="muted">{s.hasPin ? 'On — tap to remove' : 'Off'}</span>
+          <span className="muted">{s.hasPin ? 'On. Tap to remove' : 'Off'}</span>
         </button>
         {biometrics?.available && (
           <button className="setting-row" disabled={capabilityBusy} onClick={toggleBiometricLock}>
@@ -680,7 +677,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
               {s.biometricLock
                 ? 'On'
                 : biometrics?.available
-                  ? 'Available ›'
+                  ? 'Available'
                   : 'Unavailable'}
             </span>
           </button>
@@ -696,26 +693,21 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
         <a href="#privacy-and-data">How PPP protects your data</a>
       </Section>
 
-      <Section title="Your data &amp; encrypted backup">
+      <Section title="Your data and backups">
         <button className="setting-row" onClick={exportPlain}>
           <span>Export a backup file</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={exportEncrypted}>
           <span>Export encrypted</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={() => fileInput.current?.click()}>
           <span>Import from file</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={enableBackup}>
           <span>Encrypted cloud backup</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={restore}>
           <span>Restore from backup</span>
-          <span className="muted">›</span>
         </button>
         <input
           ref={fileInput}
@@ -727,14 +719,11 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       </Section>
 
       <div className="reminder-settings-section">
-        <div className="section-label" style={{ marginBottom: 4 }}>
-          Local reminders
-        </div>
+        <h2 className="group-title">Reminders</h2>
         <div className="card reminder-console">
           <div className="reminder-console-heading">
             <div>
-              <span className="reminder-kicker">QUIETLY ON YOUR DEVICE</span>
-              <h3>{activeReminderCount ? `${activeReminderCount} active` : 'Your time, your rhythm'}</h3>
+              <span>{activeReminderCount ? `${activeReminderCount} active` : 'No active reminders'}</span>
               <p>
                 Reminders show while PPP is open. Add them to your calendar to get them when it is closed.
               </p>
@@ -814,7 +803,6 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
                       }
                     />
                   </label>
-                  <span aria-hidden="true">→</span>
                   <label>
                     <span>Until</span>
                     <input
@@ -915,31 +903,29 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
           <span className="muted">
             {s.provider === 'anthropic'
               ? hasAnthropicKey
-                ? 'Anthropic connected ›'
-                : 'add Anthropic key ›'
+                ? 'Anthropic connected'
+                : 'Add Anthropic key'
               : hasOpenAiKey
-                ? 'OpenAI key secured ›'
-                : 'add OpenAI key ›'}
+                ? 'OpenAI key secured'
+                : 'Add OpenAI key'}
           </span>
         </button>
         {(s.provider === 'anthropic' ? hasAnthropicKey : hasOpenAiKey) && (
           <button className="setting-row" onClick={removeAiKey}>
             <span>Remove saved key</span>
-            <span className="muted">›</span>
           </button>
         )}
       </Section>
 
-      <Section title="Danger zone">
+      <Section title="Delete">
         <button className="setting-row" onClick={wipe} style={{ color: 'var(--red-500)' }}>
           <span>Delete all data</span>
-          <span>›</span>
         </button>
       </Section>
 
       <p className="muted" style={{ textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
         PPP is open source (AGPL-3.0), based on Lunara, and not affiliated with Flo Health Inc. Not a medical
-        device. Clearing browser storage deletes local history — keep an encrypted backup.
+        device. Clearing browser storage deletes local history. Keep an encrypted backup.
       </p>
     </div>
   )
@@ -948,7 +934,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
 function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
     <div id={id}>
-      <div className="section-label" style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: title }} />
+      <h2 className="group-title" dangerouslySetInnerHTML={{ __html: title }} />
       <div className="card" style={{ padding: '0 16px' }}>
         {children}
       </div>
@@ -997,7 +983,7 @@ function RecordsSettingsCard() {
       <button className="cta records-secondary" disabled={busy || !token.trim() || !url.trim()} onClick={() => void saveToken()}>Save key</button>
       {message && <p role="status">{message}</p>}
     </div>
-    <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span><span aria-hidden="true">›</span></button>
+    <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span></button>
   </Section>
 }
 

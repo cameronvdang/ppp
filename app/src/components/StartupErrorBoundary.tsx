@@ -31,7 +31,6 @@ export class StartupErrorBoundary extends Component<Props, State> {
             <span className="startup-failure-mark" aria-hidden="true">
               <PppMark decorative size={34} />
             </span>
-            <p className="page-kicker">Startup interrupted</p>
             <h1>PPP couldn’t open.</h1>
             <p className="muted">
               Your local health data has not been deleted. Reload the app and,

@@ -70,23 +70,21 @@ export function CycleRing({ cycleDay, cycleLength, daysUntilPeriod, daysLate = 0
       <div className="cycle-ring-core">
         {daysLate > 0 ? (
           <>
-            <span className="cycle-ring-kicker">Period may be</span>
             <strong className="cycle-ring-number">{daysLate}</strong>
             <span className="cycle-ring-unit">
-              {daysLate === 1 ? 'day late' : 'days late'}
+              {daysLate === 1 ? 'day past the period estimate' : 'days past the period estimate'}
             </span>
           </>
         ) : hasData ? (
           <>
-            <span className="cycle-ring-kicker">Period in</span>
             <strong className="cycle-ring-number">{daysUntilPeriod}</strong>
             <span className="cycle-ring-unit">
-              {daysUntilPeriod === 1 ? 'day' : 'days'}
+              {daysUntilPeriod === 1 ? 'day until the estimated period' : 'days until the estimated period'}
             </span>
           </>
         ) : (
           <>
-            <span className="cycle-ring-welcome">Your rhythm,<br />made visible</span>
+            <span className="cycle-ring-welcome">No cycle estimate yet.</span>
             <span className="cycle-ring-empty">
               Add two period starts to begin
             </span>

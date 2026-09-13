@@ -121,7 +121,7 @@ const TRACKING_AREAS: Option[] = [
   { id: 'mood', icon: '◡', label: 'Mood & energy' },
   { id: 'discharge', icon: '◌', label: 'Discharge' },
   { id: 'sleep', icon: '☾', label: 'Sleep' },
-  { id: 'movement', icon: '↗', label: 'Movement' },
+  { id: 'movement', label: 'Movement' },
   { id: 'fertility', icon: '✦', label: 'Fertility signals' },
   { id: 'sexual-wellbeing', icon: '♡', label: 'Sexual wellbeing' },
 ]
@@ -263,7 +263,9 @@ function Frame({
       <div className="ob-shell-top">
         <header className="ob-appbar">
           {showProgress && onBack
-            ? <button type="button" className="back-btn" onClick={onBack} aria-label="Go back">‹</button>
+            ? <button type="button" className="back-btn" onClick={onBack} aria-label="Go back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+              </button>
             : <span className="ob-appbar-spacer" aria-hidden="true" />}
           <div className="ppp-brand-button ob-appbar-mark" aria-label="PPP">
             <PppMark decorative size={24} />
@@ -276,7 +278,7 @@ function Frame({
           <div className="onboarding-progress">
             <div className="ob-progress-meta">
               <span>{chapter ?? 'Your baseline'}</span>
-              <span>{stepNumber} of {totalSteps}</span>
+              <span>Step {stepNumber} of {totalSteps}</span>
             </div>
             <div className="progress-track" aria-label={`Step ${stepNumber} of ${totalSteps}`}>
               <span style={{ width: `${(stepNumber / totalSteps) * 100}%` }} />
@@ -379,17 +381,14 @@ function ChipGrid({
 }
 
 function QuestionIntro({
-  eyebrow,
   title,
   body,
 }: {
-  eyebrow: string
   title: string
   body?: string
 }) {
   return (
     <div className="ob-question-intro">
-      <p className="eyebrow">{eyebrow}</p>
       <h1>{title}</h1>
       {body && <p className="muted">{body}</p>}
     </div>
@@ -686,24 +685,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="onboarding-hero">
           <div className="ob-hero-art">
             <Moonseed />
-            <span className="ob-hero-label">Built for private, local-first tracking</span>
           </div>
-          <div>
-            <p className="eyebrow">Meet PPP</p>
-            <h1>A clearer map of your changing body.</h1>
+          <div role="group" aria-label="PPP principles">
+            <h1>Track your cycle privately.</h1>
             <p className="lead">
-              Start with what you know. PPP will adapt its questions, show when an estimate is
-              uncertain, and keep core tracking on this device.
+              PPP keeps your data on this device and explains every estimate.
             </p>
           </div>
-          <div className="ob-proof-row" aria-label="PPP principles">
-            <span><strong>Local</strong><small>Core history</small></span>
-            <span><strong>Explainable</strong><small>Every estimate</small></span>
-            <span><strong>Optional</strong><small>Sensitive answers</small></span>
-          </div>
-          <p className="ob-legal">Educational estimates only—not diagnosis or birth control.</p>
         </div>
-        <button className="cta" onClick={next}>Build my baseline <span aria-hidden="true">→</span></button>
+        <button className="cta" onClick={next}>Get started</button>
       </Frame>
     )
   }
@@ -713,7 +703,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <Frame {...frameProps} chapter="About you" onSkip={next}>
         <div className="ob-top-figure"><Moonseed mood="thinking" /></div>
         <QuestionIntro
-          eyebrow="Let’s make this feel like yours"
           title="What should PPP call you?"
           body="A first name or nickname is enough. It never has to leave your device."
         />
@@ -739,7 +728,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="About you">
         <QuestionIntro
-          eyebrow={draft.displayName ? `Nice to meet you, ${firstName(draft.displayName)}` : 'A useful baseline'}
           title="What year were you born?"
           body="Age changes which cycle ranges are considered typical. It does not decide what your body should do."
         />
@@ -770,7 +758,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Privacy">
         <QuestionIntro
-          eyebrow="Sensitive data deserves a clear boundary"
           title="Your core health history stays on this device."
           body="PPP needs permission to store the answers and logs you choose to enter. You can export or erase them from Settings."
         />
@@ -815,7 +802,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Your mode">
         <QuestionIntro
-          eyebrow="Choose your primary mode"
           title="What is happening in your life right now?"
           body="This changes the rest of setup. You can switch modes later without losing your history."
         />
@@ -837,12 +823,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   if (current === 'cycle-context') {
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={() => { patch({ contraception: 'prefer-not-to-say' }); next() }}>
-        <div className="ob-chapter-band">
-          <Moonseed mood="thinking" />
-          <div><span>Chapter 1</span><strong>How your cycle is shaped</strong></div>
-        </div>
         <QuestionIntro
-          eyebrow="Prediction eligibility"
           title="Are you using contraception now?"
           body="Some hormonal methods suppress ovulation or create withdrawal bleeding. That changes which predictions are responsible to show."
         />
@@ -870,9 +851,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={() => { patch({ dateConfidence: 'unknown' }); next() }}>
         <QuestionIntro
-          eyebrow="Your real history beats a generic 28-day cycle"
           title="What do you know about your recent periods?"
-          body="Add up to three true period starts—not spotting. Fewer dates are completely fine."
+          body="Add up to three period starts, excluding spotting. Fewer dates are fine."
         />
         <div className="ob-option-stack compact">
           {regularityOptions.map((option) => (
@@ -930,7 +910,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={next}>
         <QuestionIntro
-          eyebrow="Your mode has adapted"
           title="What bleeding pattern have you noticed?"
           body="PPP can track bleeding and medication adherence, but it will pause fertile-window estimates while this method makes them unreliable."
         />
@@ -938,7 +917,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <span aria-hidden="true">◌</span>
           <div>
             <strong>Fertility forecast paused</strong>
-            <p>Not a failure—this is the medically honest state for this context.</p>
+            <p>Estimates are paused for this context.</p>
           </div>
         </div>
         <div className="ob-option-stack">
@@ -971,12 +950,11 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <Frame {...frameProps} chapter="Pregnancy baseline" onSkip={next}>
         <div className="ob-chapter-band pregnancy">
           <Moonseed />
-          <div><span>Pregnancy mode</span><strong>Start with a provisional timeline</strong></div>
+          <p>Start with a provisional pregnancy timeline.</p>
         </div>
         <QuestionIntro
-          eyebrow="Dating source matters"
           title="Which date should anchor your timeline?"
-          body="PPP preserves the source instead of quietly treating every pregnancy as LMP-dated."
+          body="PPP keeps your selected dating source instead of assuming the date of your last period."
         />
         <div className="ob-option-stack compact">
           {datingOptions.map((option) => (
@@ -1031,9 +1009,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Trying to conceive" onSkip={next}>
         <QuestionIntro
-          eyebrow="A more useful fertility plan"
           title="When did you start trying?"
-          body="Optional. PPP uses this only for age-aware education and clinician-conversation prompts—not to label infertility."
+          body="Optional. PPP uses this only for age-aware education and clinician-conversation prompts, not to label infertility."
         />
         <div className="field ob-hero-field">
           <label htmlFor="trying-since">Month you started</label>
@@ -1052,12 +1029,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   if (current === 'tracking') {
     return (
       <Frame {...frameProps} chapter="Your tracker">
-        <div className="ob-chapter-band">
-          <Moonseed />
-          <div><span>Chapter 2</span><strong>Choose what deserves space</strong></div>
-        </div>
         <QuestionIntro
-          eyebrow="You control the tracker"
           title="What would you like to understand?"
           body="Choose as many as you want. This changes logging shortcuts and which questions appear next."
         />
@@ -1075,14 +1047,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Your tracker" onSkip={next}>
         <QuestionIntro
-          eyebrow="A baseline, not a diagnosis"
           title="What are you noticing today?"
           body="This seeds your first check-in. PPP only calls something a pattern after it repeats across prospectively tracked cycles."
         />
         <ChipGrid options={SYMPTOM_OPTIONS} values={draft.baselineSymptoms} exclusive="none" onToggle={(id) => toggle('baselineSymptoms', id, 'none')} />
         <div className="ob-why">
           <span aria-hidden="true">i</span>
-          <p>An unlogged day is treated as missing—not as a symptom-free day.</p>
+          <p>An unlogged day is treated as missing, not as a symptom-free day.</p>
         </div>
         <div className="spacer" />
         <button className="cta" onClick={next}>Continue</button>
@@ -1094,7 +1065,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Health context" onSkip={next}>
         <QuestionIntro
-          eyebrow="Use only what you already know"
           title="Have you been told you have any of these?"
           body="Choose diagnosed or clinician-discussed conditions only. PPP will never infer one from this onboarding."
         />
@@ -1105,7 +1075,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               option={option}
               selected={draft.conditions.includes(option.id)}
               onClick={() => toggle('conditions', option.id)}
-              selectionDetail="Used to widen uncertainty and tailor caution—not as a diagnosis."
+              selectionDetail="Used to widen uncertainty and tailor caution, not as a diagnosis."
             />
           ))}
         </div>
@@ -1118,7 +1088,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Health context" onSkip={next}>
         <QuestionIntro
-          eyebrow="What you have already noticed"
           title="Do any of these describe your cycle?"
           body="These answers can add safety prompts or make estimates more cautious. They never identify the cause."
         />
@@ -1143,7 +1112,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Daily wellbeing" onSkip={next}>
         <QuestionIntro
-          eyebrow="Look beyond period dates"
           title="Where does your cycle seem to show up?"
           body="Your answers choose which check-ins and educational cards appear. They are not used to claim cause and effect."
         />
@@ -1151,7 +1119,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {([
             ['sleepImpact', 'Sleep', '☾'],
             ['skinImpact', 'Skin', '✺'],
-            ['activityImpact', 'Energy', '↗'],
+            ['activityImpact', 'Energy', ''],
           ] as const).map(([key, label, icon]) => (
             <section key={key}>
               <div><span aria-hidden="true">{icon}</span><strong>{label}</strong></div>
@@ -1224,7 +1192,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Daily wellbeing" onSkip={next}>
         <QuestionIntro
-          eyebrow="Optional movement context"
           title="What does a typical day feel like?"
           body="This can shape movement check-ins. It does not improve period prediction on its own."
         />
@@ -1242,7 +1209,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <div className="ob-why">
-          <span aria-hidden="true">↗</span>
           <p><strong>Permission comes later</strong> Choosing a wearable records your preference; it does not connect to or import health data.</p>
         </div>
         <button className="cta" onClick={next}>Continue</button>
@@ -1254,7 +1220,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Optional measurements" onSkip={next}>
         <QuestionIntro
-          eyebrow="Your choice"
           title="Would you like to add body measurements?"
           body="Useful for weight trends and clinician reports. PPP does not pretend these make a calendar estimate precise."
         />
@@ -1287,7 +1252,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <i>✦</i><i>✦</i><i>✦</i>
         </div>
         <QuestionIntro
-          eyebrow="Your final wellbeing chapter"
           title="What would make sleep feel better?"
           body={`You said sleep impact is “${choiceLabel(draft.sleepImpact)}.” Choose any goals worth checking in on.`}
         />
@@ -1314,12 +1278,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <Frame {...frameProps} chapter="Your map">
         <div className="ob-analysis-hero">
           <Moonseed mood="thinking" />
-          <span>Baseline assembled on this device</span>
         </div>
         <QuestionIntro
-          eyebrow="Here is what your answers actually change"
-          title={`${firstName(draft.displayName) || 'Your'} setup is ready to learn.`}
-          body="No mystery score and no pretend diagnosis. Every active or paused feature has a reason."
+          title={`${firstName(draft.displayName) || 'Your'} setup summary`}
+          body="Review which features are active or paused and why; this summary was assembled on this device."
         />
         <div className="ob-summary-list">
           <article>
@@ -1350,9 +1312,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   if (current === 'ai') {
     return (
-      <Frame {...frameProps} chapter="Optional companion" onSkip={next}>
+      <Frame {...frameProps} chapter="Optional assistant" onSkip={next}>
         <QuestionIntro
-          eyebrow="AI is separate from prediction"
           title="Choose how the assistant runs."
           body="Core tracking and calculations work without AI. You bring your own credential; PPP never ships a shared key."
         />
@@ -1434,13 +1395,12 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     <Frame step={current} stepNumber={progressSteps.length} totalSteps={progressSteps.length}>
       <div className="onboarding-finish">
         <div className="ob-finish-orbit"><Moonseed /><span /><span /></div>
-        <p className="eyebrow">Your baseline, not a verdict</p>
-        <h1>Ready to notice what changes.</h1>
+        <h1>Review your setup.</h1>
         <p className="lead">
           PPP will start uncertain, show why, and learn from complete check-ins and real cycle history.
         </p>
         <div className="ob-commitment">
-          <strong>I’ll use estimates as context—not contraception or diagnosis.</strong>
+          <strong>I’ll use estimates as context, not contraception or diagnosis.</strong>
           <span>Predictions can be wrong, especially with irregular cycles, hormonal contraception, postpartum changes, or limited data.</span>
         </div>
         {saveError && <p className="error-text">{saveError}</p>}

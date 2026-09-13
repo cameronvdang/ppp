@@ -68,7 +68,7 @@ export function RecordsScreen() {
     {(status || recordsNotice) && <p className="card records-notice" role="status">{recordsNotice ?? status}</p>}
     {connection.mode === 'demo' && showSnapshot && <p className="records-banner">Sample data. None of this is about you.</p>}
     {showConnect && <section className="card records-connect">
-      <h2 className="section-label">What leaves this device</h2>
+      <h2 className="group-title">What leaves this device</h2>
       <p>Sample data: PPP sends FinchNode the categories you pick and a random code.</p>
       <p className="muted">Your provider: your connector sends the categories you pick to FinchNode and brings your records back. Your connector key stays with your connector.</p>
       <fieldset className="records-checklist"><legend>Choose categories from your provider</legend>

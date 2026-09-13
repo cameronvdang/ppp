@@ -382,7 +382,7 @@ export function copyFor(kind: ReminderKind, mode: ReminderPreview['mode'] = 'pri
   body: string
 } {
   if (mode === 'private') {
-    return { title: 'PPP', body: 'A gentle moment to check in with yourself.' }
+    return { title: 'PPP', body: 'Your reminder is due.' }
   }
   switch (kind) {
     case 'medication':

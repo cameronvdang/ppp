@@ -261,12 +261,11 @@ export function AssistantScreen() {
     >
       <header className="overlay-head assistant-head">
         <button className="back-btn" onClick={() => setAssistantOpen(false)} aria-label="Close">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="assistant-title">
           <PppMark decorative size={25} />
           <span>
-            <span className="assistant-kicker">Private companion</span>
             <h2>PPP AI</h2>
           </span>
         </div>
@@ -287,12 +286,11 @@ export function AssistantScreen() {
       {loading ? (
         <div className="overlay-body assistant-loading">
           <PppMark decorative size={30} />
-          <span>Preparing your private space…</span>
+          <span>Loading assistant…</span>
         </div>
       ) : setupOpen ? (
         <div className="overlay-body assistant-setup">
           <section className="assistant-setup-intro">
-            <p className="eyebrow">Connection</p>
             <h3>Choose where answers come from</h3>
             <p>Your saved key is encrypted on this device. PPP sends it to the AI service used for your answers.</p>
             <div className="ai-provider-grid">
@@ -479,8 +477,7 @@ export function AssistantScreen() {
                   <span />
                   <PppMark decorative size={38} />
                 </div>
-                <span className="assistant-empty-kicker">Private by design</span>
-                <h3>What would you like to understand?</h3>
+                <h3>No messages yet.</h3>
                 <p>
                   Ask a general question, or selectively share tracker context for a more
                   personal answer.

@@ -1,6 +1,6 @@
 # PPP
 
-PPP is a privacy-first cycle, fertility, pregnancy and perimenopause companion that runs entirely in your browser. It is based on Lunara (AGPL-3.0, https://github.com/Blueturboguy07/lunara) and is not affiliated with Flo Health Inc.
+PPP is a privacy-first cycle, fertility, pregnancy and perimenopause app that runs entirely in your browser. It is based on Lunara (AGPL-3.0, https://github.com/Blueturboguy07/lunara) and is not affiliated with Flo Health Inc.
 
 ## Fork notice
 
@@ -150,9 +150,9 @@ also checks TypeScript before generating the production bundle.
 - [docs/FEATURE_PARITY.md](docs/FEATURE_PARITY.md) — feature inventory and web
   capability changes.
 
-## AI companion
+## AI assistant
 
-The AI companion is optional and bring-your-own-key. PPP ships no shared
+The AI assistant is optional and bring-your-own-key. PPP ships no shared
 credential, and core tracking works without AI. The current UI supports:
 
 - **Anthropic** — an API key or a token from `claude setup-token`.

@@ -98,15 +98,6 @@
   color: var(--red-600);
 }
 
-.assistant-kicker {
-  color: var(--ink-500);
-  font-size: 8px;
-  font-weight: 850;
-  line-height: 1.15;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
 .assistant-overlay .assistant-title h2 {
   overflow: hidden;
   color: var(--ink-950);
@@ -222,9 +213,7 @@
   color: var(--red-700);
   font-size: 8px;
   font-weight: 850;
-  letter-spacing: 0.04em;
   white-space: nowrap;
-  text-transform: uppercase;
   background: var(--pink-100);
   border: 1px solid color-mix(in srgb, var(--red-600) 11%, transparent);
   border-radius: 999px;
@@ -485,15 +474,6 @@
   position: relative;
   z-index: 1;
   color: inherit;
-}
-
-.assistant-empty-kicker {
-  margin-bottom: 7px;
-  color: var(--red-700);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .assistant-overlay .assistant-empty h3 {
@@ -781,7 +761,6 @@
   font-size: 7.5px;
   font-weight: 650;
   line-height: 1.3;
-  letter-spacing: 0.015em;
   text-align: center;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -809,10 +788,6 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-}
-
-.assistant-setup-intro .eyebrow {
-  color: var(--red-600);
 }
 
 .assistant-setup-intro h3 {

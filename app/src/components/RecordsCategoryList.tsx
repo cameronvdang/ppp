@@ -16,7 +16,9 @@ export function RecordsCategoryList({ category, onBack }: { category: RecordCate
   const availability = data ? categoryAvailability(data.connection, category) : null
   return <section className="overlay records-category" role="dialog" aria-modal="true" aria-labelledby="records-category-title">
     <div className="overlay-head">
-      <button className="back-btn" onClick={onBack} aria-label="Back">‹</button>
+      <button className="back-btn" onClick={onBack} aria-label="Back">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+      </button>
       <h2 id="records-category-title">{CATEGORY_LABELS[category]}</h2>
     </div>
     <div className="overlay-body">

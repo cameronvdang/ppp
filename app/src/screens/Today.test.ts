@@ -14,24 +14,24 @@ function heroFor(date: string, flowDates: string[]) {
 describe('Today phase hero', () => {
   it('shows the follicular phase on day four after a three-day flow run', () => {
     expect(heroFor('2026-09-04', ['2026-09-01', '2026-09-02', '2026-09-03'])).toMatchObject({
-      tone: 'cycle', eyebrow: 'Follicular phase (estimate)', title: 'Cycle day 4',
+      tone: 'cycle', title: 'Follicular phase (estimate)', body: 'Cycle day 4.',
     })
   })
 
   it('keeps the period hero on day six of a longer flow run', () => {
     expect(heroFor('2026-09-06', Array.from({ length: 6 }, (_, index) => addDays('2026-09-01', index)))).toMatchObject({
-      tone: 'period', eyebrow: 'Period:', title: 'Day 6',
+      tone: 'period', title: 'Period, day 6', body: 'Log flow and symptoms for today.',
     })
   })
 
   it('counts period days within the logged run instead of from the cycle start', () => {
     expect(heroFor('2026-09-07', ['2026-09-01', '2026-09-06', '2026-09-07'])).toMatchObject({
-      tone: 'period', title: 'Day 2',
+      tone: 'period', title: 'Period, day 2',
     })
   })
 
   it('retains the fertile and ovulation heroes', () => {
-    expect(heroFor('2026-09-12', [])).toMatchObject({ tone: 'fertile', title: 'Ovulation in 3 days' })
-    expect(heroFor('2026-09-15', [])).toMatchObject({ tone: 'ovulation', title: 'Ovulation may be today' })
+    expect(heroFor('2026-09-12', [])).toMatchObject({ tone: 'fertile', title: 'Fertile window (estimate)' })
+    expect(heroFor('2026-09-15', [])).toMatchObject({ tone: 'ovulation', title: 'Ovulation estimated today' })
   })
 })

@@ -13,9 +13,17 @@ const BANNED = [
   /canonical/i, /signature verification/i, /\bBYOK\b/i, /\bAPI\b/i,
   /\bworker\b/i, /\bblob\b/i, /\.ics\b/i,
 ]
+const BANNED_CLASSES = /\b(page-kicker|phase-eyebrow|health-kicker|reminder-kicker|assistant-feature-kicker|eyebrow|kicker|tagline|collection-count|story-count|section-label|section-overline|ob-proof-row|ob-hero-label)\b/
+const BANNED_GLYPHS = /[→↗‹›—]/
+const ADJECTIVES = /\b(gentle|gently|calm|quietly|companion|without judgment)\b/i
+const DECORATIVE_COPY = /\b(Read, ask, notice|Your time, your rhythm|Bring the question you keep circling|Your key, your conversation, your choice|A clearer map of your changing body|Your rhythm will appear here|Three readings unlock the line|For this part of your cycle|Chosen for your focus)\b/i
 const UI_DIRS = ['screens', 'components', 'privacy']
 const UI_COPY_FILES = ['records/providers/http.ts', 'records/connect.ts', 'platform/notifications.ts']
 const UI_ERROR_FILES = ['lib/assistant.ts', 'records/providers/relay.ts', 'records/relaySettings.ts']
+// Educational content and reminder bodies are also displayed by these screens.
+// Keep the existing jargon and sentence-length scope; apply decoration rules to
+// these shared strings as well, so imported copy cannot bypass the new check.
+const SHARED_DISPLAY_FILES = ['engine/reminders.ts', 'App.tsx']
 const STRUCTURAL_ATTRIBUTES = new Set(['className', 'id', 'htmlFor', 'style', 'key', 'ref', 'href', 'src', 'type', 'role', 'name', 'value', 'defaultValue', 'accept', 'autoComplete', 'aria-labelledby', 'aria-describedby'])
 const INLINE_TAGS = new Set(['span', 'strong', 'em', 'b', 'i', 'small', 'a', 'code'])
 type Copy = { text: string; line: number; consent: boolean }
@@ -28,7 +36,17 @@ function* walk(dir: string): Generator<string> {
   }
 }
 
-const normalize = (text: string) => text.replace(/&(?:amp|nbsp);/g, ' ').replace(/&(?:apos|#39);/g, "'").replace(/&quot;/g, '"').replace(/\s+/g, ' ').trim()
+const uiFiles = () => [...UI_DIRS.flatMap(dir => [...walk(resolve(__dirname, dir))]), ...UI_COPY_FILES.map(file => resolve(__dirname, file))]
+const rel = (file: string) => file.split('/src/')[1]
+
+const GLYPH_ENTITIES: Record<string, string> = { rarr: '→', nearr: '↗', lsaquo: '‹', rsaquo: '›', mdash: '—' }
+const normalize = (text: string) => text
+  .replace(/&(?:amp|nbsp);/g, ' ').replace(/&(?:apos|#39);/g, "'").replace(/&quot;/g, '"')
+  .replace(/&(rarr|nearr|lsaquo|rsaquo|mdash);/g, (_, name: string) => GLYPH_ENTITIES[name])
+  .replace(/&#(x[0-9a-f]+|\d+);/gi, (entity, value: string) => {
+    const code = value.toLowerCase().startsWith('x') ? parseInt(value.slice(1), 16) : Number(value)
+    return code <= 0x10ffff ? String.fromCodePoint(code) : entity
+  }).replace(/\s+/g, ' ').trim()
 
 /** Parse actual literals and JSX, never comments, imports or code identifiers. */
 function userFacingText(source: string, filename = 'copy.tsx', errorsOnly = false): Copy[] {
@@ -38,7 +56,7 @@ function userFacingText(source: string, filename = 'copy.tsx', errorsOnly = fals
   function add(text: string, node: ts.Node) {
     text = normalize(text)
     // Paths and the plan's URL examples are configuration, not prose.
-    if (!/[A-Za-z]/.test(text) || /^(?:https?:\/\/|\.{1,2}\/|\/)[^\s]+$/.test(text)) return
+    if ((!/[A-Za-z]/.test(text) && !BANNED_GLYPHS.test(text)) || /^(?:https?:\/\/|\.{1,2}\/|\/)[^\s]+$/.test(text)) return
     let consent = false
     for (let parent: ts.Node | undefined = node; parent; parent = parent.parent) {
       if (ts.isJsxElement(parent) && parent.openingElement.attributes.properties.some(attr =>
@@ -107,7 +125,7 @@ const longSentences = (copies: Copy[]) => copies.flatMap(copy => copy.text.split
 }))
 
 describe('UI copy guard', () => {
-  const files = [...UI_DIRS.flatMap(dir => [...walk(resolve(__dirname, dir))]), ...UI_COPY_FILES.map(file => resolve(__dirname, file))]
+  const files = uiFiles()
   const copy = [
     ...files.map(file => ({ file: file.split('/src/')[1], copies: userFacingText(readFileSync(file, 'utf8'), file) })),
     ...UI_ERROR_FILES.map(file => ({ file, copies: userFacingText(readFileSync(resolve(__dirname, file), 'utf8'), file, true) })),
@@ -121,6 +139,43 @@ describe('UI copy guard', () => {
   it('keeps sentences within 20 words, or 24 for records consent', () => {
     const offenders = copy.flatMap(({ file, copies }) => longSentences(copies).map(({ line, text, words }) => `${file}:${line}: ${words} words: ${text}`))
     expect([...new Set(offenders)]).toEqual([])
+  })
+
+  it('has no eyebrow, kicker, tagline or section-label classes in UI markup', () => {
+    const offenders = files.filter(file => BANNED_CLASSES.test(readFileSync(file, 'utf8'))).map(rel)
+    expect(offenders).toEqual([])
+  })
+
+  it('has no decorative glyphs or adjectives in user-facing text', () => {
+    const shared = [...walk(resolve(__dirname, 'content')), ...SHARED_DISPLAY_FILES.map(file => resolve(__dirname, file))]
+      .map(file => ({ file: rel(file), copies: userFacingText(readFileSync(file, 'utf8'), file) }))
+    const offenders = [...copy, ...shared].flatMap(({ file, copies }) => copies
+      .filter(({ text }) => BANNED_GLYPHS.test(text) || ADJECTIVES.test(text) || DECORATIVE_COPY.test(text))
+      .map(({ line, text }) => `${file}:${line}: ${text}`))
+    expect([...new Set(offenders)]).toEqual([])
+  })
+
+  it('uses uppercase only for weekday letters', () => {
+    const css = readdirSync(resolve(__dirname, 'styles')).filter(name => name.endsWith('.css'))
+      .map(name => readFileSync(resolve(__dirname, 'styles', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).join('\n')
+    const blocks = (css.match(/[^{}]+\{[^{}]*\}/g) ?? []).filter(block =>
+      /text-transform:\s*uppercase/.test(block) ||
+      /letter-spacing:\s*(?:[1-9]\d*(?:\.\d+)?|0*\.\d*[1-9]\d*)(?:em|px|rem)/.test(block))
+    const disallowed = blocks.filter(block => !block.split('{')[0].trim().split(',')
+      .every(selector => /^(?:\.cal-weekdays span|\.date-strip \.dow)$/.test(selector.trim())))
+      .map(block => block.split('{')[0].trim())
+    expect(disallowed).toEqual([])
+    expect(css).not.toMatch(/--tracking-label/)
+    const inlineOffenders = files.filter(file => /textTransform:\s*['"]uppercase['"]|letterSpacing:\s*['"](?:0*\.\d*[1-9]\d*|[1-9]\d*)(?:em|px|rem)['"]/.test(readFileSync(file, 'utf8'))).map(rel)
+    expect(inlineOffenders).toEqual([])
+  })
+
+  it('checks glyph-only JSX, attributes and literal branches', () => {
+    const source = '<button aria-label="Go →">↗<span>{ready ? "›" : "—"}</span></button>'
+    const texts = userFacingText(source).map(copy => copy.text)
+    for (const text of ['Go →', '↗', '›', '—']) expect(texts.some(copy => copy.includes(text))).toBe(true)
+    expect(userFacingText('<button>&rarr; &#x2197; &#8250; &mdash;</button>').map(copy => copy.text)).toContain('→ ↗ › —')
+    expect(userFacingText('// → is a comment')).toEqual([])
   })
 
   it('checks single-word labels, attributes, templates and inline JSX without reading comments or identifiers', () => {

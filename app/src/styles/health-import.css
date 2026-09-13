@@ -22,17 +22,11 @@
   border-radius: 50%;
 }
 
-
 .page.onboarding .ob-health-import-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 4px;
-}
-
-.page.onboarding .ob-health-import-copy .eyebrow {
-  color: var(--red-700);
-  font-size: 8px;
 }
 
 .page.onboarding .ob-health-import-copy strong {

@@ -36,7 +36,7 @@ import { useApp, type TrackerFocus } from '../state/appStore'
 
 interface DailyInsight {
   key: string
-  eyebrow: string
+  heading: string
   value: string
   detail: string
   tone: 'rose' | 'teal' | 'blue'
@@ -45,7 +45,6 @@ interface DailyInsight {
 
 interface PhaseHero {
   tone: 'period' | 'ovulation' | 'fertile' | 'cycle' | 'peri' | 'empty'
-  eyebrow: string
   title: string
   body: string
 }
@@ -75,39 +74,34 @@ export function phaseFor(
   if (stale) {
     return {
       tone: 'empty',
-      eyebrow: 'Your cycle',
-      title: 'Let’s pick this back up',
+      title: 'Add your latest period',
       body: 'It has been a while since a period was logged, so PPP paused its estimates. Add your most recent period to restart them.',
     }
   }
   if (cyclePhase?.phase === 'period') {
     return {
       tone: 'period',
-      eyebrow: 'Period:',
-      title: cyclePhase.detail.replace(' of your period', ''),
-      body: 'Your period day, based on the flow dates you logged.',
+      title: `Period, ${cyclePhase.detail.replace(' of your period', '').toLowerCase()}`,
+      body: 'Log flow and symptoms for today.',
     }
   }
   if (daysToOvulation === 0) {
     return {
       tone: 'ovulation',
-      eyebrow: 'Estimated today',
-      title: 'Ovulation may be today',
+      title: 'Ovulation estimated today',
       body: `A calendar estimate with an uncertainty window of about ±${uncertaintyDays} days.`,
     }
   }
   if (daysToOvulation != null && daysToOvulation > 0 && daysToOvulation <= 5) {
     return {
       tone: 'fertile',
-      eyebrow: 'Estimated fertile window',
-      title: `Ovulation in ${daysToOvulation} ${daysToOvulation === 1 ? 'day' : 'days'}`,
+      title: 'Fertile window (estimate)',
       body: 'Logging discharge, ovulation tests, and temperature can add useful context.',
     }
   }
   if (goal === 'peri') {
     return {
       tone: 'peri',
-      eyebrow: 'Midlife tracking',
       title: cycleDay ? `Cycle day ${cycleDay}` : 'Notice the pattern',
       body: 'Cycle timing and the symptoms you choose to log are summarized privately.',
     }
@@ -115,16 +109,16 @@ export function phaseFor(
   if (cycleDay) {
     return {
       tone: 'cycle',
-      eyebrow: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
+      title: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
         ? `${cyclePhase.label} (estimate)`
-        : goal === 'ttc' ? 'Trying to conceive' : 'Your cycle',
-      title: `Cycle day ${cycleDay}`,
-      body: 'A simple day count from the first day of your most recent logged period.',
+        : `Cycle day ${cycleDay}`,
+      body: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
+        ? `Cycle day ${cycleDay}.`
+        : 'A simple day count from the first day of your most recent logged period.',
     }
   }
   return {
     tone: 'empty',
-    eyebrow: 'Your cycle',
     title: 'Start with your dates',
     body: 'Add two period starts to unlock a personal estimate and uncertainty range.',
   }
@@ -349,25 +343,21 @@ export function Today() {
               </span>
             </div>
             <div className="phase-copy">
-              <span className="phase-eyebrow">Your pregnancy</span>
               <h1>
-                {pregnancy.week} weeks, {pregnancy.dayOfWeek} days
+                Pregnancy: {pregnancy.week} weeks, {pregnancy.dayOfWeek} days
               </h1>
               <p>
                 Trimester {pregnancy.trimester} · {pregnancy.daysRemaining} days to{' '}
                 {pregnancy.dating.provisional ? 'your estimated due date' : 'your due date'}
-              </p>
-              <span className="phase-eyebrow">
-                Based on {PREGNANCY_DATING_LABELS[pregnancy.dating.method]} ·{' '}
+                {' · '}Based on {PREGNANCY_DATING_LABELS[pregnancy.dating.method]} ·{' '}
                 {pregnancyDatingStatus(pregnancy.dating)}
-              </span>
+              </p>
             </div>
             <button
               className="phase-detail-link"
               onClick={() => setPregnancyDetailOpen(true)}
             >
               Due {pregnancy.estimatedDueDate}
-              <span aria-hidden="true">›</span>
             </button>
           </section>
         ) : (
@@ -426,14 +416,10 @@ export function Today() {
 
         <InstallCard variant="today" />
 
-      <section className="daily-insights-section" aria-labelledby="pregnancy-daily-insights-title">
+        <section className="daily-insights-section" aria-labelledby="pregnancy-daily-insights-title">
           <div className="section-heading daily-heading">
-            <h2 id="pregnancy-daily-insights-title">
-              My daily insights
-              <span className="daily-heading-when">
-                {' · '}
-                {selectedDate === today ? 'Today' : compactDate(selectedDate)}
-              </span>
+            <h2 className="group-title" id="pregnancy-daily-insights-title">
+              {selectedDate === today ? "Today's insights" : `Insights for ${compactDate(selectedDate)}`}
             </h2>
           </div>
           <div className="daily-insight-rail">
@@ -442,48 +428,45 @@ export function Today() {
               className="daily-insight-tile insight-blue"
               onClick={() => pregnancy ? setPregnancyDetailOpen(true) : setTab('settings')}
             >
-              <span>Pregnancy timeline</span>
+              <h3>Pregnancy timeline</h3>
               <strong>{pregnancy ? `Week ${pregnancy.week} + ${pregnancy.dayOfWeek}` : 'Needs dating'}</strong>
               <small>
                 {pregnancy
                   ? `Trimester ${pregnancy.trimester}, from your selected dating source`
                   : 'Add a dating source in settings'}
               </small>
-              <i aria-hidden="true">›</i>
             </button>
             <button
               type="button"
               className="daily-insight-tile insight-teal"
               onClick={() => pregnancy ? setPregnancyDetailOpen(true) : setTab('settings')}
             >
-              <span>{pregnancy?.dating.provisional ? 'Estimated due date' : 'Due date'}</span>
+              <h3>{pregnancy?.dating.provisional ? 'Estimated due date' : 'Due date'}</h3>
               <strong>{pregnancy ? compactDate(pregnancy.estimatedDueDate) : 'Not set'}</strong>
               <small>
                 {pregnancy
                   ? `Based on ${PREGNANCY_DATING_LABELS[pregnancy.dating.method]}`
                   : 'No pregnancy date is currently stored'}
               </small>
-              <i aria-hidden="true">›</i>
             </button>
             <button
               type="button"
               className="daily-insight-tile insight-rose"
               onClick={() => openSheet(selectedDate, 'symptoms')}
             >
-              <span>Your daily log</span>
+              <h3>Your daily log</h3>
               <strong>
                 {pregnancySignals.count > 0 ? `${pregnancySignals.count} logged` : 'Nothing yet'}
               </strong>
               <small>{pregnancySignals.detail}</small>
-              <i aria-hidden="true">›</i>
             </button>
           </div>
         </section>
         {pregnancy && (
           <button className="card phase-reading-card" onClick={() => setPregnancyDetailOpen(true)}>
-            <div className="section-label">What to expect at {pregnancy.week} weeks</div>
-            <p>{PREGNANCY_WEEKS[pregnancy.week] ?? 'Growing steadily, one quiet day at a time.'}</p>
-            <span>Open the week guide <b aria-hidden="true">↗</b></span>
+            <h2 className="group-title">What to expect at {pregnancy.week} weeks</h2>
+            <p>{PREGNANCY_WEEKS[pregnancy.week] ?? 'No week guide available.'}</p>
+            <span>Open the week guide</span>
           </button>
         )}
         <Disclaimer />
@@ -543,7 +526,7 @@ export function Today() {
   const fertilityInsight: DailyInsight = fertileWindow
     ? {
         key: 'fertility-timing',
-        eyebrow: 'Fertility timing',
+        heading: 'Fertility timing',
         value: insideEstimatedFertileWindow
           ? 'Inside estimate'
           : daysUntilFertileWindow != null
@@ -557,7 +540,7 @@ export function Today() {
       }
     : {
         key: 'fertility-timing',
-        eyebrow: 'Fertility timing',
+        heading: 'Fertility timing',
         value: 'Not available',
         detail:
           data.predictionContext.reasons.some(
@@ -576,7 +559,7 @@ export function Today() {
   const symptomPatternInsight: DailyInsight = symptomPattern
     ? {
         key: 'symptom-pattern',
-        eyebrow: 'Symptoms to expect?',
+        heading: 'Symptoms to expect',
         value: symptomPattern.signal,
         detail: `${symptomPattern.evidence.occurrences} complete check-ins · ${symptomPattern.evidence.cyclesObserved} cycles · association only`,
         tone: 'teal',
@@ -584,15 +567,15 @@ export function Today() {
       }
     : {
         key: 'symptom-pattern',
-        eyebrow: 'Symptoms to expect?',
-        value: 'No pattern yet',
+        heading: 'Symptoms to expect',
+        value: 'No patterns yet.',
         detail: 'Complete check-ins across at least 2 cycles to build personal evidence',
         tone: 'teal',
         action: 'symptoms',
       }
   const cyclePositionInsight: DailyInsight = {
     key: 'cycle-position',
-    eyebrow:
+    heading:
       data.prediction.cycleDay != null && data.prediction.cycleDay <= 5
         ? 'Period position'
         : 'Cycle position',
@@ -643,7 +626,7 @@ export function Today() {
         className={`phase-hero phase-${phase.tone} enter-${enterFrom}${
           heroDrag.dragging ? ' is-dragging' : ''
         }`}
-        aria-label={`${phase.eyebrow} ${phase.title}. Swipe sideways for another day.`}
+        aria-label={`${phase.title}. ${phase.body} Swipe sideways for another day.`}
         style={{
           // Following the pointer from the first pixel is what makes the drag
           // feel like it is moving the day rather than triggering it.
@@ -661,9 +644,25 @@ export function Today() {
           <span className="phase-seed" />
         </div>
         <div className="phase-copy">
-          <span className="phase-eyebrow">{phase.eyebrow}</span>
           <h1>{phase.title}</h1>
-          <p>{phase.body}</p>
+          <p>
+            {phase.body}{' '}
+            {estimate && (
+              <>
+                {data.phase.phase === 'follicular' || data.phase.phase === 'luteal' ? periodEstimate : estimate}
+                {' ('}{data.prediction.source === 'baseline'
+                  ? 'starting-length estimate'
+                  : `±${data.prediction.uncertaintyDays} days`}{').'}
+              </>
+            )}
+            {phase.tone === 'fertile' && data.goal !== 'ttc' && (
+              <> Ovulation estimated in {daysToOvulation} {daysToOvulation === 1 ? 'day' : 'days'}.</>
+            )}
+            {data.goal === 'ttc' && estimate !== periodEstimate &&
+              (data.phase.phase === 'follicular' || data.phase.phase === 'luteal') && (
+              <> {estimate}.</>
+            )}
+          </p>
         </div>
         <button
           className="phase-detail-link"
@@ -671,17 +670,7 @@ export function Today() {
             data.goal === 'ttc' ? setTtcDetailOpen(true) : setCycleReportOpen(true)
           }
         >
-          {estimate ? (
-            <>
-              {estimate} ·{' '}
-              {data.prediction.source === 'baseline'
-                ? 'starting-length estimate'
-                : `±${data.prediction.uncertaintyDays} days`}
-            </>
-          ) : (
-            <>What’s important today? Learn more</>
-          )}
-          <span aria-hidden="true">›</span>
+          What this means
         </button>
       </section>
 
@@ -742,12 +731,8 @@ export function Today() {
 
       <section className="daily-insights-section" aria-labelledby="daily-insights-title">
         <div className="section-heading daily-heading">
-          <h2 id="daily-insights-title">
-            My daily insights
-            <span className="daily-heading-when">
-              {' · '}
-              {selectedDate === today ? 'Today' : compactDate(selectedDate)}
-            </span>
+          <h2 className="group-title" id="daily-insights-title">
+            {selectedDate === today ? "Today's insights" : `Insights for ${compactDate(selectedDate)}`}
           </h2>
         </div>
         <div className="daily-insight-rail">
@@ -758,10 +743,9 @@ export function Today() {
               className={`daily-insight-tile insight-${insight.tone}`}
               onClick={() => openInsight(insight.action)}
             >
-              <span>{insight.eyebrow}</span>
+              <h3>{insight.heading}</h3>
               <strong>{insight.value}</strong>
               <small>{insight.detail}</small>
-              <i aria-hidden="true">›</i>
             </button>
           ))}
         </div>
@@ -773,16 +757,12 @@ export function Today() {
           data.goal === 'ttc' ? setTtcDetailOpen(true) : setCycleReportOpen(true)
         }
       >
-        <span className="prediction-basis-glyph" aria-hidden="true">
-          {data.predictionContext.evidenceMode === 'suppressed' ? '—' : '±'}
-        </span>
         <span>
-          <small>Prediction basis</small>
           <strong>
             {data.predictionContext.evidenceMode === 'suppressed'
-              ? 'Some forecasts are responsibly paused'
+              ? 'Some forecasts are paused'
               : data.predictionContext.evidenceMode === 'insufficient'
-                ? 'Waiting for real cycle history'
+                ? 'More cycle history needed'
                 : data.predictionContext.evidenceMode === 'baseline-calendar'
                   ? 'Broad calendar starting estimate'
                   : data.predictionContext.evidenceMode === 'cycle-history-plus-signals'
@@ -797,7 +777,6 @@ export function Today() {
             </span>
           )}
         </span>
-        <i aria-hidden="true">›</i>
       </button>
 
       {daysLate > 0 && (
@@ -817,12 +796,12 @@ export function Today() {
       {data.goal === 'peri' && (
         <button className="card peri-score-card" onClick={() => setPerimenopauseOpen(true)}>
           <div className="peri-score-copy">
-            <div className="section-label">Your monthly symptom summary</div>
-            <strong>
+            <h2 className="group-title">Your monthly symptom summary</h2>
+            <p>
               {data.periScore === 0
-                ? 'Ready for your first check-in'
-                : 'Your recent pattern is ready to review'}
-            </strong>
+                ? 'No scored symptoms in the past 28 days.'
+                : 'View your logged symptoms.'}
+            </p>
             <span>Calculated only from symptoms you chose to record</span>
           </div>
           <div className="peri-score-value">
@@ -838,17 +817,14 @@ export function Today() {
           setArticleSlug(fertileSoon ? 'fertile-window' : data.goal === 'peri' ? 'peri-what-is' : 'cycle-phases')
         }
       >
-        <div className="section-label">
-          {fertileSoon ? 'Understand your fertile window' : data.goal === 'peri' ? 'Understand midlife changes' : 'For this part of your cycle'}
-        </div>
         <p>
           {fertileSoon
-            ? 'Spot the signals that can add context to a calendar estimate.'
+            ? 'Learn which signals add context to your estimated fertile window.'
             : data.goal === 'peri'
-              ? 'Track changes month to month without turning a pattern into a diagnosis.'
-              : 'Learn what may be changing — and what can vary from person to person.'}
+              ? 'Track midlife changes month to month; patterns are not a diagnosis.'
+              : 'Learn what may change during your cycle and vary from person to person.'}
         </p>
-        <span>Explore the guide <b aria-hidden="true">↗</b></span>
+        <span>Explore the guide</span>
       </button>
 
       <Disclaimer />

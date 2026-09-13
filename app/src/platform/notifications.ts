@@ -142,7 +142,7 @@ function armDaily(): void {
   timers.set(DAILY_KEY, setTimeout(() => {
     timers.delete(DAILY_KEY)
     void showReminder(
-      'PPP', 'A gentle moment to check in with yourself.',
+      'PPP', 'Your reminder is due.',
       `ppp-daily:${occurrenceDate}:${time}`, () => generation === dailyGeneration,
     ).catch(() => undefined)
     if (notificationApi()?.permission === 'granted') armDaily()

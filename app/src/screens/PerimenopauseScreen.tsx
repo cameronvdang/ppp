@@ -77,7 +77,7 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
     <div className="health-overlay">
       <header className="health-topbar">
         <button className="health-icon-button" onClick={onBack} aria-label="Close perimenopause view">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="health-topbar-title">Midlife changes</div>
         <span />
@@ -98,11 +98,9 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
                   <span />
                   <span />
                 </div>
-                <div className="health-kicker">Past 28 days</div>
                 <h1>Your monthly symptom summary</h1>
                 <p>
-                  Check in over time to see how often temperature, sleep, focus, mood, and body
-                  changes appear in your own log.
+                  Your log shows temperature, sleep, focus, mood, and body changes over the past 28 days.
                 </p>
                 <div className="peri-result-badges">
                   <span>Private on-device summary</span>
@@ -113,13 +111,12 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
               <section className="health-panel peri-current-result">
                 <div className="peri-result-meta">
                   <div>
-                    <div className="health-kicker">Current summary</div>
                     <h2>
                       {data.summary.loggedDays === 0
-                        ? 'Ready for your first check-in'
+                        ? 'No check-ins logged yet.'
                         : data.summary.score === 0
                           ? 'No tracked symptoms on logged days'
-                          : 'Your logged pattern is ready'}
+                          : 'Current symptom summary'}
                     </h2>
                   </div>
                   <div className="peri-result-number" aria-label={`${data.summary.score} out of 100`}>
@@ -130,10 +127,9 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
                 <p className="health-lede">
                   {data.summary.loggedDays
                     ? `Calculated across ${data.summary.loggedDays} logged ${data.summary.loggedDays === 1 ? 'day' : 'days'} with ${data.summary.trackingCoverage}% calendar coverage.`
-                    : 'Add symptoms on a few days to create a personal, descriptive baseline.'}
+                    : 'Log symptoms to create a baseline.'}
                 </p>
                 <p className="peri-result-trend">
-                  <span aria-hidden="true">↗</span>
                   {trendLabel(data.summary.trend)}
                 </p>
                 <button
@@ -164,7 +160,6 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
                             latest {formatShort(symptom.latestDate)}
                           </p>
                         </div>
-                        <span aria-hidden="true">›</span>
                       </div>
                     ))}
                   </div>
@@ -306,7 +301,7 @@ export function PerimenopauseScreen({ onBack }: PerimenopauseScreenProps) {
               </section>
 
               <section className="health-panel">
-                <div className="health-kicker">Sources</div>
+                <h2 className="group-title">Sources</h2>
                 <p className="health-lede" style={{ margin: '8px 0 12px' }}>
                   Educational content is grounded in current public-health guidance.
                 </p>

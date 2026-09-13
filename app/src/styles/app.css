@@ -27,9 +27,9 @@
 .page > :nth-child(n + 6) { animation-delay: 200ms; }
 
 .page h1,
-.page h2,
+.page h2:not(.group-title),
 .overlay h1,
-.overlay h2 {
+.overlay h2:not(.group-title) {
   font-family: var(--font-display);
   font-weight: var(--weight-display);
   letter-spacing: var(--tracking-tight);
@@ -44,7 +44,7 @@
   color: var(--ink-950);
 }
 
-.page h2 {
+.page h2:not(.group-title) {
   font-size: 27px;
   font-weight: var(--weight-display);
   line-height: 1.08;
@@ -255,26 +255,8 @@ button.card:active {
   justify-content: space-between;
 }
 
-.section-label,
-.section-overline,
-.page-kicker,
-.eyebrow {
-  color: var(--ink-500);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 .page-title-block {
   padding: 18px 2px 3px;
-}
-
-.page-title-block .page-kicker {
-  display: block;
-  margin-bottom: 10px;
-  color: var(--red-600);
 }
 
 .page-title-block h1 {
@@ -296,7 +278,7 @@ button.card:active {
   gap: 20px;
 }
 
-.section-heading h2 {
+.section-heading h2:not(.group-title) {
   margin-top: 5px;
 }
 
@@ -512,9 +494,7 @@ button.card:active {
   color: var(--ink-500);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.08em;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .cal-day {
@@ -712,8 +692,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
 }
 
 .today-heading strong {
@@ -843,8 +821,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .date-cell .num {
@@ -1031,13 +1007,6 @@ button.card:active {
   align-items: center;
 }
 
-.phase-eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .phase-copy h1 {
   max-width: 11ch;
   margin-top: 5px;
@@ -1087,12 +1056,6 @@ button.card:active {
   font-weight: 700;
   background: transparent;
   border-top: 1px solid var(--phase-soft);
-}
-
-.phase-detail-link span {
-  font-family: var(--font-display);
-  font-size: 19px;
-  line-height: 0.7;
 }
 
 .pregnancy-growth-mark {
@@ -1263,13 +1226,10 @@ button.card:active {
   backdrop-filter: blur(5px);
 }
 
-.cycle-ring-kicker,
 .cycle-ring-unit {
   color: var(--ink-650);
   font-size: 12px;
   font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .cycle-ring-number {
@@ -1288,8 +1248,6 @@ button.card:active {
   color: var(--red-700);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
   background: var(--pink-100);
   border-radius: 99px;
 }
@@ -1447,14 +1405,6 @@ button.card:active {
   gap: 5px;
 }
 
-.peri-score-copy strong {
-  max-width: 25ch;
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: var(--weight-display);
-  line-height: 1.08;
-}
-
 .peri-score-copy > span {
   color: var(--ink-500);
   font-size: 10px;
@@ -1486,28 +1436,12 @@ button.card:active {
   margin-top: 4px;
   font-size: 7px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .story-section {
   display: flex;
   flex-direction: column;
   gap: 13px;
-}
-
-.story-count,
-.collection-count {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-500);
-  font-family: var(--font-display);
-  font-size: 15px;
-  background: color-mix(in srgb, var(--pink-50) 65%, transparent);
-  border: 1px solid var(--line-soft);
-  border-radius: 50%;
 }
 
 .stories {
@@ -1583,13 +1517,6 @@ button.card:active {
   gap: 7px;
 }
 
-.story-eyebrow {
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .story-copy strong {
   max-width: 13ch;
   font-family: var(--font-display);
@@ -1615,10 +1542,6 @@ button.card:active {
 
 .daily-heading {
   align-items: center;
-}
-
-.daily-heading h2 {
-  font-size: 25px;
 }
 
 .story-log {
@@ -1700,12 +1623,6 @@ button.card:active {
   color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.phase-reading-card b {
-  font-size: 12px;
 }
 
 /* Pregnancy */
@@ -1762,13 +1679,6 @@ button.card:active {
   justify-content: center;
 }
 
-.pregnancy-kicker {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 .pregnancy-week {
   margin-top: 7px;
   display: grid;
@@ -1791,8 +1701,6 @@ button.card:active {
   color: var(--ink-650);
   font-size: 11px;
   font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .pregnancy-trimester {
@@ -1801,8 +1709,6 @@ button.card:active {
   color: var(--warning);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
   background: color-mix(in srgb, var(--pink-50) 50%, transparent);
   border-radius: 99px;
 }
@@ -1873,8 +1779,6 @@ button.card:active {
   color: var(--yellow-600);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .editorial-link b {
@@ -1910,7 +1814,7 @@ button.card:active {
   min-height: 112px;
   padding: 18px;
   display: grid;
-  grid-template-columns: 46px 1fr 28px;
+  grid-template-columns: 46px 1fr;
   align-items: center;
   gap: 13px;
   overflow: hidden;
@@ -1964,14 +1868,6 @@ button.card:active {
   flex-direction: column;
 }
 
-.report-copy > span {
-  color: var(--red-200);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .report-copy strong {
   margin-top: 4px;
   font-family: var(--font-display);
@@ -1984,12 +1880,6 @@ button.card:active {
   margin-top: 5px;
   color: color-mix(in srgb, var(--pink-50) 60%, transparent);
   font-size: 9px;
-}
-
-.report-arrow {
-  z-index: 1;
-  font-size: 17px;
-  text-align: right;
 }
 
 .metric-grid {
@@ -2015,8 +1905,6 @@ button.card:active {
   color: var(--ink-650);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .metric-card > strong {
@@ -2033,8 +1921,6 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .metric-card i {
@@ -2374,14 +2260,6 @@ button.card:active {
   flex-direction: column;
 }
 
-.assistant-feature-kicker {
-  color: var(--pink-400);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
 .assistant-feature-copy strong {
   margin-top: 8px;
   font-family: var(--font-display);
@@ -2395,29 +2273,6 @@ button.card:active {
   margin-top: 9px;
   color: color-mix(in srgb, var(--pink-50) 58%, transparent);
   font-size: 9px;
-}
-
-.assistant-feature-arrow {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 3;
-  width: 39px;
-  height: 39px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-900);
-  background: var(--pink-400);
-  border-radius: 50%;
-}
-
-.assistant-feature-arrow svg {
-  width: 19px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .assistant-constellation {
@@ -2571,10 +2426,6 @@ button.card:active {
   margin-bottom: 13px;
 }
 
-.insight-section-heading .section-overline {
-  color: var(--collection-accent);
-}
-
 .article-list {
   display: flex;
   flex-direction: column;
@@ -2679,8 +2530,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .saved-label {
@@ -2704,11 +2553,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 700;
-}
-
-.article-open b {
-  color: var(--collection-accent);
-  font-size: 12px;
 }
 
 .article-featured {
@@ -2824,7 +2668,6 @@ button.card:active {
 .tabbar-label {
   font-size: 9px;
   font-weight: 750;
-  letter-spacing: 0.01em;
 }
 
 .tabbar-item.is-active {
@@ -2920,8 +2763,6 @@ button.card:active {
   color: var(--ink-650);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .field input,
@@ -3046,24 +2887,6 @@ button.card:active {
   border-bottom: 1px solid var(--line-soft);
 }
 
-.reminder-kicker {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--red-700);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-
-.reminder-console-heading h3 {
-  margin: 0;
-  color: var(--ink-950);
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: var(--weight-display);
-  letter-spacing: var(--tracking-tight);
-}
-
 .reminder-console-heading p {
   max-width: 31ch;
   margin: 7px 0 0;
@@ -3079,9 +2902,7 @@ button.card:active {
   color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.06em;
   text-align: center;
-  text-transform: uppercase;
   background: color-mix(in srgb, var(--pink-100) 86%, transparent);
   border: 1px solid color-mix(in srgb, var(--red-600) 16%, transparent);
   border-radius: var(--radius-chip);
@@ -3193,7 +3014,7 @@ button.card:active {
   margin: -4px 0 14px;
   padding: 10px 12px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
   align-items: end;
   gap: 9px;
   color: var(--ink-300);
@@ -3211,8 +3032,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .reminder-quiet-times input,
@@ -3402,10 +3221,6 @@ button.card:active {
 
 .onboarding-content > h1 {
   margin-top: 1px;
-}
-
-.onboarding .eyebrow {
-  color: var(--red-600);
 }
 
 .onboarding .lead {
@@ -3656,8 +3471,6 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .spacer {
@@ -3791,8 +3604,6 @@ button.card:active {
   color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .assistant-status::before,
@@ -4309,8 +4120,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .onboarding-progress .progress-track {
@@ -4377,15 +4186,6 @@ button.card:active {
   gap: 16px;
 }
 
-.onboarding .eyebrow {
-  margin: 0;
-  color: var(--red-700);
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
 .onboarding .lead,
 .onboarding .muted {
   color: var(--ink-650);
@@ -4430,8 +4230,7 @@ button.card:active {
 }
 
 .onboarding-sleep .ob-question-intro h1,
-.onboarding-sleep .ob-question-intro .muted,
-.onboarding-sleep .eyebrow {
+.onboarding-sleep .ob-question-intro .muted {
   color: var(--pink-50);
 }
 
@@ -4610,25 +4409,6 @@ button.card:active {
   transform: scale(1.32);
 }
 
-.ob-hero-label {
-  position: absolute;
-  z-index: 3;
-  bottom: 18px;
-  left: 50%;
-  padding: 7px 12px;
-  color: var(--red-700);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
-  border-radius: 999px;
-  transform: translateX(-50%);
-  backdrop-filter: blur(9px);
-}
-
 .onboarding-hero {
   min-height: 100%;
   display: flex;
@@ -4641,45 +4421,6 @@ button.card:active {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.ob-proof-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-}
-
-.ob-proof-row > span {
-  min-width: 0;
-  padding: 11px 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.54);
-  border: 1px solid color-mix(in srgb, var(--ink-900) 7%, transparent);
-  border-radius: 16px;
-}
-
-.ob-proof-row strong {
-  color: var(--ink-800);
-  font-size: 10px;
-}
-
-.ob-proof-row small {
-  overflow: hidden;
-  color: var(--ink-500);
-  font-size: 8px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.ob-legal {
-  margin-top: -5px;
-  color: var(--ink-500);
-  font-size: 9px;
-  line-height: 1.4;
-  text-align: center;
 }
 
 .ob-hero-field {
@@ -4915,27 +4656,6 @@ button.card:active {
   background: linear-gradient(140deg, var(--pink-100), var(--pink-200));
 }
 
-.ob-chapter-band > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ob-chapter-band > div > span {
-  color: var(--red-600);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.ob-chapter-band strong {
-  max-width: 14ch;
-  color: var(--ink-900);
-  font-size: 19px;
-  line-height: 1.05;
-}
-
 .ob-prediction-gate {
   background: color-mix(in srgb, var(--pink-100) 82%, transparent);
   border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
@@ -5021,8 +4741,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .ob-inline-fields label > div,
@@ -5422,17 +5140,6 @@ button.card:active {
   z-index: 1;
 }
 
-.ob-analysis-hero > span {
-  position: absolute;
-  z-index: 2;
-  bottom: 5px;
-  color: var(--red-700);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
 .ob-summary-list {
   display: flex;
   flex-direction: column;
@@ -5458,8 +5165,6 @@ button.card:active {
   color: #fff;
   font-size: 7.5px;
   font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
   background: var(--red-600);
   border-radius: 999px;
 }
@@ -5528,7 +5233,6 @@ button.card:active {
   gap: 17px;
 }
 
-.onboarding-finish .eyebrow,
 .onboarding-finish h1,
 .onboarding-finish .lead {
   color: var(--pink-50);
@@ -5657,10 +5361,6 @@ button.card:active {
 
   .ob-hero-art {
     min-height: 215px;
-  }
-
-  .ob-proof-row small {
-    display: none;
   }
 
   .ob-impact-grid {
@@ -5823,7 +5523,6 @@ button.card:active {
   color: var(--ob-muted);
   font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.12em;
 }
 
 .page.onboarding .progress-track {
@@ -5859,7 +5558,6 @@ button.card:active {
   justify-content: end;
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.08em;
 }
 
 .page.onboarding .onboarding-content {
@@ -5873,13 +5571,6 @@ button.card:active {
 .page.onboarding .ob-question-intro {
   max-width: 440px;
   gap: 12px;
-}
-
-.page.onboarding .eyebrow {
-  color: var(--ob-accent);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
 }
 
 .page.onboarding .ob-question-intro h1,
@@ -5897,7 +5588,6 @@ button.card:active {
 .page.onboarding .lead,
 .page.onboarding .muted,
 .page.onboarding-sleep .ob-question-intro .muted,
-.page.onboarding-sleep .eyebrow,
 .page.onboarding-sleep .ob-question-intro h1 {
   color: var(--ob-muted);
 }
@@ -5919,7 +5609,6 @@ button.card:active {
   color: var(--pink-50);
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.01em;
   background: var(--ob-ink);
   border: 1px solid var(--ob-ink);
   border-radius: 2px;
@@ -5970,22 +5659,6 @@ button.card:active {
   border: 1px solid var(--ob-rule);
   border-radius: 50%;
   transform: rotate(-16deg);
-}
-
-.page.onboarding .ob-hero-label {
-  right: 0;
-  bottom: 13px;
-  left: auto;
-  padding: 0;
-  color: var(--ob-muted);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  transform: none;
-  backdrop-filter: none;
 }
 
 .page.onboarding .moonseed {
@@ -6046,43 +5719,6 @@ button.card:active {
   transform-origin: left center;
 }
 
-.page.onboarding .ob-proof-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--ob-rule);
-  border-bottom: 1px solid var(--ob-rule);
-}
-
-.page.onboarding .ob-proof-row > span {
-  padding: 13px 9px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--ob-rule);
-  border-radius: 0;
-}
-
-.page.onboarding .ob-proof-row > span:last-child {
-  border-right: 0;
-}
-
-.page.onboarding .ob-proof-row strong {
-  color: var(--ob-ink);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: var(--weight-display);
-}
-
-.page.onboarding .ob-proof-row small,
-.page.onboarding .ob-legal {
-  color: var(--ob-muted);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-legal {
-  text-align: left;
-}
-
 .page.onboarding .ob-hero-field {
   margin-top: clamp(16px, 5vh, 48px);
 }
@@ -6091,8 +5727,6 @@ button.card:active {
 .page.onboarding .field label {
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-hero-field input,
@@ -6136,8 +5770,6 @@ button.card:active {
   bottom: 39px;
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-option-stack {
@@ -6250,19 +5882,6 @@ button.card:active {
   height: 48px;
 }
 
-.page.onboarding .ob-chapter-band > div > span {
-  color: var(--ob-accent);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-chapter-band strong {
-  max-width: 22ch;
-  color: var(--ob-ink);
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: var(--weight-display);
-}
-
 .page.onboarding .ob-why,
 .page.onboarding .ob-data-boundary,
 .page.onboarding .ob-prediction-gate,
@@ -6340,8 +5959,6 @@ button.card:active {
 .page.onboarding .ob-date-card label span {
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-date-card input {
@@ -6454,8 +6071,6 @@ button.card:active {
 .page.onboarding .ob-selection-note strong {
   color: var(--ob-accent);
   font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-selection-note span {
@@ -6664,11 +6279,6 @@ button.card:active {
   border-color: var(--ob-rule);
 }
 
-.page.onboarding .ob-analysis-hero > span {
-  color: var(--ob-accent);
-  font-size: 8px;
-}
-
 .page.onboarding .ob-summary-list {
   gap: 0;
   border-top: 1px solid var(--ob-rule);
@@ -6741,7 +6351,6 @@ button.card:active {
   gap: 23px;
 }
 
-.page.onboarding-finish .eyebrow,
 .page.onboarding-finish h1,
 .page.onboarding-finish .lead {
   color: var(--ob-ink);
@@ -6804,9 +6413,6 @@ button.card:active {
     grid-template-columns: 1fr;
   }
 
-  .page.onboarding .ob-proof-row small {
-    display: block;
-  }
 }
 }
 
@@ -6815,7 +6421,7 @@ button.card:active {
   min-height: 78px;
   padding: 13px 14px;
   display: grid;
-  grid-template-columns: 39px 1fr 16px;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 11px;
   color: var(--ink-800);
@@ -6826,31 +6432,11 @@ button.card:active {
   box-shadow: 0 9px 24px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
 }
 
-.prediction-basis-glyph {
-  width: 39px;
-  height: 39px;
-  display: grid;
-  place-items: center;
-  color: var(--red-700);
-  font-family: var(--font-display);
-  font-size: 18px;
-  background: var(--pink-100);
-  border-radius: 14px;
-}
-
 .prediction-basis-card > span:nth-child(2) {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.prediction-basis-card small {
-  color: var(--ink-500);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .prediction-basis-card strong {
@@ -6875,23 +6461,6 @@ button.card:active {
   font-size: 8px;
   font-weight: 750;
   line-height: 1.35;
-}
-
-.prediction-basis-card > i {
-  color: var(--ink-300);
-  font-size: 24px;
-  font-style: normal;
-}
-
-.prediction-basis-card.evidence-suppressed .prediction-basis-glyph {
-  color: var(--red-700);
-  background: var(--pink-100);
-}
-
-.prediction-basis-card.evidence-insufficient .prediction-basis-glyph,
-.prediction-basis-card.evidence-baseline-calendar .prediction-basis-glyph {
-  color: var(--warning);
-  background: var(--yellow-100);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -7030,7 +6599,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.02em;
 }
 
 .page.onboarding .onboarding-progress {
@@ -7052,8 +6620,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 850;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .progress-track,
@@ -7160,17 +6726,6 @@ button.card:active {
 
 .page.onboarding .ob-shell-footer .cta:disabled::before {
   display: none;
-}
-
-.page.onboarding .eyebrow,
-.page.onboarding-sleep .eyebrow {
-  margin: 0;
-  color: var(--red-600);
-  font-family: var(--font-sans);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-question-intro {
@@ -7349,77 +6904,11 @@ button.card:active {
   transform: scale(1.16);
 }
 
-.page.onboarding .ob-hero-label {
-  position: absolute;
-  z-index: 3;
-  right: 16px;
-  bottom: 15px;
-  left: auto;
-  padding: 7px 10px;
-  color: var(--red-700);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  text-transform: uppercase;
-  background: color-mix(in srgb, var(--pink-50) 78%, transparent);
-  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
-  border-radius: var(--radius-chip);
-  transform: none;
-  backdrop-filter: blur(10px);
-}
-
 .page.onboarding .onboarding-hero > div:nth-child(2) {
   padding: 0 4px;
   display: flex;
   flex-direction: column;
   gap: 9px;
-}
-
-.page.onboarding .ob-proof-row {
-  padding: 4px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  background: color-mix(in srgb, var(--pink-50) 72%, transparent);
-  border: 1px solid var(--line-soft);
-  border-radius: 19px;
-  box-shadow: 0 8px 22px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
-}
-
-.page.onboarding .ob-proof-row > span {
-  min-width: 0;
-  padding: 10px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: center;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--line-soft);
-  border-radius: 0;
-}
-
-.page.onboarding .ob-proof-row > span:last-child {
-  border-right: 0;
-}
-
-.page.onboarding .ob-proof-row strong {
-  color: var(--ink-800);
-  font-size: 9px;
-}
-
-.page.onboarding .ob-proof-row small,
-.page.onboarding .ob-legal {
-  color: var(--ink-500);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-legal {
-  margin: -2px 0 0;
-  padding: 0 5px;
-  line-height: 1.45;
-  text-align: center;
 }
 
 .page.onboarding .ob-chapter-band,
@@ -7446,29 +6935,6 @@ button.card:active {
 
 .page.onboarding .ob-chapter-band .moonseed {
   transform: scale(0.83);
-}
-
-.page.onboarding .ob-chapter-band > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.page.onboarding .ob-chapter-band > div > span {
-  color: var(--red-600);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.page.onboarding .ob-chapter-band strong {
-  max-width: 15ch;
-  color: var(--ink-900);
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: var(--weight-display);
-  line-height: 1.04;
 }
 
 .page.onboarding .ob-option-stack {
@@ -7670,8 +7136,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 850;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-hero-field input,
@@ -7868,8 +7332,6 @@ button.card:active {
 .page.onboarding .ob-measure-grid label > span {
   color: var(--ink-500);
   font-size: 8px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-inline-fields input,
@@ -8075,12 +7537,6 @@ button.card:active {
   border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
 }
 
-.page.onboarding .ob-analysis-hero > span {
-  bottom: 11px;
-  color: var(--red-700);
-  font-size: 8px;
-}
-
 .page.onboarding-ai .ai-provider-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -8123,7 +7579,6 @@ button.card:active {
   background: transparent;
 }
 
-.page.onboarding-finish .eyebrow,
 .page.onboarding-finish h1,
 .page.onboarding-finish .lead {
   color: var(--ink-900);
@@ -8206,9 +7661,6 @@ button.card:active {
     gap: 5px;
   }
 
-  .page.onboarding .ob-proof-row small {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8403,16 +7855,14 @@ button.card:active {
   border-color: color-mix(in srgb, var(--red-600) 30%, transparent);
 }
 
-.daily-insight-tile > span {
+.daily-insight-tile > h3 {
   position: relative;
   z-index: 1;
   min-height: 22px;
   color: var(--ink-650);
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.085em;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.25;
-  text-transform: uppercase;
 }
 
 .daily-insight-tile > strong {
@@ -8435,22 +7885,6 @@ button.card:active {
   font-size: 9.25px;
   font-weight: 600;
   line-height: 1.35;
-}
-
-.daily-insight-tile > i {
-  position: absolute;
-  right: 9px;
-  bottom: 8px;
-  width: 17px;
-  height: 17px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-650);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-style: normal;
-  background: rgba(255, 255, 255, 0.36);
-  border-radius: 50%;
 }
 
 .daily-insight-tile:active {
@@ -8528,8 +7962,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .date-cell.is-today .date-cell-caption {
@@ -8567,13 +7999,6 @@ button.card:active {
   gap: 2px;
 }
 
-.today-page .phase-eyebrow {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 .today-page .phase-copy h1 {
   margin-top: 2px;
   font-size: clamp(52px, 17vw, 76px);
@@ -8587,7 +8012,7 @@ button.card:active {
   margin-top: 10px;
 }
 
-/* The hero's call to action is a pill, not a footer strip. */
+/* A text action below the phase information. */
 .today-page .phase-detail-link {
   margin-top: auto;
   padding: 11px 16px;
@@ -8596,17 +8021,8 @@ button.card:active {
   border-top: 0;
   font-size: 14px;
   font-weight: 650;
-  background: color-mix(in srgb, var(--pink-50) 42%, transparent);
-  border-radius: 999px;
-}
-
-.today-page .phase-detail-link span {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  background: color-mix(in srgb, var(--pink-50) 75%, transparent);
-  border-radius: 50%;
+  background: transparent;
+  text-decoration: underline;
 }
 
 .today-quick-actions {
@@ -8616,16 +8032,6 @@ button.card:active {
 /* Insights scroll horizontally so a fourth card is discoverable, not hidden. */
 .daily-heading {
   margin-bottom: 2px;
-}
-
-.daily-heading h2 {
-  font-size: 21px;
-  letter-spacing: -0.02em;
-}
-
-.daily-heading-when {
-  color: var(--ink-500);
-  font-weight: 500;
 }
 
 .daily-insight-rail {
@@ -8653,8 +8059,7 @@ button.card:active {
   }
 }
 
-/* Sentence-length hero titles ("Let's pick this back up") need a smaller
-   scale than the numeric states ("Day 3") the display size was tuned for. */
+/* Longer empty and midlife headings use a smaller display size. */
 .today-page .phase-empty .phase-copy h1,
 .today-page .phase-peri .phase-copy h1 {
   font-size: clamp(32px, 9.5vw, 42px);
@@ -8745,4 +8150,20 @@ button.card:active {
   .today-page .phase-hero.enter-previous {
     animation: none;
   }
+}
+
+.group-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-900);
+  margin: 22px 0 8px;
+}
+
+.assistant-feature-open {
+  position: relative;
+  z-index: 3;
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 600;
 }

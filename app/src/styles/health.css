@@ -33,7 +33,6 @@
   font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 750;
-  letter-spacing: 0.02em;
   text-align: center;
 }
 
@@ -68,15 +67,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-}
-
-.health-kicker {
-  color: var(--health-coral);
-  font-family: var(--font-sans);
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .health-display {
@@ -134,10 +124,6 @@
   border-radius: 29px 29px 29px 9px;
   box-shadow: 0 22px 48px color-mix(in srgb, var(--ink-900) 20%, transparent);
   isolation: isolate;
-}
-
-.peri-result-hero .health-kicker {
-  color: var(--red-300);
 }
 
 .peri-result-hero h1 {
@@ -262,8 +248,6 @@
   margin-top: 5px;
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .peri-current-result > .health-lede {
@@ -479,8 +463,6 @@
   color: var(--health-moss);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .health-empty {
@@ -722,8 +704,6 @@
   color: var(--health-soft-ink);
   font-size: 9px;
   text-align: center;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
 }
 
 .health-domain-list {
