@@ -121,7 +121,7 @@ const TRACKING_AREAS: Option[] = [
   { id: 'mood', icon: '◡', label: 'Mood & energy' },
   { id: 'discharge', icon: '◌', label: 'Discharge' },
   { id: 'sleep', icon: '☾', label: 'Sleep' },
-  { id: 'movement', label: 'Movement' },
+  { id: 'movement', icon: '≈', label: 'Movement' },
   { id: 'fertility', icon: '✦', label: 'Fertility signals' },
   { id: 'sexual-wellbeing', icon: '♡', label: 'Sexual wellbeing' },
 ]
@@ -1117,7 +1117,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             ['activityImpact', 'Energy', ''],
           ] as const).map(([key, label, icon]) => (
             <section key={key}>
-              <div><span aria-hidden="true">{icon}</span><strong>{label}</strong></div>
+              <div>{icon && <span aria-hidden="true">{icon}</span>}<strong>{label}</strong></div>
               <div>
                 {impactOptions.map((option) => (
                   <button
