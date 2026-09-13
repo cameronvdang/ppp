@@ -17,6 +17,7 @@ const BANNED_CLASSES = /\b(page-kicker|phase-eyebrow|health-kicker|reminder-kick
 const BANNED_GLYPHS = /[→↗‹›—]/
 const ADJECTIVES = /\b(gentle|gently|calm|quietly|companion|without judgment)\b/i
 const DECORATIVE_COPY = /\b(Read, ask, notice|Your time, your rhythm|Bring the question you keep circling|Your key, your conversation, your choice|A clearer map of your changing body|Your rhythm will appear here|Three readings unlock the line|For this part of your cycle|Chosen for your focus)\b/i
+// db/ is intentionally not scanned because taxonomy labels are persisted values.
 const UI_DIRS = ['screens', 'components', 'privacy']
 const UI_COPY_FILES = ['records/providers/http.ts', 'records/connect.ts', 'platform/notifications.ts']
 const UI_ERROR_FILES = ['lib/assistant.ts', 'lib/backup.ts', 'records/providers/relay.ts', 'records/relaySettings.ts']
