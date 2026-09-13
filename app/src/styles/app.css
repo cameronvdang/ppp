@@ -4251,29 +4251,6 @@ button.card:active {
   flex: 0 0 auto;
 }
 
-.moonseed-orbit {
-  position: absolute;
-  top: 21px;
-  left: 5px;
-  width: 105px;
-  height: 70px;
-  border: 1px solid color-mix(in srgb, var(--red-600) 26%, transparent);
-  border-radius: 50%;
-  transform: rotate(-15deg);
-}
-
-.moonseed-orbit::after {
-  content: '';
-  position: absolute;
-  right: 5px;
-  bottom: -3px;
-  width: 7px;
-  height: 7px;
-  background: var(--period);
-  border-radius: 50%;
-  box-shadow: -85px -45px 0 -1px var(--yellow-500);
-}
-
 .moonseed-body {
   position: absolute;
   top: 17px;
@@ -4636,24 +4613,6 @@ button.card:active {
 
 .ob-option-stack.compact .ob-option.selected {
   min-height: 67px;
-}
-
-.ob-chapter-band {
-  min-height: 134px;
-  padding: 13px 17px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background:
-    radial-gradient(circle at 88% 10%, rgba(255, 255, 255, 0.72), transparent 31%),
-    linear-gradient(140deg, var(--pink-100), var(--pink-100));
-  border: 1px solid color-mix(in srgb, var(--ink-900) 7%, transparent);
-  border-radius: 29px;
-  box-shadow: 0 16px 38px color-mix(in srgb, var(--ink-900) 7%, transparent);
-}
-
-.ob-chapter-band.pregnancy {
-  background: linear-gradient(140deg, var(--pink-100), var(--pink-200));
 }
 
 .ob-prediction-gate {
@@ -5682,24 +5641,6 @@ button.card:active {
   height: 8px;
 }
 
-.page.onboarding .moonseed-orbit {
-  top: 28px;
-  left: -8px;
-  width: 143px;
-  height: 70px;
-  border: 1px solid var(--ob-rule);
-  transform: rotate(-15deg);
-}
-
-.page.onboarding .moonseed-orbit::after {
-  right: 8px;
-  bottom: -3px;
-  width: 5px;
-  height: 5px;
-  background: var(--ob-accent);
-  box-shadow: -112px -36px 0 -1px var(--ob-accent);
-}
-
 .page.onboarding .moonseed-star {
   top: 7px;
   right: 7px;
@@ -5858,28 +5799,6 @@ button.card:active {
   color: var(--ob-canvas);
   background: var(--ob-accent);
   border-color: var(--ob-accent);
-}
-
-.page.onboarding .ob-chapter-band {
-  min-height: 104px;
-  padding: 16px 0;
-  gap: 14px;
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--ob-rule);
-  border-bottom: 1px solid var(--ob-rule);
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.page.onboarding .ob-chapter-band .moonseed {
-  width: 76px;
-  height: 76px;
-}
-
-.page.onboarding .ob-chapter-band .moonseed .ob-crescent-mark {
-  width: 48px;
-  height: 48px;
 }
 
 .page.onboarding .ob-why,
@@ -6809,29 +6728,6 @@ button.card:active {
   flex: 0 0 auto;
 }
 
-.page.onboarding .moonseed-orbit {
-  position: absolute;
-  top: 17px;
-  left: 4px;
-  width: 104px;
-  height: 72px;
-  border: 1px solid color-mix(in srgb, var(--red-600) 20%, transparent);
-  border-radius: 50%;
-  transform: rotate(-14deg);
-}
-
-.page.onboarding .moonseed-orbit::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  bottom: -3px;
-  width: 7px;
-  height: 7px;
-  background: var(--period);
-  border-radius: 50%;
-  box-shadow: -84px -44px 0 -1px var(--yellow-500);
-}
-
 .page.onboarding .moonseed .ob-crescent-mark {
   position: absolute;
   z-index: 2;
@@ -6911,7 +6807,6 @@ button.card:active {
   gap: 9px;
 }
 
-.page.onboarding .ob-chapter-band,
 .page.onboarding .ob-night-map,
 .page.onboarding .ob-analysis-hero,
 .page.onboarding .ob-finish-orbit {
@@ -6924,17 +6819,6 @@ button.card:active {
   border: 1px solid var(--line-soft);
   border-radius: 27px;
   box-shadow: var(--shadow-card);
-}
-
-.page.onboarding .ob-chapter-band {
-  padding: 13px 17px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-
-.page.onboarding .ob-chapter-band .moonseed {
-  transform: scale(0.83);
 }
 
 .page.onboarding .ob-option-stack {

@@ -311,7 +311,6 @@ function CrescentMark({ quiet = false }: { quiet?: boolean }) {
 function Moonseed({ mood = 'bright' }: { mood?: 'bright' | 'thinking' | 'resting' }) {
   return (
     <div className={`moonseed moonseed-${mood}`} aria-hidden="true">
-      <span className="moonseed-orbit" />
       <CrescentMark quiet={mood === 'resting'} />
       <span className="moonseed-star">✦</span>
     </div>
@@ -948,13 +947,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             : 'Embryo transfer date'
     return (
       <Frame {...frameProps} chapter="Pregnancy baseline" onSkip={next}>
-        <div className="ob-chapter-band pregnancy">
-          <Moonseed />
-          <p>Start with a provisional pregnancy timeline.</p>
-        </div>
         <QuestionIntro
           title="Which date should anchor your timeline?"
-          body="PPP keeps your selected dating source instead of assuming the date of your last period."
+          body="PPP keeps your selected dating source instead of assuming the date of your last period. Your timeline is provisional unless a clinician has assigned your due date."
         />
         <div className="ob-option-stack compact">
           {datingOptions.map((option) => (
