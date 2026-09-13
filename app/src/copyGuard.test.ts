@@ -126,6 +126,7 @@ const longSentences = (copies: Copy[]) => copies.flatMap(copy => copy.text.split
 
 describe('UI copy guard', () => {
   const files = uiFiles()
+  const markupFiles = [...files, ...SHARED_DISPLAY_FILES.map(file => resolve(__dirname, file))]
   const copy = [
     ...files.map(file => ({ file: file.split('/src/')[1], copies: userFacingText(readFileSync(file, 'utf8'), file) })),
     ...UI_ERROR_FILES.map(file => ({ file, copies: userFacingText(readFileSync(resolve(__dirname, file), 'utf8'), file, true) })),
@@ -142,7 +143,7 @@ describe('UI copy guard', () => {
   })
 
   it('has no eyebrow, kicker, tagline or section-label classes in UI markup', () => {
-    const offenders = files.filter(file => BANNED_CLASSES.test(readFileSync(file, 'utf8'))).map(rel)
+    const offenders = markupFiles.filter(file => BANNED_CLASSES.test(readFileSync(file, 'utf8'))).map(rel)
     expect(offenders).toEqual([])
   })
 
@@ -166,7 +167,7 @@ describe('UI copy guard', () => {
       .map(block => block.split('{')[0].trim())
     expect(disallowed).toEqual([])
     expect(css).not.toMatch(/--tracking-label/)
-    const inlineOffenders = files.filter(file => /textTransform:\s*['"]uppercase['"]|letterSpacing:\s*['"](?:0*\.\d*[1-9]\d*|[1-9]\d*)(?:em|px|rem)['"]/.test(readFileSync(file, 'utf8'))).map(rel)
+    const inlineOffenders = markupFiles.filter(file => /textTransform:\s*['"]uppercase['"]|letterSpacing:\s*['"](?:0*\.\d*[1-9]\d*|[1-9]\d*)(?:em|px|rem)['"]/.test(readFileSync(file, 'utf8'))).map(rel)
     expect(inlineOffenders).toEqual([])
   })
 
