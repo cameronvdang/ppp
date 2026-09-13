@@ -124,6 +124,23 @@ const longSentences = (copies: Copy[]) => copies.flatMap(copy => copy.text.split
   return words > (copy.consent ? 24 : 20) ? [{ ...copy, text, words }] : []
 }))
 
+function typographyOffenders(source: string): string[] {
+  const css = source.replace(/\/\*[\s\S]*?\*\//g, '')
+  return (css.match(/[^{}]+\{[^{}]*\}/g) ?? []).flatMap(block => {
+    const [selectors, declarations] = block.split('{')
+    const allowed = selectors.trim().split(',').every(selector =>
+      /^(?:\.cal-dow|\.date-cell \.dow)$/.test(selector.trim()))
+    const decorated = [...declarations.matchAll(/(?:^|;)\s*(text-transform|letter-spacing|--tracking-[a-z]+)\s*:\s*([^;}]+)/g)]
+      .some(([, property, rawValue]) => {
+        const value = rawValue.trim().replace(/\s*!important$/, '')
+        if (property === 'text-transform') return value === 'uppercase'
+        if (property === 'letter-spacing' && /^var\(/.test(value)) return true
+        return /^\+?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?(?:[a-z]+|%)?$/i.test(value) && parseFloat(value) > 0
+      })
+    return !allowed && decorated ? [selectors.trim()] : []
+  })
+}
+
 describe('UI copy guard', () => {
   const files = uiFiles()
   const markupFiles = [...files, ...SHARED_DISPLAY_FILES.map(file => resolve(__dirname, file))]
@@ -158,17 +175,23 @@ describe('UI copy guard', () => {
 
   it('uses uppercase only for weekday letters', () => {
     const css = readdirSync(resolve(__dirname, 'styles')).filter(name => name.endsWith('.css'))
-      .map(name => readFileSync(resolve(__dirname, 'styles', name), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')).join('\n')
-    const blocks = (css.match(/[^{}]+\{[^{}]*\}/g) ?? []).filter(block =>
-      /text-transform:\s*uppercase/.test(block) ||
-      /letter-spacing:\s*(?:[1-9]\d*(?:\.\d+)?|0*\.\d*[1-9]\d*)(?:em|px|rem)/.test(block))
-    const disallowed = blocks.filter(block => !block.split('{')[0].trim().split(',')
-      .every(selector => /^(?:\.cal-weekdays span|\.date-strip \.dow)$/.test(selector.trim())))
-      .map(block => block.split('{')[0].trim())
-    expect(disallowed).toEqual([])
-    expect(css).not.toMatch(/--tracking-label/)
+      .map(name => readFileSync(resolve(__dirname, 'styles', name), 'utf8')).join('\n')
+    expect(typographyOffenders(css)).toEqual([])
     const inlineOffenders = markupFiles.filter(file => /textTransform:\s*['"]uppercase['"]|letterSpacing:\s*['"](?:0*\.\d*[1-9]\d*|[1-9]\d*)(?:em|px|rem)['"]/.test(readFileSync(file, 'utf8'))).map(rel)
     expect(inlineOffenders).toEqual([])
+  })
+
+  it('allows weekday typography and catches tracking variables elsewhere', () => {
+    const decoration = 'text-transform: uppercase; letter-spacing: var(--tracking-day); --tracking-day: .04em;'
+    expect(typographyOffenders(`.cal-dow, .date-cell .dow { ${decoration} }`)).toEqual([])
+    for (const selector of ['.cal-weekdays span', '.date-strip .dow', '.cal-dow, .title']) {
+      expect(typographyOffenders(`${selector} { ${decoration} }`)).toEqual([selector])
+    }
+    for (const declaration of ['letter-spacing: var(--tracking-tight)', 'letter-spacing: 1.5px', '--tracking-wide: .04em', '--tracking-wide: +2px', '--tracking-wide: 0.001rem']) {
+      expect(typographyOffenders(`@media (min-width: 600px) { .title { ${declaration}; } }`)).toEqual(['.title'])
+    }
+    expect(typographyOffenders('.title { letter-spacing: -0.02em; --tracking-tight: -0.02em; --tracking-zero: 0em; }')).toEqual([])
+    expect(typographyOffenders(`/* .title { ${decoration} } */`)).toEqual([])
   })
 
   it('checks glyph-only JSX, attributes and literal branches', () => {
