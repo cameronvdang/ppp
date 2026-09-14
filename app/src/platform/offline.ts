@@ -1,4 +1,5 @@
 export interface OfflineReadiness {
+  supported: boolean
   ready: boolean
   persisted: boolean | null
   online: boolean
@@ -31,12 +32,15 @@ export async function storagePersisted(): Promise<boolean | null> {
 }
 
 export async function offlineReadiness(): Promise<OfflineReadiness> {
+  const supported = typeof globalThis.navigator?.serviceWorker !== 'undefined' &&
+    (typeof window === 'undefined' || (import.meta.env.PROD &&
+      (window.location.protocol === 'https:' || window.location.hostname === 'localhost')))
   let ready = false
   try {
-    ready = !!globalThis.navigator?.serviceWorker?.controller &&
+    ready = supported && !!globalThis.navigator?.serviceWorker?.controller &&
       (await globalThis.caches?.keys() ?? []).some(key => key.includes('precache'))
   } catch { /* Storage may be unavailable in this browser. */ }
-  return { ready, persisted: await storagePersisted(), online: isOnline() }
+  return { supported, ready, persisted: await storagePersisted(), online: isOnline() }
 }
 
 export class OfflineError extends Error {

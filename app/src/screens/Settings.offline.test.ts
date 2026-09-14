@@ -39,13 +39,19 @@ let cleanups: Array<() => void> = []
 beforeEach(() => {
   ui.states = []
   ui.query = { profile: createDefaultHealthProfile(), goal: 'cycle', endpoint: '', recoveryCode: '' }
+  vi.stubEnv('PROD', true)
+  vi.stubGlobal('window', { location: { protocol: 'https:', hostname: 'app.test' } })
   vi.stubGlobal('navigator', { onLine: true, serviceWorker: { controller: null }, storage: { persisted: async () => false, persist: async () => false } })
   vi.stubGlobal('caches', { keys: async () => ['workbox-precache-test'] })
 })
-afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => { cleanups.splice(0).forEach(cleanup => cleanup()); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs() })
 
-it('checks readiness on mount and every five seconds until ready, then stops polling', async () => {
+it.each([
+  { protocol: 'https:', hostname: 'app.test' },
+  { protocol: 'http:', hostname: 'localhost' },
+])('checks readiness at $protocol//$hostname every five seconds until ready, then stops polling', async ({ protocol, hostname }) => {
   vi.useFakeTimers()
+  vi.stubGlobal('window', { location: { protocol, hostname } })
   mount()
   await vi.advanceTimersByTimeAsync(0)
   expect(groupMarkup()).toContain('Works offline')
@@ -57,6 +63,18 @@ it('checks readiness on mount and every five seconds until ready, then stops pol
   expect(groupMarkup()).toContain('Downloading')
   await vi.advanceTimersByTimeAsync(1)
   expect(groupMarkup()).toContain('Ready')
+  expect(vi.getTimerCount()).toBe(0)
+})
+
+it.each(['missing service worker', 'development', 'HTTP off localhost'])('shows unavailable without polling for %s', async unsupported => {
+  vi.useFakeTimers()
+  if (unsupported === 'missing service worker') vi.stubGlobal('navigator', { onLine: true })
+  if (unsupported === 'development') vi.stubEnv('PROD', false)
+  if (unsupported === 'HTTP off localhost') vi.stubGlobal('window', { location: { protocol: 'http:', hostname: 'app.test' } })
+  mount()
+  await vi.advanceTimersByTimeAsync(0)
+  expect(groupMarkup()).toContain('Not available in this browser')
+  expect(groupMarkup()).not.toContain('Downloading')
   expect(vi.getTimerCount()).toBe(0)
 })
 

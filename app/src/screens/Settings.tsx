@@ -169,7 +169,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       const readiness = await offlineReadiness()
       if (!active) return
       setOffline(readiness)
-      if (!readiness.ready) timer = setTimeout(() => void inspect(), 5_000)
+      if (readiness.supported && !readiness.ready) timer = setTimeout(() => void inspect(), 5_000)
     }
     void inspect()
     return () => { active = false; clearTimeout(timer) }
@@ -723,7 +723,7 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
       <Section title="Offline">
         <div className="setting-row static-row">
           <span>Works offline</span>
-          <span className="muted">{offline?.ready ? 'Ready' : 'Downloading'}</span>
+          <span className="muted">{offline?.supported === false ? 'Not available in this browser' : offline?.ready ? 'Ready' : 'Downloading'}</span>
         </div>
         <div className="setting-row static-row">
           <span>Kept on this device</span>
