@@ -1,5 +1,6 @@
 import { blobIdFromCode, encryptJSON, decryptJSON, type Envelope } from '../crypto/vault'
 import { applyImport, collectExport, type ExportPayload } from '../db/transfer'
+import { requireOnline } from '../platform/offline'
 
 /**
  * Zero-knowledge backup to a PPP relay (Cloudflare Worker + R2). The device
@@ -7,6 +8,7 @@ import { applyImport, collectExport, type ExportPayload } from '../db/transfer'
  * stores an opaque blob keyed by a hash of that code and can never read it.
  */
 export async function pushBackup(endpoint: string, recoveryCode: string): Promise<void> {
+  requireOnline()
   const [id, envelope] = await Promise.all([
     blobIdFromCode(recoveryCode),
     encryptJSON(await collectExport(), recoveryCode),
@@ -20,6 +22,7 @@ export async function pushBackup(endpoint: string, recoveryCode: string): Promis
 }
 
 export async function restoreBackup(endpoint: string, recoveryCode: string): Promise<number> {
+  requireOnline()
   const id = await blobIdFromCode(recoveryCode)
   const res = await fetch(`${endpoint.replace(/\/$/, '')}/v1/blob/${id}`)
   if (res.status === 404) throw new Error('No backup found for that recovery code.')

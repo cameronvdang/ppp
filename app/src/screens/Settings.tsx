@@ -23,6 +23,7 @@ import {
 import type { Envelope } from '../crypto/vault'
 import { applyImport, collectExport, decryptImport, encryptedExport, shareOrDownload } from '../db/transfer'
 import { pushBackup, restoreBackup } from '../lib/backup'
+import { offlineReadiness, requestPersistentStorage, requireOnline, type OfflineReadiness } from '../platform/offline'
 import { localToday } from '../lib/dates'
 import { addDays } from '../engine/cycle'
 import {
@@ -158,6 +159,30 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   const [reminders, setReminders] = useState<ReminderPreferences | null>(null)
   const [pregnancyMethod, setPregnancyMethod] =
     useState<PregnancyDatingMethod>('lmp')
+  const [offline, setOffline] = useState<OfflineReadiness | null>(null)
+  const [protecting, setProtecting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function inspect() {
+      const readiness = await offlineReadiness()
+      if (!active) return
+      setOffline(readiness)
+      if (!readiness.ready) timer = setTimeout(() => void inspect(), 5_000)
+    }
+    void inspect()
+    return () => { active = false; clearTimeout(timer) }
+  }, [])
+
+  async function protectStorage() {
+    if (protecting) return
+    setProtecting(true)
+    try {
+      await requestPersistentStorage()
+      setOffline(await offlineReadiness())
+    } finally { setProtecting(false) }
+  }
 
   useEffect(() => {
     let alive = true
@@ -416,16 +441,17 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   }
 
   async function enableBackup() {
-    const endpoint = prompt('Backup service address:', s!.endpoint)
-    if (!endpoint) return
-    let code = s!.recoveryCode
-    if (!code) {
-      code = generateRecoveryCode()
-      await setSetting('recoveryCode', code)
-      alert(`Your recovery code. Write it down; it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
-    }
-    await setSetting(SK.backupEndpoint, endpoint)
     try {
+      requireOnline()
+      const endpoint = prompt('Backup service address:', s!.endpoint)
+      if (!endpoint) return
+      let code = s!.recoveryCode
+      if (!code) {
+        code = generateRecoveryCode()
+        await setSetting('recoveryCode', code)
+        alert(`Your recovery code. Write it down; it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
+      }
+      await setSetting(SK.backupEndpoint, endpoint)
       await pushBackup(endpoint, code)
       setStatus('Backed up. Your backup service cannot read this copy.')
     } catch (e) {
@@ -434,11 +460,12 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
   }
 
   async function restore() {
-    const endpoint = prompt('Backup service address:', s!.endpoint)
-    if (!endpoint) return
-    const code = prompt('Enter your recovery code:')
-    if (!code) return
     try {
+      requireOnline()
+      const endpoint = prompt('Backup service address:', s!.endpoint)
+      if (!endpoint) return
+      const code = prompt('Enter your recovery code:')
+      if (!code) return
       const n = await restoreBackup(endpoint, normalizeRecoveryCode(code))
       await setSetting('recoveryCode', normalizeRecoveryCode(code))
       await setSetting(SK.backupEndpoint, endpoint)
@@ -691,6 +718,22 @@ export function Settings({ onPinPresenceChange, onDeleteAllData }: {
           They do not encrypt everything you log.
         </p>
         <a href="#privacy-and-data">How PPP protects your data</a>
+      </Section>
+
+      <Section title="Offline">
+        <div className="setting-row static-row">
+          <span>Works offline</span>
+          <span className="muted">{offline?.ready ? 'Ready' : 'Downloading'}</span>
+        </div>
+        <div className="setting-row static-row">
+          <span>Kept on this device</span>
+          <span className="offline-storage-status">
+            <span className="muted">{offline?.persisted ? 'Yes' : 'Not guaranteed'}</span>
+            {offline?.persisted === false && typeof globalThis.navigator?.storage?.persist === 'function' &&
+              <button type="button" className="offline-protect" disabled={protecting} onClick={protectStorage}>Protect</button>}
+          </span>
+        </div>
+        <p className="offline-explanation">Once downloaded, PPP opens without a connection. Only provider records, the assistant and backups need one.</p>
       </Section>
 
       <Section title="Your data and backups">

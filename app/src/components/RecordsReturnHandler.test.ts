@@ -20,6 +20,19 @@ beforeEach(async () => {
   await grantRecordsConsent()
 })
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+it('reports the exact offline error for a saved return without consuming its pending session', async () => {
+  const provider: RecordsProvider = { mode: 'live', startConnect: vi.fn(async () => ({ sessionId: id, redirectUrl: 'https://connect.test/s', completed: false, expiresAt: null, subject: null })), getSession: vi.fn(), fetchSnapshot: vi.fn() }
+  const deps = { provider, navigate: vi.fn() }
+  await startConnection(['labs'], deps)
+  const before = await getConnection()
+  vi.stubGlobal('navigator', { ...navigator, onLine: false })
+  const settled = vi.fn()
+  const cleanup = subscribeRecordsReturn(params, settled, deps)
+  await vi.waitFor(() => expect(settled).toHaveBeenCalledWith('You are offline. This needs a connection.'))
+  expect(await getConnection()).toEqual(before)
+  expect(provider.getSession).not.toHaveBeenCalled()
+  cleanup()
+})
 it('shares suspended completion across StrictMode cleanup/remount and rejects a later replay', async () => {
   let release!: (state: ConnectSessionState) => void, entered!: () => void
   const waiting = new Promise<void>(r => { entered = r })

@@ -8,7 +8,7 @@ const BANNED = [
   /\bhardware\b/i, /pseudonymous/i, /subject ID/i, /external ID/i, /return URL/i,
   /client token/i, /single-owner/i, /dedicated FinchNode application/i, /\brelay\b/i,
   /\bvault\b/i, /\bsealed\b/i, /\bgeneration\b/i, /\bsnapshot\b/i, /sync state/i,
-  /service worker/i, /\bPWA\b/i, /\bFHIR\b/i, /\bRRULE\b/i, /\bfloating\b/i,
+  /service worker/i, /\bcache\b/i, /\bprecache\b/i, /\bPWA\b/i, /\bFHIR\b/i, /\bRRULE\b/i, /\bfloating\b/i,
   /PRIVACY\.md/i, /repository/i, /\bmetadata\b/i, /\bOrigin\b/i, /allowlist/i,
   /canonical/i, /signature verification/i, /\bBYOK\b/i, /\bAPI\b/i,
   /\bworker\b/i, /\bblob\b/i, /\.ics\b/i,
@@ -20,7 +20,7 @@ const DECORATIVE_COPY = /\b(Read, ask, notice|Your time, your rhythm|Bring the q
 // db/ is intentionally not scanned because taxonomy labels are persisted values.
 const UI_DIRS = ['screens', 'components', 'privacy']
 const UI_COPY_FILES = ['records/providers/http.ts', 'records/connect.ts', 'platform/notifications.ts']
-const UI_ERROR_FILES = ['lib/assistant.ts', 'lib/backup.ts', 'records/providers/relay.ts', 'records/relaySettings.ts']
+const UI_ERROR_FILES = ['lib/assistant.ts', 'lib/backup.ts', 'records/providers/relay.ts', 'records/relaySettings.ts', 'platform/offline.ts']
 // Educational content and reminder bodies are also displayed by these screens.
 // Keep the existing jargon and sentence-length scope; apply decoration rules to
 // these shared strings as well, so imported copy cannot bypass the new check.
@@ -111,6 +111,7 @@ function userFacingText(source: string, filename = 'copy.tsx', errorsOnly = fals
   // Inspect their Error messages without changing that technical vocabulary.
   function visitErrors(node: ts.Node) {
     if (ts.isNewExpression(node) && node.expression.getText(file) === 'Error') node.arguments?.forEach(visit)
+    else if (ts.isCallExpression(node) && node.expression.kind === ts.SyntaxKind.SuperKeyword) node.arguments.forEach(visit)
     else ts.forEachChild(node, visitErrors)
   }
   if (errorsOnly) visitErrors(file)
@@ -143,6 +144,20 @@ function typographyOffenders(source: string): string[] {
 }
 
 describe('UI copy guard', () => {
+  it('bans offline implementation vocabulary, including imported error messages', () => {
+    for (const term of ['service worker', 'cache', 'precache', 'IndexedDB', 'PWA']) {
+      expect(jargonOffenders(userFacingText(`<p>${term}</p>`))).toHaveLength(1)
+    }
+    const errors = userFacingText('class StorageError extends Error { constructor() { super("Could not read the cache.") } }', 'offline.ts', true)
+    expect(jargonOffenders(errors).map(copy => copy.text)).toEqual(['Could not read the cache.'])
+    expect(UI_ERROR_FILES).toContain('platform/offline.ts')
+  })
+
+  it('keeps the install card explanation exact', () => {
+    const copies = userFacingText(readFileSync(resolve(__dirname, 'components/InstallCard.tsx'), 'utf8'))
+    expect(copies.map(copy => copy.text)).toContain('Opens full screen and works offline. Everything stays on this phone.')
+  })
+
   const files = uiFiles()
   const markupFiles = [...files, ...SHARED_DISPLAY_FILES.map(file => resolve(__dirname, file))]
   const copy = [

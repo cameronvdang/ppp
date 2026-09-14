@@ -18,6 +18,7 @@ import {
   type AssistantConsent,
 } from '../lib/assistantContext'
 import { screenAssistantUrgency } from '../lib/assistantSafety'
+import { isOnline, OfflineError, requireOnline, subscribeOnline } from '../platform/offline'
 import {
   deleteSecureSecret,
   getSecureSecret,
@@ -79,10 +80,13 @@ export function AssistantScreen() {
   const [contextOpen, setContextOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [online, setOnline] = useState(isOnline)
   const scroller = useRef<HTMLDivElement>(null)
   const composerInput = useRef<HTMLTextAreaElement>(null)
 
   const credentialKind = apiKey ? anthropicCredentialKind(apiKey) : null
+
+  useEffect(() => subscribeOnline(setOnline), [])
 
   useEffect(() => {
     let alive = true
@@ -207,6 +211,11 @@ export function AssistantScreen() {
   }
 
   async function send(textOverride?: string) {
+    try { requireOnline() }
+    catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Something went wrong.')
+      return
+    }
     const text = (textOverride ?? input).trim()
     if (!text || busy) return
     if (!apiKey) {
@@ -282,6 +291,8 @@ export function AssistantScreen() {
           </svg>
         </button>
       </header>
+
+      {!online && <p className="offline-notice" role="status">{new OfflineError().message}</p>}
 
       {loading ? (
         <div className="overlay-body assistant-loading">
@@ -484,7 +495,7 @@ export function AssistantScreen() {
                 </p>
                 <div className="starter-list" aria-label="Starter questions">
                   {STARTERS.map((starter) => (
-                    <button key={starter} onClick={() => send(starter)}>
+                    <button key={starter} disabled={!online || busy} onClick={() => send(starter)}>
                       <span>{starter}</span>
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 17 17 7M9 7h8v8" />
@@ -543,7 +554,7 @@ export function AssistantScreen() {
                 }
               }}
             />
-            <button type="submit" disabled={busy || !input.trim()} aria-label="Send message">
+            <button type="submit" disabled={!online || busy || !input.trim()} aria-label="Send message">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 18V6m-5 5 5-5 5 5" />
               </svg>

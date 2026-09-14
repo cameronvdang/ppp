@@ -7,6 +7,7 @@ import { setSecureSecret, SECURE_SECRET_KEYS } from '../platform/secureVault'
 import { cancelConnection, completePendingConnection, disconnectAndDelete, grantRecordsConsent, hasRecordsConsent, providerFor, startConnection, syncSnapshot } from './connect'
 import { getConnection, listRecords } from './store'
 import type { RecordsProvider, RecordsSnapshot, ConnectSessionState } from './providers/types'
+import { OfflineError } from '../platform/offline'
 
 const id = 'cs_0123456789abcdef0123'
 const subject = 'u_0123456789abcdef'
@@ -45,6 +46,27 @@ beforeEach(async () => {
   await grantRecordsConsent()
 })
 afterEach(() => { vi.useRealTimers(); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+it.each(['start', 'refresh', 'complete'] as const)('rejects offline %s as a promise before changing saved connection state or calling a provider', async action => {
+  const p = provider()
+  if (action !== 'start') await startConnection(['labs'], { ...deps, provider: p })
+  if (action === 'refresh') await completePendingConnection(ret, { ...deps, provider: p })
+  const before = await getConnection(), rows = await db.medicalRecords.toArray()
+  vi.clearAllMocks()
+  vi.stubGlobal('navigator', { ...globalThis.navigator, onLine: false })
+  let promise!: Promise<unknown>
+  expect(() => {
+    promise = action === 'start' ? startConnection(['labs'], { ...deps, provider: p })
+      : action === 'refresh' ? syncSnapshot({ ...deps, provider: p })
+      : completePendingConnection(ret, { ...deps, provider: p })
+  }).not.toThrow()
+  await expect(promise).rejects.toThrow(OfflineError)
+  expect(await getConnection()).toEqual(before)
+  expect(await db.medicalRecords.toArray()).toEqual(rows)
+  expect(p.startConnect).not.toHaveBeenCalled()
+  expect(p.getSession).not.toHaveBeenCalled()
+  expect(p.fetchSnapshot).not.toHaveBeenCalled()
+})
 
 describe('connection orchestration', () => {
   it('stores the pending session before navigation with a fixed return URL', async () => {

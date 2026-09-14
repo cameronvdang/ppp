@@ -37,7 +37,7 @@ export function InstallCard({ variant }: { variant: 'today' | 'settings' }) {
 
   return <aside className={`install-card install-card-${variant}`} aria-label="Add PPP to your home screen">
     <h2>Add PPP to your home screen</h2>
-    <p>Opens full screen, works offline, and keeps everything on this phone.</p>
+    <p>Opens full screen and works offline. Everything stays on this phone.</p>
     {state.mode === 'prompt' ? <button type="button" className="cta" onClick={() => void install()} disabled={busy}>Add to home screen</button> :
       <ol>
         <li>Tap the Share button <svg className="install-share-glyph" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true"><path d="M12 15V2m-4 4 4-4 4 4M7 10H4v12h16V10h-3" /></svg></li>

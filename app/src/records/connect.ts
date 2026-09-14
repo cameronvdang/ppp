@@ -1,4 +1,5 @@
 import { db, getHealthProfile, getSetting, SK } from '../db/schema'
+import { requireOnline } from '../platform/offline'
 import { normalizeCategories, requireCategories } from './categories'
 import { createDemoProvider, DEMO_BUSY, DEMO_PATIENT_ID } from './providers/demo'
 import { friendlyStatus } from './providers/http'
@@ -155,6 +156,7 @@ async function refresh(deps: ConnectDeps, captured?: RecordsConnection): Promise
   try { return await promise } finally { if (refreshes.get(c.generation) === promise) refreshes.delete(c.generation) }
 }
 export function syncSnapshot(deps: ConnectDeps): Promise<RecordsConnection> {
+  try { requireOnline() } catch (error) { return Promise.reject(error) }
   if (refreshRequest) return refreshRequest
   const promise = refresh(deps)
   refreshRequest = promise
@@ -162,6 +164,7 @@ export function syncSnapshot(deps: ConnectDeps): Promise<RecordsConnection> {
   return promise
 }
 export async function startConnection(input: RecordCategory[], deps: ConnectDeps): Promise<'connected' | 'redirected' | 'error'> {
+  requireOnline()
   let c: RecordsConnection | undefined
   try {
     const categories = normalizeCategories(requireCategories(input))
@@ -249,6 +252,7 @@ async function poll(c: RecordsConnection, deps: ConnectDeps, controller: AbortCo
   return persistError(c, new PollTimeout(), 'check-again')
 }
 export async function completePendingConnection(params: ReturnParams, deps: ConnectDeps): Promise<RecordsConnection> {
+  requireOnline()
   const c = await validatePendingReturn(params, deps)
   const existing = completions.get(c.generation)
   if (existing) return existing

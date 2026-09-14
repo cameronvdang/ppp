@@ -12,10 +12,11 @@ import { RecordsScreen } from './RecordsScreen'
 
 const ui = vi.hoisted(() => ({
   queryIndex: 0, stateIndex: 0, queries: [] as unknown[], states: [] as unknown[], finished: () => {},
+  effects: [] as Array<() => void | (() => void)>, cleanups: [] as Array<() => void>,
 }))
 vi.mock('react', async importOriginal => ({
   ...await importOriginal<typeof import('react')>(),
-  useEffect: () => {},
+  useEffect: (effect: () => void | (() => void)) => { ui.effects.push(effect) },
   useState: () => {
     const index = ui.stateIndex++
     return [ui.states[index], (value: unknown) => {
@@ -39,10 +40,10 @@ function provider(): RecordsProvider {
   }
 }
 async function render() {
-  ui.queryIndex = 0; ui.stateIndex = 0
+  ui.queryIndex = 0; ui.stateIndex = 0; ui.effects = []
   ui.queries = [await getConnection(), await countByCategory(), true, 'https://relay.test']
   // Stale UI selections must not change a persisted creation attempt's body.
-  ui.states = [{ baseUrl: 'https://relay.test', token: 'tok', tokenRelayBaseUrl: 'https://relay.test' }, ['vitals'], true, false, '']
+  ui.states = [{ baseUrl: 'https://relay.test', token: 'tok', tokenRelayBaseUrl: 'https://relay.test' }, ['vitals'], true, false, '', navigator.onLine ?? true]
   return RecordsScreen()
 }
 type Button = ReactElement<{ children?: ReactNode; disabled?: boolean; onClick(): void }>
@@ -69,7 +70,57 @@ beforeEach(async () => {
   await setSecureSecret(SECURE_SECRET_KEYS.recordsRelayToken, JSON.stringify({ relayBaseUrl: 'https://relay.test', token: 'tok' }))
   await connect.grantRecordsConsent()
 })
-afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals() })
+afterEach(() => { ui.cleanups.splice(0).forEach(cleanup => cleanup()); vi.restoreAllMocks(); vi.unstubAllGlobals() })
+
+it('updates network controls with connection events while saved records and deletion remain available', async () => {
+  const p = provider()
+  await connect.startConnection(['labs'], { provider: p })
+  await connect.completePendingConnection({ isReturn: true, sessionId: null, invalidSession: false }, { provider: p })
+  const handlers: Record<string, () => void> = {}
+  const removeEventListener = vi.fn()
+  vi.stubGlobal('window', { addEventListener: (name: string, handler: () => void) => { handlers[name] = handler }, removeEventListener })
+  const tree = await render()
+  for (const effect of ui.effects) { const cleanup = effect(); if (cleanup) ui.cleanups.push(cleanup) }
+  expect(buttons(tree).find(button => button.props.children === 'Refresh')?.props.disabled).toBe(false)
+  expect(handlers.offline).toBeTypeOf('function')
+  handlers.offline()
+  ui.queryIndex = 0; ui.stateIndex = 0
+  const offlineTree = RecordsScreen()
+  expect(renderToStaticMarkup(offlineTree)).toContain('You are offline. This needs a connection.')
+  expect(buttons(offlineTree).find(button => button.props.children === 'Refresh')?.props.disabled).toBe(true)
+  expect(buttons(offlineTree).filter(button => button.props.children !== 'Refresh').every(button => !button.props.disabled)).toBe(true)
+  handlers.online()
+  ui.queryIndex = 0; ui.stateIndex = 0
+  const onlineTree = RecordsScreen()
+  expect(renderToStaticMarkup(onlineTree)).not.toContain('You are offline. This needs a connection.')
+  expect(buttons(onlineTree).find(button => button.props.children === 'Refresh')?.props.disabled).toBe(false)
+  ui.cleanups.splice(0).forEach(cleanup => cleanup())
+  expect(removeEventListener).toHaveBeenCalledTimes(2)
+})
+
+it('keeps cancel available offline for a pending connection', async () => {
+  await connect.startConnection(['labs'], { provider: provider() })
+  vi.stubGlobal('navigator', { ...navigator, onLine: false })
+  const tree = await render()
+  expect(buttons(tree).find(button => button.props.children === 'Check again')?.props.disabled).toBe(true)
+  const cancel = buttons(tree).find(button => button.props.children === 'Cancel')!
+  expect(cancel.props.disabled).toBeFalsy()
+  const finished = new Promise<void>(resolve => { ui.finished = resolve })
+  cancel.props.onClick()
+  await finished
+  expect((await getConnection()).status).toBe('disconnected')
+})
+
+it('rejects a stale offline connect click before consent changes and shows the exact notice', async () => {
+  const tree = await render()
+  const grant = vi.spyOn(connect, 'grantRecordsConsent')
+  const start = vi.spyOn(connect, 'startConnection')
+  vi.stubGlobal('navigator', { ...navigator, onLine: false })
+  await click(tree, 'Try with sample data')
+  expect(ui.states[4]).toBe('You are offline. This needs a connection.')
+  expect(grant).not.toHaveBeenCalled()
+  expect(start).not.toHaveBeenCalled()
+})
 
 it('offers Check again after reloading a persisted session and validates/completes that session', async () => {
   const p = provider()

@@ -53,3 +53,10 @@ button.cal-day::before, button.date-cell::before { content: ''; position: absolu
 .calendar-cycles button { min-width: 44px; min-height: 44px; border-radius: 12px; background: var(--pink-50); }
 .calendar-cycles button[aria-pressed='true'] { background: var(--pink-200); }
 .calendar-notice { padding: 0 16px; line-height: 1.5; }
+
+.offline-notice { padding: 10px 12px; margin: 8px 0 12px; border-radius: 12px; background: var(--pink-100); font-size: 14px; line-height: 1.5; }
+.assistant-overlay > .offline-notice { flex-shrink: 0; margin: 0 16px 8px; }
+.offline-storage-status { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
+.offline-protect { min-height: 44px; padding: 8px; border-radius: 12px; background: var(--pink-50); }
+.offline-explanation { padding: 12px 0; line-height: 1.5; }
+.records-page button:disabled, .offline-protect:disabled, .starter-list button:disabled { opacity: 0.55; cursor: default; }
