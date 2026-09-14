@@ -36,6 +36,10 @@ Deploy `app/dist` to any static host over HTTPS. The production PWA can load its
 cached shell offline after the initial successful load and service-worker
 installation. Browser support and retained site storage affect availability.
 
+The deployment build command must be `pnpm build` (or
+`pnpm --filter @ppp/app build`). This chain runs the chunk-size and offline checks;
+running `vite build` directly skips them.
+
 The build copies [app/public/_headers](app/public/_headers) into `app/dist`.
 Only hosts that support the `_headers` format apply it automatically; on other
 hosts, map those directives to the host's response-header configuration. Append
