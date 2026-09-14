@@ -348,3 +348,34 @@ folding it into a sentence-case heading or the first sentence; group labels in
 Settings and Records become normal sentence-case headings; the copy guard
 gains checks for the banned classes, glyphs, adjectives and uppercase styles.
 Plan: `docs/superpowers/plans/2026-09-12-ppp-declutter.md` (Task 17).
+
+## 14. Addendum: offline-ready home-screen app (2026-09-13)
+
+The user asked that PPP, once added to the home screen, work essentially
+offline. State of play: the build already ships a service worker that
+precaches the complete shell (every script, style, font, icon and splash
+image; 43 entries) and serves navigations from it with outdated-cache
+cleanup, and all tracking data is local in IndexedDB. Measured gaps: nothing
+asks the browser to keep the data (eviction risk on low storage), the
+network-only features fail with generic errors when offline, and the app
+never tells the user it is ready to work offline.
+
+Design:
+
+- Ask for persistent storage (`navigator.storage.persist()`) once onboarding
+  is complete; show the answer in Settings as "Kept on this device".
+- One online-state module; provider records, the assistant and backup upload
+  check it first and show "You are offline. This needs a connection." The
+  Records screen and assistant show a one-line offline notice.
+- Settings gains an "Offline" group: "Works offline: Ready" when a worker
+  controls the page and the shell is stored, plus the storage row above.
+- The worker config becomes explicit (navigation fallback, clientsClaim,
+  skipWaiting, cleanup, `woff` in the precache glob) and a build-time check
+  fails if any shell file is missing from the precache or a network-only rule
+  disappears.
+- Copy stays plain: "downloaded", "works offline", "kept on this device";
+  never worker or cache terms.
+- Verified by the orchestrator by stopping the preview server and reloading
+  the installed shell.
+
+Plan: `docs/superpowers/plans/2026-09-13-ppp-offline.md` (Tasks 18–19).
