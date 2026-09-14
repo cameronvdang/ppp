@@ -1,6 +1,6 @@
 # Web capability boundary
 
-Updated: 2026-09-11. This describes the implemented browser platform, mobile installation, local calendar files and records integration.
+Updated: 2026-09-13. This describes the implemented browser platform, mobile installation, offline shell, local calendar files and records integration.
 
 > Historical note: The earlier [web design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md) and [implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md) record Phases 1–3 of the platform work.
 
@@ -44,8 +44,24 @@ After the initial app load, these features need no account or hosted backend:
   wired to completion or snooze callbacks.
 - A production PWA shell that can load offline after its initial successful
   load and service-worker installation, while cached assets remain available.
-  Its service worker precaches the app shell and bundled assets. It does not
-  runtime-cache FinchNode, relay, AI, backup, or same-origin API traffic.
+  The complete shell is downloaded, including both WOFF and WOFF2 fonts, icons,
+  splash images and lazy-loaded screen chunks, so opening a screen for the first
+  time does not require another download. Navigation falls back to `index.html`,
+  except same-origin `/api/` and `/v1/` paths. The worker precaches only built
+  shell files, never personal data or API responses. Separate network-only rules
+  cover FinchNode, all cross-origin requests (including relay, AI and backup),
+  and same-origin `/api/` and `/v1/` traffic. The build verifies every shell file
+  is present once and all three rules remain intact.
+
+**Settings → Offline** shows **Ready** when a service worker controls the page
+and a precache exists; it shows **Downloading** until then. This is a readiness
+indicator, not a guarantee that every cached file remains intact. PPP automatically
+requests persistent storage once onboarding completes. **Protect** also asks
+the browser for persistent storage when supported. **Yes** reports a
+granted persistence status; **Not guaranteed** means it is ungranted or unknown.
+Persistence can reduce automatic eviction, but it does not prevent a user from
+clearing site data and does not provide recovery. Clearing site data removes
+local history and the downloaded shell, so opening PPP again needs a connection.
 
 HTTPS is required for deployment. Browser support and clearing or eviction of
 site storage can affect these capabilities; local storage is not a recovery
@@ -62,6 +78,14 @@ service.
 | Email reminders | The optional self-hosted reminder Worker accepts an email and fixed clock time, stores subscription/unsubscribe metadata, and uses an email delivery provider for generic messages. It needs separate deployment and subscription setup; the browser app has no email subscription flow wired up. |
 
 Records never enter AI context and enter the doctor report only when ticked.
+When the browser reports that it is offline, provider record connect/refresh,
+assistant messages and backup upload/restore stop before making a request and
+show **"You are offline. This needs a connection."** Previously imported records
+remain viewable locally. File exports/imports, calendar files and reports remain
+local; network failures can still occur while the browser reports it is online.
+Email reminders are a separate network service, with no browser subscription
+flow currently wired up; the app's offline notice does not manage that service.
+
 Requested report data must load successfully before export. Complete snapshots
 replace selected/granted categories; partial snapshots retain missing cached rows.
 Disconnect/delete and wipe invalidate in-flight work using persisted generations;

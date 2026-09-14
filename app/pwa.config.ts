@@ -3,7 +3,8 @@ import type { VitePWAOptions } from 'vite-plugin-pwa'
 
 export const pwaOptions: Partial<VitePWAOptions> = {
   registerType: 'autoUpdate',
-  includeAssets: ['icons/apple-touch-icon.png', 'splash/*.png'],
+  // The glob already includes manifest icons and splash images; avoid duplicate precache URLs.
+  includeManifestIcons: false,
   manifest: {
     name: 'PPP',
     short_name: 'PPP',
@@ -30,7 +31,12 @@ export const pwaOptions: Partial<VitePWAOptions> = {
     ],
   },
   workbox: {
-    globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+    globPatterns: ['**/*.{js,css,html,svg,png,woff,woff2}'],
+    navigateFallback: 'index.html',
+    cleanupOutdatedCaches: true,
+    clientsClaim: true,
+    skipWaiting: true,
+    maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
     navigateFallbackDenylist: [/^\/(?:api|v1)\//],
     runtimeCaching: [
       {

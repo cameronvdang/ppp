@@ -5,11 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "tsc --noEmit && vite build && pnpm check:chunks && pnpm check:offline",
     "preview": "vite preview",
     "test": "vitest run",
     "splash": "node scripts/splash.mjs",
-    "check:chunks": "node scripts/check-chunks.mjs"
+    "check:chunks": "node scripts/check-chunks.mjs",
+    "check:offline": "node scripts/check-offline.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",

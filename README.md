@@ -50,6 +50,10 @@ use **Add to home screen** in the app when the browser offers installation.
 Settings also has a Home screen section. Installed PPP opens full screen and
 can load its cached shell offline after the first successful load.
 
+#### Works offline
+
+Works offline. After the first visit, PPP opens with no connection. Your logs, phases, calendar files and reports all work offline. Provider records, the assistant and backups need a connection and say so.
+
 ### Add to your calendar
 
 Open **Settings → Calendar** to export a cycle forecast or your enabled reminders
@@ -129,14 +133,15 @@ Run the app tests from the repository root:
 
 ```sh
 pnpm --filter @ppp/app test
-(cd app && npx tsc --noEmit && npx vite build)
+(cd app && npx tsc --noEmit && npx vite build && pnpm check:chunks && pnpm check:offline)
 (cd workers/records-relay && pnpm test)
 ```
 
 The seeded [estimate audit](app/src/engine/estimateAudit.test.ts) exercises
 user-facing estimates across **360 generated histories** and must remain at
 **zero violations**. Run the tests when changing prediction math; `pnpm build`
-also checks TypeScript before generating the production bundle.
+also checks TypeScript before generating the production bundle, then verifies
+chunk sizes, complete shell precaching and the worker's network-only rules.
 
 ## Structure
 
