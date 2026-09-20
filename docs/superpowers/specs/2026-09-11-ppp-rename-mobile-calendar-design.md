@@ -20,8 +20,10 @@ Three user requests, in one release:
 ## 2. Non-goals
 
 - No new logo or icon artwork. The crescent mark stays; only names change.
-- No renaming of the GitHub repository (`cameronvdang/lunara`) or of the
-  historical documents under `docs/superpowers/` (they record the past).
+- No renaming of the historical documents under `docs/superpowers/` (they
+  record the past). The GitHub repository was out of scope at first and was
+  renamed to `cameronvdang/ppp` on 2026-09-20 at the user's request; GitHub
+  redirects the old URL.
 - No calendar subscription URL (that needs a server) and no OAuth to Google
   or Microsoft calendars. Files only.
 - No native app store packaging.
