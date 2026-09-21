@@ -1,160 +1,186 @@
-# Lunara
+# PPP
 
-> **⚠️ Unfinished — this is a work in progress.**
-> Lunara is not on the App Store or Google Play, and there is no installer to
-> double-click. You build it from this repository and run it on your own phone.
-> Features are landing continuously and things will break. Do not rely on it as
-> your only record of your health data.
+PPP is a privacy-first cycle, fertility, pregnancy and perimenopause app that runs entirely in your browser. It is based on Lunara (AGPL-3.0, https://github.com/Blueturboguy07/lunara) and is not affiliated with Flo Health Inc.
 
-**An open-source, local-first cycle, fertility, pregnancy, and perimenopause companion.**
+## Fork notice
 
-Lunara ships through native iOS and Android shells powered by Capacitor. Core
-tracking works without an account or Lunara-hosted user database. Optional
-backup and AI features transmit data only after you enable them; their scope and
-security boundaries are documented in the repository.
+This AGPL-3.0 fork
+replaces the Capacitor iOS and Android shells with a web-first React/Vite app
+and a PWA shell. It remains a work in progress.
 
-Lunara is an open-source alternative to Flo®. It is not affiliated with, endorsed by, or connected to Flo Health Inc.
+> Historical note: The [implementation plan](docs/superpowers/plans/2026-09-11-lunara-web-finchnode.md)
+covers the browser platform, Aileron typography, baby pink / baby red palette,
+responsive layout, and FinchNode records integration. Phases 1–3 are implemented;
+the final Phase 4 hardening and browser review remain separate work.
 
-## Why
+PPP is an open-source alternative to Flo®. It is not affiliated with,
+endorsed by, or connected to Flo Health Inc.
 
-- **No subscription gate.** Tracking, pattern insights, reports, pregnancy
-  guidance, and perimenopause tools are part of the open-source app.
-- **Local first by architecture.** Core logs live in the app's local storage.
-  Optional backup stores a client-encrypted blob; optional AI shares only the
-  categories you select for that request.
-- **No 54-screen onboarding funnel. No paywall gauntlet. No nagging.**
+## Run it
 
----
-
-## Getting Lunara onto your phone
-
-There is no download. You compile the app on a computer and install it on your
-own phone over a cable. **What you need depends on the phone you have:**
-
-| Your phone | Your computer | Works? | What you'll use |
-| --- | --- | --- | --- |
-| iPhone | Mac | ✅ | Xcode |
-| Android | Mac | ✅ | Android Studio |
-| Android | Windows | ✅ | Android Studio |
-| iPhone | Windows | ❌ | Not possible — see below |
-
-**iPhone + Windows is not possible.** Apple only allows iOS apps to be built and
-signed on macOS with Xcode; there is no supported Windows path, and no amount of
-setup works around it. Your options are to borrow a Mac, or run Lunara as a web
-app in your phone's browser (`pnpm dev`, then open the printed network URL on
-your phone) — the browser version keeps your data on the phone but has no
-widgets, notifications, or Health integration.
-
-### 1. Install the shared prerequisites
-
-You need [Git](https://git-scm.com/downloads), [Node.js LTS](https://nodejs.org/en/download),
-and pnpm. With Node installed:
+Use **Node.js 24** and **pnpm 9**. From the repository root:
 
 ```sh
-npm install -g pnpm
-```
-
-### 2. Get the code and build the web bundle
-
-```sh
-git clone https://github.com/Blueturboguy07/lunara.git
-cd lunara
 pnpm install
-pnpm --filter @lunara/app native:sync
+pnpm dev
 ```
 
-`native:sync` type-checks, builds the web bundle, and copies it into the native
-iOS and Android projects. **Re-run it after every code change** — the native
-shells load a copied bundle, not your live source.
+For a production build and local preview:
 
-### 3a. iPhone (requires a Mac)
+```sh
+pnpm build
+pnpm preview
+```
 
-1. Install **Xcode** from the Mac App Store, then open it once so it finishes
-   installing its components.
-2. Open the iOS project:
-   ```sh
-   pnpm --filter @lunara/app native:ios
-   ```
-3. In Xcode, select the **App** target → **Signing & Capabilities**. Under
-   *Team*, pick your Apple ID. A **free** Apple ID works — you do not need the
-   $99/year Developer Program. If you have never added your Apple ID, use
-   *Add an Account…* in the Team dropdown.
-4. If Xcode reports the bundle identifier is unavailable, change it to something
-   unique to you (for example `app.lunara.mobile.yourname`).
-5. Plug in your iPhone, unlock it, and tap **Trust** if asked. Select it from the
-   device dropdown at the top of the Xcode window.
-6. Press **▶ Run**.
-7. The first launch will fail with *"Untrusted Developer."* On your iPhone go to
-   **Settings → General → VPN & Device Management**, tap your Apple ID, and tap
-   **Trust**. Then open Lunara again.
+Deploy `app/dist` to any static host over HTTPS. The production PWA can load its
+cached shell offline after the initial successful load and service-worker
+installation. Browser support and retained site storage affect availability.
 
-> With a free Apple ID the app stops working after **7 days**. Re-run step 6 to
-> renew it. A paid Developer Program account extends this to a year.
+The deployment build command must be `pnpm build` (or
+`pnpm --filter @ppp/app build`). This chain runs the chunk-size and offline checks;
+running `vite build` directly skips them.
 
-### 3b. Android (Mac or Windows)
+The build copies [app/public/_headers](app/public/_headers) into `app/dist`.
+Only hosts that support the `_headers` format apply it automatically; on other
+hosts, map those directives to the host's response-header configuration. Append
+the **exact origin** of any custom records relay, backup endpoint, or Ollama / AI
+host to the existing CSP `connect-src` allowlist. Browser CORS and mixed-content
+rules still apply; adding an origin to CSP does not grant access at the server.
 
-1. Install [**Android Studio**](https://developer.android.com/studio). On first
-   launch let it install the default SDK and platform tools.
-2. On your phone, enable developer mode: **Settings → About phone**, tap
-   **Build number** seven times. Then in **Settings → System → Developer
-   options**, turn on **USB debugging**.
-3. Open the Android project:
-   ```sh
-   pnpm --filter @lunara/app native:android
-   ```
-4. Plug in your phone and tap **Allow** on the USB-debugging prompt.
-5. Pick your phone from the device dropdown in Android Studio and press **▶ Run**.
+### Add to your home screen
 
-### If something goes wrong
+On iOS Safari, tap **Share**, then **Add to Home Screen**. On Android Chrome,
+use **Add to home screen** in the app when the browser offers installation.
+Settings also has a Home screen section. Installed PPP opens full screen and
+can load its cached shell offline after the first successful load.
 
-- **`pnpm: command not found`** — Node's global bin isn't on your PATH. Close and
-  reopen your terminal, then try again.
-- **`cap: command not found`** — you skipped `pnpm install`, or ran the command
-  from the wrong folder. Run it from the repository root.
-- **Xcode "No account for team"** — you haven't picked a Team under Signing &
-  Capabilities (step 3a.3).
-- **Android Studio doesn't see your phone** — the cable is charge-only, or USB
-  debugging is off. Try a different cable first; it is usually the cable.
-- **Your changes don't show up** — re-run `pnpm --filter @lunara/app native:sync`.
+#### Works offline
 
-## Structure
+Works offline. After the first visit, PPP opens with no connection. Your logs, phases, calendar files and reports all work offline. Provider records, the assistant and backups need a connection and say so.
 
-- `app/` — React/Vite product layer plus Capacitor iOS and Android projects
-- `workers/backup/` — stateless zero-knowledge backup relay (Cloudflare Worker + R2)
-- `workers/reminders/` — opt-in generic email reminders (no health terms, ever)
-- `docs/NATIVE_ARCHITECTURE.md` — current runtime and platform design
-- `docs/FEATURE_PARITY.md` — honest implementation and release-readiness map
+### Add to your calendar
+
+Open **Settings → Calendar** to export a cycle forecast or your enabled reminders
+as a local `.ics` file. Today also has a Calendar quick action when a forecast is
+available. Your calendar app imports the shared or downloaded file; nothing is
+uploaded by PPP. Discreet titles default on, and forecasts cover three cycles
+or six when selected. Re-importing updates the same event IDs. Estimates are not
+for contraception. Reminder times follow the local wall clock; quiet hours are
+not applied by the calendar export.
+
+### Cycle phases and symptoms
+
+Tracks your cycle phase (period, follicular, fertile window, ovulation estimate,
+luteal) and lets you note symptoms such as nausea or diarrhea on any day; the
+calendar shows phases and which days have notes. Phase labels are estimates
+from logged history. Today and the daily log show the phase and cycle day;
+calendar dots mark symptom, digestion or mood entries. Hormonal contraception
+and pregnancy hide fertility phase estimates.
+
+## Privacy
+
+See [PRIVACY.md](PRIVACY.md) for the network-destination table and storage boundary,
+and [Web capability boundary](docs/WEB_CAPABILITY_BOUNDARY.md) for browser limits.
+
+- **Local first:** core tracking uses browser storage without an account or a
+  PPP-hosted user database. Clearing site data removes local history.
+- **Opt-in transfers:** records connect/refresh, AI messages and encrypted backup
+  uploads require user action. Records are never sent to the AI assistant.
+- **Limited encryption scope:** medical-record bodies and vault secrets are sealed
+  with a browser-managed key. Record indexes, connection metadata, existing logs
+  and profiles remain plaintext. PIN and device unlock gate the screen. Export
+  files contain opened records unless you choose file encryption; explicit backup
+  uploads encrypt the entire export payload.
+
+## Medical records
+
+Open **Records**, choose categories, and tick the consent checkbox. Select
+**Try with sample data** to import FinchNode's fictional Northstar Health records
+without an account or API key. With all categories selected, seven summary cards
+appear; **Lab results** contains three rows. Open a category to read compact
+records with their date and source. The sample-data banner stays visible.
+
+For live records from your provider:
+
+1. Deploy [workers/records-relay](workers/records-relay/README.md) for one owner
+   with a dedicated FinchNode application. Configure the FinchNode API key and a
+   high-entropy relay client token as Worker secrets, plus exact allowed origins.
+2. Append the relay's exact origin to `connect-src` in `app/public/_headers`
+   (or your host's equivalent). No wildcard relay allowance is included.
+3. In **Settings → Medical records**, save the relay URL as **Connector address**
+   and its required token as **Connector key**.
+   The token is sealed in the vault and bound to that canonical URL.
+4. Open Records, consent to at least one category, and choose **Connect my provider**.
+   Complete Hosted Connect. PPP resumes only the pending session you started,
+   polls its sync state, and imports your granted categories.
+
+Use **Refresh** to update records. Partial refreshes keep missing categories cached
+and label them **Not refreshed**. Additional unsupported items are counted and
+shown on the source card. Recovery actions distinguish **Start again**, **Check
+again**, and **Refresh**. Changing the relay URL disconnects live access, removes
+the old token, and leaves cached records viewable.
+
+In the doctor's report, **Records from your provider** is off by default; tick it
+to include active conditions, active medications and allergies with source and
+date. Records are included in exported backups and explicit encrypted backup
+uploads, and are never included in AI context. Imported backup snapshots remain
+viewable but disconnected until you explicitly connect again.
+
+**Disconnect and delete** removes local imported records and declines local
+records consent. Revoke source-side authorization in your provider portal or
+FinchNode's consent controls too. **Delete all data** also clears the app and vault.
+See [PRIVACY.md](PRIVACY.md) for deletion, export and relay trust details.
 
 ## Develop
 
+Run the app tests from the repository root:
+
 ```sh
-pnpm install
-pnpm dev      # run the app in a browser
-pnpm test     # engine unit tests
-pnpm --filter @lunara/app native:sync
+pnpm --filter @ppp/app test
+(cd app && npx tsc --noEmit && npx vite build && pnpm check:chunks && pnpm check:offline)
+(cd workers/records-relay && pnpm test)
 ```
 
-The cycle engine is covered by a seeded fuzz audit
-(`app/src/engine/estimateAudit.test.ts`) that exercises every user-facing
-estimate across 360 generated histories. It must stay at zero violations —
-run `pnpm test` before touching any prediction math.
+The seeded [estimate audit](app/src/engine/estimateAudit.test.ts) exercises
+user-facing estimates across **360 generated histories** and must remain at
+**zero violations**. Run the tests when changing prediction math; `pnpm build`
+also checks TypeScript before generating the production bundle, then verifies
+chunk sizes, complete shell precaching and the worker's network-only rules.
 
-## The AI companion is optional and bring-your-own-key
+## Structure
 
-Lunara ships no shared API key and works fully without AI. If you enable it, you
-supply your own credential:
+- [app/](app/) — React/Vite browser app, local data, web adapters, and PWA shell.
+- [workers/backup/](workers/backup/) — optional Worker/R2 storage for
+  client-encrypted backup uploads.
+- [workers/reminders/](workers/reminders/) — optional self-hosted generic email
+  reminders; the browser app does not currently wire up email subscriptions.
+- [workers/records-relay/](workers/records-relay/) — stateless, single-owner
+  FinchNode relay with required token authentication and strict category routes.
+- [docs/FEATURE_PARITY.md](docs/FEATURE_PARITY.md) — feature inventory and web
+  capability changes.
 
-- **Anthropic** — an API key, or a token from `claude setup-token` to bill
-  answers to a Claude subscription instead of API credits.
+## AI assistant
+
+The AI assistant is optional and bring-your-own-key. PPP ships no shared
+credential, and core tracking works without AI. The current UI supports:
+
+- **Anthropic** — an API key or a token from `claude setup-token`.
 - **OpenAI** — a project API key.
 
-Credentials are stored in the iOS Keychain / Android Keystore, never in the
-cycle database and never in a backup. Nothing from your tracker is sent unless
-you tick the specific categories for that message.
+These are implemented credential paths, subject to provider access and browser
+network policies. Requests send your conversation and only the tracker-context
+categories selected for that request. The OpenAI path requests `store: false`.
+AI calls require a reachable provider; a dedicated Ollama integration is not
+currently exposed in the UI.
+
+Saved AI credentials are sealed in the browser vault using a non-extractable
+WebCrypto key stored in IndexedDB. They are excluded from exports and backups.
+This is not a hardware-backed Keychain/Keystore: anyone able to run code on this
+site in your browser could read them. PIN and device unlock are screen gates.
 
 ## Disclaimer
 
-Lunara is not a medical device and does not diagnose, treat, cure, or prevent any condition. Predictions are estimates for informational purposes only and must not be used to prevent pregnancy.
+PPP is not a medical device and does not diagnose, treat, cure, or prevent any condition. Predictions are estimates for informational purposes only and must not be used to prevent pregnancy.
 
 ## License
 

@@ -131,7 +131,7 @@ describe('assistant transport', () => {
     ).rejects.toThrow(/safety system declined/)
   })
 
-  it('explains that a CLI token expires when Anthropic rejects the credential', async () => {
+  it('offers a new sign-in code or key when Anthropic rejects the credential', async () => {
     const fetchMock = vi.fn(async () =>
       new Response(JSON.stringify({ type: 'error', error: { type: 'authentication_error' } }), {
         status: 401,
@@ -146,7 +146,7 @@ describe('assistant transport', () => {
         {},
         fetchMock,
       ),
-    ).rejects.toThrow(/claude setup-token/)
+    ).rejects.toThrow('Anthropic rejected that key or sign-in code. Create a new Claude sign-in code, or add your Anthropic key.')
   })
 
   it('rejects a credential that is not an Anthropic one before any request', async () => {

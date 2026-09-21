@@ -3,14 +3,12 @@ import { useState } from 'react'
 import {
   clearHealthImportProvenance,
   db,
-  getOvulations,
-  getPeriodStarts,
-  getSetting,
-  SK,
 } from '../db/schema'
-import { addDays, predict, toEpochDay, type Prediction } from '../engine/cycle'
+import { addDays } from '../engine/cycle'
 import { localToday, monthLabel } from '../lib/dates'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
 import { useApp } from '../state/appStore'
+import { calendarDayMarks } from './calendarDays'
 
 const DOW = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
 
@@ -18,31 +16,33 @@ function iso(y: number, m: number, d: number): string {
   return `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 }
 
-function dayClass(
-  date: string,
-  today: string,
-  logged: Set<string>,
-  prediction: Prediction | null,
-  avgPeriodDays: number,
-): string {
-  const cls: string[] = ['cal-day']
-  if (logged.has(date)) cls.push('period')
-  else if (prediction?.nextPeriodStart) {
-    const e = toEpochDay(date)
-    const start = toEpochDay(prediction.nextPeriodStart)
-    if (e >= start && e < start + avgPeriodDays) cls.push('predicted')
-  }
-  if (!cls.includes('period') && !cls.includes('predicted') && prediction?.fertileWindow) {
-    const e = toEpochDay(date)
-    if (prediction.ovulationDate === date) cls.push('ovulation')
-    else if (
-      e >= toEpochDay(prediction.fertileWindow.start) &&
-      e <= toEpochDay(prediction.fertileWindow.end)
-    )
-      cls.push('fertile')
-  }
-  if (date === today) cls.push('today-mark')
-  return cls.join(' ')
+export async function loadCalendarMonth(today: string, year: number, month: number) {
+  const [currentForecast, logs] = await Promise.all([
+    computePersonalizedForecast(today),
+    db.dailyLogs.toArray(),
+  ])
+  const { periodStarts, flowDates } = currentForecast
+  const dates = Array.from({ length: new Date(year, month + 1, 0).getDate() }, (_, index) => iso(year, month, index + 1))
+  const startsByDate = new Map(dates.map(date => [date, periodStarts.filter(start => start <= date).at(-1)]))
+  const visibleStarts = [...new Set(startsByDate.values())].filter((start): start is string => start !== undefined)
+  const currentStart = periodStarts.filter(start => start <= today).at(-1)
+  // Reuse today's forecast for the current cycle, including its predicted period.
+  // Historical cycles each get one forecast anchored to their own logged start.
+  const forecastsByStart = new Map(await Promise.all(visibleStarts.map(async start => [
+    start,
+    start === currentStart ? currentForecast : await computePersonalizedForecast(start),
+  ] as const)))
+  const logsByDate = new Map(logs.map(log => [log.date, log]))
+  const marksByDate = new Map(dates.map(date => {
+    const start = startsByDate.get(date)
+    const forecast = (start ? forecastsByStart.get(start) : undefined) ?? currentForecast
+    return [date, calendarDayMarks(date, {
+      periodStarts, flowDates, logsByDate, today,
+      prediction: forecast.prediction,
+      eligibility: forecast.predictionContext.eligibility,
+    })] as const
+  }))
+  return { marksByDate, logged: new Set(flowDates), eligibility: currentForecast.predictionContext.eligibility }
 }
 
 export function CalendarScreen() {
@@ -53,21 +53,7 @@ export function CalendarScreen() {
   const [viewMode, setViewMode] = useState<'month' | 'year'>('month')
   const [editingPeriods, setEditingPeriods] = useState(false)
 
-  const data = useLiveQuery(async () => {
-    const [periodStarts, ovulations, flowLogs, cycleLength] = await Promise.all([
-      getPeriodStarts(),
-      getOvulations(),
-      db.dailyLogs.filter((l) => l.flow !== undefined).primaryKeys(),
-      getSetting(SK.cycleLength),
-    ])
-    return {
-      prediction: predict(
-        { periodStarts, ovulations, today },
-        { baselineCycleLength: Number(cycleLength) || undefined },
-      ),
-      logged: new Set(flowLogs),
-    }
-  }, [today])
+  const data = useLiveQuery(() => loadCalendarMonth(today, view.year, view.month), [today, view.year, view.month])
 
   const first = new Date(view.year, view.month, 1)
   const daysInMonth = new Date(view.year, view.month + 1, 0).getDate()
@@ -115,7 +101,7 @@ export function CalendarScreen() {
     <div className="overlay">
       <div className="overlay-head">
         <button className="back-btn" onClick={() => setCalendarOpen(false)} aria-label="Back">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <button
           className="calendar-title-button"
@@ -127,10 +113,10 @@ export function CalendarScreen() {
         </button>
         <div className="row" style={{ gap: 4 }}>
           <button className="back-btn" onClick={() => shift(-1)} aria-label="Previous month">
-            ‹
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
           </button>
           <button className="back-btn" onClick={() => shift(1)} aria-label="Next month">
-            ›
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
           </button>
         </div>
       </div>
@@ -193,13 +179,17 @@ export function CalendarScreen() {
               {Array.from({ length: leadBlanks }).map((_, index) => <div key={`b${index}`} />)}
               {Array.from({ length: daysInMonth }).map((_, index) => {
                 const date = iso(view.year, view.month, index + 1)
+                const marks = data?.marksByDate.get(date)
                 return (
                   <button
                     key={date}
-                    className={dayClass(date, today, data?.logged ?? new Set(), data?.prediction ?? null, 5)}
+                    className={marks?.classes.join(' ') ?? 'cal-day'}
+                    aria-label={`${date}${marks?.hasSymptoms ? ', Symptoms noted' : ''}`}
+                    aria-current={date === today ? 'date' : undefined}
                     onClick={() => openDate(date)}
                   >
                     {index + 1}
+                    {marks?.hasSymptoms && <span className="cal-symptom-dot" aria-hidden="true" />}
                   </button>
                 )
               })}
@@ -214,15 +204,33 @@ export function CalendarScreen() {
           </div>
           <div className="row">
             <span className="cal-day predicted" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
-            <span className="muted">Predicted period</span>
+            <span className="muted">Period (estimate)</span>
           </div>
+          {data?.eligibility.fertileWindow && (
+            <>
+              <div className="row">
+                <span className="cal-day phase-follicular" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
+                <span className="muted">Follicular (estimate)</span>
+              </div>
+              <div className="row">
+                <span className="cal-day fertile" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
+                <span className="muted">Fertile window (estimate)</span>
+              </div>
+              <div className="row">
+                <span className="cal-day phase-luteal" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
+                <span className="muted">Luteal (estimate)</span>
+              </div>
+            </>
+          )}
+          {data?.eligibility.ovulationForecast && (
+            <div className="row">
+              <span className="cal-day ovulation" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
+              <span className="muted">Ovulation (estimate)</span>
+            </div>
+          )}
           <div className="row">
-            <span className="cal-day fertile" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
-            <span className="muted">Fertile window (estimate)</span>
-          </div>
-          <div className="row">
-            <span className="cal-day ovulation" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }} />
-            <span className="muted">Predicted ovulation</span>
+            <span className="cal-day has-symptoms" style={{ width: 26, maxHeight: 26, aspectRatio: '1' }}><span className="cal-symptom-dot" /></span>
+            <span className="muted">Symptoms noted</span>
           </div>
         </div>
         <p className="muted" style={{ marginTop: 12, textAlign: 'center' }}>

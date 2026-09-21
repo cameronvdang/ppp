@@ -1,20 +1,20 @@
+import { exportForecastCalendar } from '../calendar/export'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useState } from 'react'
+import { InstallCard } from '../components/InstallCard'
 import { DateStrip } from '../components/DateStrip'
-import { LunaraMark } from '../components/LunaraMark'
+import { PppMark } from '../components/PppMark'
 import { PREGNANCY_WEEKS } from '../content/pregnancyWeeks'
 import {
   db,
-  getHealthProfile,
   getSetting,
-  getOvulations,
-  getPeriodStarts,
   SK,
   type DailyLog,
   type Goal,
 } from '../db/schema'
 import { addDays, daysBetween } from '../engine/cycle'
-import { buildCycleForecast } from '../engine/cycleForecast'
+import { cyclePhaseFor, type PhaseResult } from '../engine/phase'
 import {
   analyzePatterns,
   type CyclePhase,
@@ -28,17 +28,15 @@ import {
   type PregnancyDatingResult,
 } from '../engine/pregnancyDating'
 import {
-  applyPredictionContext,
   periodTimingStatus,
 } from '../engine/predictionContext'
 import { localToday } from '../lib/dates'
 import { useHorizontalDrag } from '../lib/useHorizontalDrag'
-import { publishWidgetSnapshot, type CycleWidgetSnapshot } from '../native/widgets'
 import { useApp, type TrackerFocus } from '../state/appStore'
 
 interface DailyInsight {
   key: string
-  eyebrow: string
+  heading: string
   value: string
   detail: string
   tone: 'rose' | 'teal' | 'blue'
@@ -47,7 +45,6 @@ interface DailyInsight {
 
 interface PhaseHero {
   tone: 'period' | 'ovulation' | 'fertile' | 'cycle' | 'peri' | 'empty'
-  eyebrow: string
   title: string
   body: string
 }
@@ -64,66 +61,64 @@ function pregnancyDatingStatus(dating: PregnancyDatingResult): string {
   return dating.provisional ? 'provisional estimate' : 'clinician assigned'
 }
 
-function phaseFor(
+export function phaseFor(
   goal: Goal,
   cycleDay: number | null,
   daysToOvulation: number | null,
   uncertaintyDays: number,
   stale = false,
+  cyclePhase?: PhaseResult,
 ): PhaseHero {
   // A months-old period start tells us how long tracking lapsed, not where the
   // cycle is. Ask for a fresh date instead of counting across the gap.
   if (stale) {
     return {
       tone: 'empty',
-      eyebrow: 'Your cycle',
-      title: 'Let’s pick this back up',
-      body: 'It has been a while since a period was logged, so Lunara paused its estimates. Add your most recent period to restart them.',
+      title: 'Add your latest period',
+      body: 'It has been a while since a period was logged, so PPP paused its estimates. Add your most recent period to restart them.',
     }
   }
-  if (cycleDay && cycleDay <= 5) {
+  if (cyclePhase?.phase === 'period') {
     return {
       tone: 'period',
-      eyebrow: 'Period:',
-      title: `Day ${cycleDay}`,
-      body: 'Your period day, based on the flow dates you logged.',
+      title: `Period, ${cyclePhase.detail.replace(' of your period', '').toLowerCase()}`,
+      body: 'Log flow and symptoms for today.',
     }
   }
   if (daysToOvulation === 0) {
     return {
       tone: 'ovulation',
-      eyebrow: 'Estimated today',
-      title: 'Ovulation may be today',
+      title: 'Ovulation estimated today',
       body: `A calendar estimate with an uncertainty window of about ±${uncertaintyDays} days.`,
     }
   }
   if (daysToOvulation != null && daysToOvulation > 0 && daysToOvulation <= 5) {
     return {
       tone: 'fertile',
-      eyebrow: 'Estimated fertile window',
-      title: `Ovulation in ${daysToOvulation} ${daysToOvulation === 1 ? 'day' : 'days'}`,
+      title: 'Fertile window (estimate)',
       body: 'Logging discharge, ovulation tests, and temperature can add useful context.',
     }
   }
   if (goal === 'peri') {
     return {
       tone: 'peri',
-      eyebrow: 'Midlife tracking',
-      title: cycleDay ? `Cycle day ${cycleDay}` : 'Notice the pattern',
+      title: cycleDay ? `Cycle day ${cycleDay}` : 'No cycle day yet',
       body: 'Cycle timing and the symptoms you choose to log are summarized privately.',
     }
   }
   if (cycleDay) {
     return {
       tone: 'cycle',
-      eyebrow: goal === 'ttc' ? 'Trying to conceive' : 'Your cycle',
-      title: `Cycle day ${cycleDay}`,
-      body: 'A simple day count from the first day of your most recent logged period.',
+      title: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
+        ? `${cyclePhase.label} (estimate)`
+        : `Cycle day ${cycleDay}`,
+      body: cyclePhase?.phase === 'follicular' || cyclePhase?.phase === 'luteal'
+        ? `Cycle day ${cycleDay}.`
+        : 'A simple day count from the first day of your most recent logged period.',
     }
   }
   return {
     tone: 'empty',
-    eyebrow: 'Your cycle',
     title: 'Start with your dates',
     body: 'Add two period starts to unlock a personal estimate and uncertainty range.',
   }
@@ -218,6 +213,8 @@ function symptomPatternForDate(
 export function Today() {
   const {
     openSheet,
+    launchAction,
+    setLaunchAction,
     setCalendarOpen,
     setArticleSlug,
     setTab,
@@ -226,8 +223,28 @@ export function Today() {
     setPregnancyDetailOpen,
     setPerimenopauseOpen,
   } = useApp()
+  useEffect(() => {
+    if (launchAction === 'log') {
+      openSheet(localToday())
+      setLaunchAction(null)
+    }
+  }, [launchAction, openSheet, setLaunchAction])
   const today = localToday()
   const [selectedDate, setSelectedDate] = useState(today)
+  const [calendarNotice, setCalendarNotice] = useState<string | null>(null)
+  const [calendarBusy, setCalendarBusy] = useState(false)
+
+  async function addToCalendar() {
+    if (calendarBusy) return
+    setCalendarBusy(true)
+    setCalendarNotice(null)
+    try {
+      const result = await exportForecastCalendar()
+      if (!result.cancelled) setCalendarNotice(result.skipped ?? 'Calendar file ready.')
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setCalendarNotice('Could not create the calendar file.')
+    } finally { setCalendarBusy(false) }
+  }
   // Which way the last change moved, so the incoming day animates in from the
   // side it came from instead of always rising from below.
   const [enterFrom, setEnterFrom] = useState<'none' | 'next' | 'previous'>('none')
@@ -243,11 +260,9 @@ export function Today() {
   })
 
   const data = useLiveQuery(async () => {
-    const [periodStarts, ovulations, profile, legacyPregnancyLmp, historyLogs, selectedLog] =
+    const [forecastResult, legacyPregnancyLmp, historyLogs, selectedLog] =
       await Promise.all([
-        getPeriodStarts(),
-        getOvulations(),
-        getHealthProfile(),
+        computePersonalizedForecast(selectedDate),
         getSetting(SK.pregnancyLMP),
         db.dailyLogs
           .where('date')
@@ -255,33 +270,12 @@ export function Today() {
           .toArray(),
         db.dailyLogs.get(selectedDate),
       ])
+    const { profile, periodStarts, flowDates } = forecastResult
+    const phase = cyclePhaseFor({ date: selectedDate, periodStarts, flowDates, prediction: forecastResult.prediction, eligibility: forecastResult.predictionContext.eligibility })
     const forecastPeriodStarts = periodStarts.filter((date) => date <= selectedDate)
-    const forecastOvulations = ovulations.filter((date) => date <= selectedDate)
     const recentLogs = historyLogs.filter(
       (log) => log.date >= addDays(selectedDate, -27),
     )
-    const forecast = buildCycleForecast(
-      {
-        periodStarts: forecastPeriodStarts,
-        ovulations: forecastOvulations,
-        today: selectedDate,
-      },
-      {
-        baselineCycleLength: profile.cycle.typicalCycleLength,
-        positiveOpkDates: recentLogs
-          .filter((log) => log.opk === 'positive' && log.date <= selectedDate)
-          .map((log) => log.date),
-        bbtShiftDates: forecastOvulations,
-      },
-    )
-    const rawPrediction = forecast.prediction
-    const personalized = applyPredictionContext(rawPrediction, profile, {
-      completedCycles: forecast.diagnostics.completedCycleCount,
-      bbtShiftEstimateCount: forecastOvulations.length,
-      positiveOpkThisCycle: forecast.diagnostics.evidence.some(
-        (item) => item.kind === 'opk-suggestive',
-      ),
-    })
     const pregnancyLmp = profile.reproductive.pregnancyLmp ?? legacyPregnancyLmp
     const pregnancyDating =
       (profile.reproductive.pregnancyDating
@@ -307,9 +301,10 @@ export function Today() {
       forecastPeriodStarts,
     )
     return {
-      prediction: personalized.prediction,
-      predictionContext: personalized,
-      forecastDiagnostics: forecast.diagnostics,
+      prediction: forecastResult.prediction,
+      predictionContext: forecastResult.predictionContext,
+      forecastDiagnostics: forecastResult.forecastDiagnostics,
+      phase,
       goal: profile.primaryGoal,
       pregnancy: pregnancyDating ? pregnancyTimeline(pregnancyDating, selectedDate) : null,
       periScore: periWindowSummary(recentLogs, selectedDate).score,
@@ -317,74 +312,6 @@ export function Today() {
       selectedLog,
     }
   }, [selectedDate])
-
-  useEffect(() => {
-    if (!data || selectedDate !== today) return
-
-    let snapshot: CycleWidgetSnapshot
-    if (data.goal === 'pregnancy') {
-      const pregnancy = data.pregnancy
-      snapshot = pregnancy
-        ? {
-            generatedAt: new Date().toISOString(),
-            headline: `${pregnancy.week} weeks, ${pregnancy.dayOfWeek} days`,
-            detail: `${pregnancy.daysRemaining} days to ${
-              pregnancy.dating.provisional ? 'your estimated due date' : 'your due date'
-            } · ${pregnancyDatingStatus(pregnancy.dating)}`,
-            phase: 'pregnancy',
-            accent: 'apricot',
-          }
-        : {
-            generatedAt: new Date().toISOString(),
-            headline: 'Open Lunara',
-            detail: 'Review your pregnancy timeline.',
-            phase: 'pregnancy',
-            accent: 'apricot',
-          }
-    } else {
-      const cycleDay = data.prediction.cycleDay
-      const nextPeriodDate = data.prediction.nextPeriodStart ?? undefined
-      const daysToOvulation = data.prediction.ovulationDate
-        ? daysBetween(selectedDate, data.prediction.ovulationDate)
-        : null
-      const inPeriod = cycleDay != null && cycleDay <= 5
-      const ovulationToday = daysToOvulation === 0
-      snapshot = {
-        generatedAt: new Date().toISOString(),
-        headline: inPeriod
-          ? `Period · Day ${cycleDay}`
-          : ovulationToday
-            ? 'Ovulation may be today'
-            : cycleDay
-              ? `Cycle day ${cycleDay}`
-              : 'Open Lunara',
-        detail: ovulationToday
-          ? `Calendar estimate · about ±${data.prediction.uncertaintyDays} days`
-          : nextPeriodDate
-            ? `Next period estimate · ${nextPeriodDate}`
-            : 'Log a period date to update your private summary.',
-        cycleDay: cycleDay ?? undefined,
-        phase: inPeriod
-          ? 'period'
-          : ovulationToday
-            ? 'ovulation'
-            : data.prediction.fertileWindow &&
-                selectedDate >= data.prediction.fertileWindow.start &&
-                selectedDate <= data.prediction.fertileWindow.end
-              ? 'fertile'
-              : 'follicular',
-        nextPeriodDate,
-        fertileToday: Boolean(
-          data.prediction.fertileWindow &&
-            selectedDate >= data.prediction.fertileWindow.start &&
-            selectedDate <= data.prediction.fertileWindow.end,
-        ),
-        accent: inPeriod ? 'rose' : 'teal',
-      }
-    }
-
-    void publishWidgetSnapshot(snapshot).catch(() => undefined)
-  }, [data, selectedDate, today])
 
   if (!data) return <div className="page page-loading" aria-label="Loading today" />
 
@@ -416,25 +343,21 @@ export function Today() {
               </span>
             </div>
             <div className="phase-copy">
-              <span className="phase-eyebrow">Your pregnancy</span>
               <h1>
-                {pregnancy.week} weeks, {pregnancy.dayOfWeek} days
+                Pregnancy: {pregnancy.week} weeks, {pregnancy.dayOfWeek} days
               </h1>
               <p>
                 Trimester {pregnancy.trimester} · {pregnancy.daysRemaining} days to{' '}
                 {pregnancy.dating.provisional ? 'your estimated due date' : 'your due date'}
-              </p>
-              <span className="phase-eyebrow">
-                Based on {PREGNANCY_DATING_LABELS[pregnancy.dating.method]} ·{' '}
+                {' · '}Based on {PREGNANCY_DATING_LABELS[pregnancy.dating.method]} ·{' '}
                 {pregnancyDatingStatus(pregnancy.dating)}
-              </span>
+              </p>
             </div>
             <button
               className="phase-detail-link"
               onClick={() => setPregnancyDetailOpen(true)}
             >
               Due {pregnancy.estimatedDueDate}
-              <span aria-hidden="true">›</span>
             </button>
           </section>
         ) : (
@@ -491,14 +414,12 @@ export function Today() {
           </button>
         </section>
 
+        <InstallCard variant="today" />
+
         <section className="daily-insights-section" aria-labelledby="pregnancy-daily-insights-title">
           <div className="section-heading daily-heading">
-            <h2 id="pregnancy-daily-insights-title">
-              My daily insights
-              <span className="daily-heading-when">
-                {' · '}
-                {selectedDate === today ? 'Today' : compactDate(selectedDate)}
-              </span>
+            <h2 className="group-title" id="pregnancy-daily-insights-title">
+              {selectedDate === today ? "Today's insights" : `Insights for ${compactDate(selectedDate)}`}
             </h2>
           </div>
           <div className="daily-insight-rail">
@@ -507,48 +428,45 @@ export function Today() {
               className="daily-insight-tile insight-blue"
               onClick={() => pregnancy ? setPregnancyDetailOpen(true) : setTab('settings')}
             >
-              <span>Pregnancy timeline</span>
+              <h3>Pregnancy timeline</h3>
               <strong>{pregnancy ? `Week ${pregnancy.week} + ${pregnancy.dayOfWeek}` : 'Needs dating'}</strong>
               <small>
                 {pregnancy
                   ? `Trimester ${pregnancy.trimester}, from your selected dating source`
                   : 'Add a dating source in settings'}
               </small>
-              <i aria-hidden="true">›</i>
             </button>
             <button
               type="button"
               className="daily-insight-tile insight-teal"
               onClick={() => pregnancy ? setPregnancyDetailOpen(true) : setTab('settings')}
             >
-              <span>{pregnancy?.dating.provisional ? 'Estimated due date' : 'Due date'}</span>
+              <h3>{pregnancy?.dating.provisional ? 'Estimated due date' : 'Due date'}</h3>
               <strong>{pregnancy ? compactDate(pregnancy.estimatedDueDate) : 'Not set'}</strong>
               <small>
                 {pregnancy
                   ? `Based on ${PREGNANCY_DATING_LABELS[pregnancy.dating.method]}`
                   : 'No pregnancy date is currently stored'}
               </small>
-              <i aria-hidden="true">›</i>
             </button>
             <button
               type="button"
               className="daily-insight-tile insight-rose"
               onClick={() => openSheet(selectedDate, 'symptoms')}
             >
-              <span>Your daily log</span>
+              <h3>Your daily log</h3>
               <strong>
                 {pregnancySignals.count > 0 ? `${pregnancySignals.count} logged` : 'Nothing yet'}
               </strong>
               <small>{pregnancySignals.detail}</small>
-              <i aria-hidden="true">›</i>
             </button>
           </div>
         </section>
         {pregnancy && (
           <button className="card phase-reading-card" onClick={() => setPregnancyDetailOpen(true)}>
-            <div className="section-label">What to expect at {pregnancy.week} weeks</div>
-            <p>{PREGNANCY_WEEKS[pregnancy.week] ?? 'Growing steadily, one quiet day at a time.'}</p>
-            <span>Open the week guide <b aria-hidden="true">↗</b></span>
+            <h2 className="group-title">What to expect at {pregnancy.week} weeks</h2>
+            <p>{PREGNANCY_WEEKS[pregnancy.week] ?? 'No week guide available.'}</p>
+            <span>Open the week guide</span>
           </button>
         )}
         <Disclaimer />
@@ -579,6 +497,7 @@ export function Today() {
     daysToOvulation,
     data.prediction.uncertaintyDays,
     stale,
+    data.phase,
   )
   // A negative countdown means the estimate has passed. Saying "in 0 days"
   // reads as "today"; the honest phrasing is how far past the estimate we are.
@@ -607,7 +526,7 @@ export function Today() {
   const fertilityInsight: DailyInsight = fertileWindow
     ? {
         key: 'fertility-timing',
-        eyebrow: 'Fertility timing',
+        heading: 'Fertility timing',
         value: insideEstimatedFertileWindow
           ? 'Inside estimate'
           : daysUntilFertileWindow != null
@@ -621,7 +540,7 @@ export function Today() {
       }
     : {
         key: 'fertility-timing',
-        eyebrow: 'Fertility timing',
+        heading: 'Fertility timing',
         value: 'Not available',
         detail:
           data.predictionContext.reasons.some(
@@ -640,7 +559,7 @@ export function Today() {
   const symptomPatternInsight: DailyInsight = symptomPattern
     ? {
         key: 'symptom-pattern',
-        eyebrow: 'Symptoms to expect?',
+        heading: 'Symptoms to expect',
         value: symptomPattern.signal,
         detail: `${symptomPattern.evidence.occurrences} complete check-ins · ${symptomPattern.evidence.cyclesObserved} cycles · association only`,
         tone: 'teal',
@@ -648,15 +567,15 @@ export function Today() {
       }
     : {
         key: 'symptom-pattern',
-        eyebrow: 'Symptoms to expect?',
-        value: 'No pattern yet',
+        heading: 'Symptoms to expect',
+        value: 'No patterns yet.',
         detail: 'Complete check-ins across at least 2 cycles to build personal evidence',
         tone: 'teal',
         action: 'symptoms',
       }
   const cyclePositionInsight: DailyInsight = {
     key: 'cycle-position',
-    eyebrow:
+    heading:
       data.prediction.cycleDay != null && data.prediction.cycleDay <= 5
         ? 'Period position'
         : 'Cycle position',
@@ -691,7 +610,7 @@ export function Today() {
 
   return (
     <div className={`page today-page goal-${data.goal}`}>
-      <Header date={selectedDate} today={today} onCalendar={() => setCalendarOpen(true)} />
+      <Header date={selectedDate} today={today} phase={data.phase} onCalendar={() => setCalendarOpen(true)} />
 
       <section className="date-panel" aria-label="Choose a day to review">
         <DateStrip
@@ -707,7 +626,7 @@ export function Today() {
         className={`phase-hero phase-${phase.tone} enter-${enterFrom}${
           heroDrag.dragging ? ' is-dragging' : ''
         }`}
-        aria-label={`${phase.eyebrow} ${phase.title}. Swipe sideways for another day.`}
+        aria-label={`${phase.title}. ${phase.body} Swipe sideways for another day.`}
         style={{
           // Following the pointer from the first pixel is what makes the drag
           // feel like it is moving the day rather than triggering it.
@@ -725,9 +644,25 @@ export function Today() {
           <span className="phase-seed" />
         </div>
         <div className="phase-copy">
-          <span className="phase-eyebrow">{phase.eyebrow}</span>
           <h1>{phase.title}</h1>
-          <p>{phase.body}</p>
+          <p>
+            {phase.body}{' '}
+            {estimate && (
+              <>
+                {data.phase.phase === 'follicular' || data.phase.phase === 'luteal' ? periodEstimate : estimate}
+                {' ('}{data.prediction.source === 'baseline'
+                  ? 'starting-length estimate'
+                  : `±${data.prediction.uncertaintyDays} days`}{').'}
+              </>
+            )}
+            {phase.tone === 'fertile' && data.goal !== 'ttc' && (
+              <> Ovulation estimated in {daysToOvulation} {daysToOvulation === 1 ? 'day' : 'days'}.</>
+            )}
+            {data.goal === 'ttc' && estimate !== periodEstimate &&
+              (data.phase.phase === 'follicular' || data.phase.phase === 'luteal') && (
+              <> {estimate}.</>
+            )}
+          </p>
         </div>
         <button
           className="phase-detail-link"
@@ -735,21 +670,11 @@ export function Today() {
             data.goal === 'ttc' ? setTtcDetailOpen(true) : setCycleReportOpen(true)
           }
         >
-          {estimate ? (
-            <>
-              {estimate} ·{' '}
-              {data.prediction.source === 'baseline'
-                ? 'starting-length estimate'
-                : `±${data.prediction.uncertaintyDays} days`}
-            </>
-          ) : (
-            <>What’s important today? Learn more</>
-          )}
-          <span aria-hidden="true">›</span>
+          What this means
         </button>
       </section>
 
-      <section className="today-quick-actions" aria-label={`Log for ${compactDate(selectedDate)}`}>
+      <section className={`today-quick-actions${data.prediction.nextPeriodStart !== null ? ' has-calendar' : ''}`} aria-label={`Log for ${compactDate(selectedDate)}`}>
         <button
           type="button"
           className={data.selectedLog?.flow ? 'quick-action is-recorded' : 'quick-action'}
@@ -795,16 +720,19 @@ export function Today() {
           </span>
           <strong>Sex</strong>
         </button>
+        {data.prediction.nextPeriodStart !== null && <button type="button" className="quick-action" aria-label="Add to calendar" onClick={() => void addToCalendar()} disabled={calendarBusy}>
+          <span className="quick-action-circle" aria-hidden="true"><svg viewBox="0 0 40 40"><path d="M10 10h20v22H10zM10 17h20M15 7v7M25 7v7M15 22h3M22 22h3M15 27h3" /></svg></span>
+          <strong>Calendar</strong>
+        </button>}
       </section>
+
+      {calendarNotice && <p className="calendar-notice" role="status">{calendarNotice}</p>}
+      <InstallCard variant="today" />
 
       <section className="daily-insights-section" aria-labelledby="daily-insights-title">
         <div className="section-heading daily-heading">
-          <h2 id="daily-insights-title">
-            My daily insights
-            <span className="daily-heading-when">
-              {' · '}
-              {selectedDate === today ? 'Today' : compactDate(selectedDate)}
-            </span>
+          <h2 className="group-title" id="daily-insights-title">
+            {selectedDate === today ? "Today's insights" : `Insights for ${compactDate(selectedDate)}`}
           </h2>
         </div>
         <div className="daily-insight-rail">
@@ -815,10 +743,9 @@ export function Today() {
               className={`daily-insight-tile insight-${insight.tone}`}
               onClick={() => openInsight(insight.action)}
             >
-              <span>{insight.eyebrow}</span>
+              <h3>{insight.heading}</h3>
               <strong>{insight.value}</strong>
               <small>{insight.detail}</small>
-              <i aria-hidden="true">›</i>
             </button>
           ))}
         </div>
@@ -830,16 +757,12 @@ export function Today() {
           data.goal === 'ttc' ? setTtcDetailOpen(true) : setCycleReportOpen(true)
         }
       >
-        <span className="prediction-basis-glyph" aria-hidden="true">
-          {data.predictionContext.evidenceMode === 'suppressed' ? '—' : '±'}
-        </span>
         <span>
-          <small>Prediction basis</small>
           <strong>
             {data.predictionContext.evidenceMode === 'suppressed'
-              ? 'Some forecasts are responsibly paused'
+              ? 'Some forecasts are paused'
               : data.predictionContext.evidenceMode === 'insufficient'
-                ? 'Waiting for real cycle history'
+                ? 'More cycle history needed'
                 : data.predictionContext.evidenceMode === 'baseline-calendar'
                   ? 'Broad calendar starting estimate'
                   : data.predictionContext.evidenceMode === 'cycle-history-plus-signals'
@@ -854,7 +777,6 @@ export function Today() {
             </span>
           )}
         </span>
-        <i aria-hidden="true">›</i>
       </button>
 
       {daysLate > 0 && (
@@ -874,12 +796,12 @@ export function Today() {
       {data.goal === 'peri' && (
         <button className="card peri-score-card" onClick={() => setPerimenopauseOpen(true)}>
           <div className="peri-score-copy">
-            <div className="section-label">Your monthly symptom summary</div>
-            <strong>
+            <h2 className="group-title">Your monthly symptom summary</h2>
+            <p>
               {data.periScore === 0
-                ? 'Ready for your first check-in'
-                : 'Your recent pattern is ready to review'}
-            </strong>
+                ? 'No scored symptoms in the past 28 days.'
+                : 'View your logged symptoms.'}
+            </p>
             <span>Calculated only from symptoms you chose to record</span>
           </div>
           <div className="peri-score-value">
@@ -895,17 +817,14 @@ export function Today() {
           setArticleSlug(fertileSoon ? 'fertile-window' : data.goal === 'peri' ? 'peri-what-is' : 'cycle-phases')
         }
       >
-        <div className="section-label">
-          {fertileSoon ? 'Understand your fertile window' : data.goal === 'peri' ? 'Understand midlife changes' : 'For this part of your cycle'}
-        </div>
         <p>
           {fertileSoon
-            ? 'Spot the signals that can add context to a calendar estimate.'
+            ? 'Learn which signals add context to your estimated fertile window.'
             : data.goal === 'peri'
-              ? 'Track changes month to month without turning a pattern into a diagnosis.'
-              : 'Learn what may be changing — and what can vary from person to person.'}
+              ? 'Track midlife changes month to month; patterns are not a diagnosis.'
+              : 'Learn what may change during your cycle and vary from person to person.'}
         </p>
-        <span>Explore the guide <b aria-hidden="true">↗</b></span>
+        <span>Explore the guide</span>
       </button>
 
       <Disclaimer />
@@ -916,10 +835,12 @@ export function Today() {
 function Header({
   date,
   today,
+  phase,
   onCalendar,
 }: {
   date: string
   today: string
+  phase?: PhaseResult
   onCalendar: () => void
 }) {
   const setTab = useApp((s) => s.setTab)
@@ -938,15 +859,18 @@ function Header({
     <header className="today-header">
       <button
         type="button"
-        className="lunara-brand-button"
+        className="ppp-brand-button"
         onClick={() => setTab('settings')}
         aria-label="Open settings"
       >
-        <LunaraMark decorative />
+        <PppMark decorative />
       </button>
       <div className="today-heading">
         <span>{relativeLabel}</span>
         <strong>{selected.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}</strong>
+        {phase && phase.phase !== 'unknown' && <span className="phase-chip" title={phase.detail}>
+          {phase.label}{(phase.phase === 'follicular' || phase.phase === 'luteal') && ' (estimate)'}{phase.cycleDay ? ` · Day ${phase.cycleDay}` : ''}
+        </span>}
       </div>
       <button
         type="button"
@@ -967,7 +891,7 @@ function Header({
 function Disclaimer() {
   return (
     <p className="disclaimer">
-      Lunara is not a medical device. Predictions are estimates and are not contraception.
+      PPP is not a medical device. Predictions are estimates and are not contraception.
     </p>
   )
 }

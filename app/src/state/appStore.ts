@@ -1,9 +1,19 @@
 import { create } from 'zustand'
+import type { RecordCategory } from '../records/types'
+import type { ReturnParams } from '../records/returnHandler'
 import type { Tab } from '../components/TabBar'
 
 export type TrackerFocus = 'flow' | 'symptoms' | 'intimacy'
 
 interface AppState {
+  launchAction: 'log' | null
+  setLaunchAction: (action: 'log' | null) => void
+  recordsCategory: RecordCategory | null
+  setRecordsCategory: (category: RecordCategory | null) => void
+  recordsReturn: ReturnParams | null
+  setRecordsReturn: (params: ReturnParams | null) => void
+  recordsNotice: string | null
+  setRecordsNotice: (notice: string | null) => void
   tab: Tab
   setTab: (t: Tab) => void
   /** Date the log sheet is open for, or null when closed. */
@@ -35,6 +45,14 @@ interface AppState {
 }
 
 export const useApp = create<AppState>((set) => ({
+  launchAction: null,
+  setLaunchAction: (launchAction) => set({ launchAction }),
+  recordsCategory: null,
+  setRecordsCategory: (recordsCategory) => set({ recordsCategory }),
+  recordsReturn: null,
+  setRecordsReturn: (recordsReturn) => set({ recordsReturn }),
+  recordsNotice: null,
+  setRecordsNotice: (recordsNotice) => set({ recordsNotice }),
   tab: 'today',
   setTab: (tab) => set({ tab }),
   sheetDate: null,

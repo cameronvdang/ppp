@@ -1,5 +1,5 @@
 /**
- * Lunara zero-knowledge backup relay.
+ * PPP zero-knowledge backup relay.
  *
  * Stores and returns an opaque, client-encrypted blob keyed by an ID the client
  * derives from its recovery code (a SHA-256 prefix). The Worker never receives

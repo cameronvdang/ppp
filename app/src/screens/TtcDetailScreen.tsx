@@ -33,7 +33,7 @@ export function TtcDetailScreen({ onBack }: TtcDetailScreenProps) {
     <div className="health-overlay">
       <header className="health-topbar">
         <button className="health-icon-button" onClick={onBack} aria-label="Close fertility view">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="health-topbar-title">Trying to conceive</div>
         <span />
@@ -49,10 +49,9 @@ export function TtcDetailScreen({ onBack }: TtcDetailScreenProps) {
           ) : (
             <>
               <section className="health-hero">
-                <div className="health-kicker">{formatLong(today)}</div>
                 <h1 className="health-display">{data.overview.day.label}.</h1>
                 <p className="health-lede" style={{ marginTop: 12 }}>
-                  {data.overview.day.rationale}
+                  {formatLong(today)}: {data.overview.day.rationale}
                 </p>
               </section>
 
@@ -94,7 +93,7 @@ export function TtcDetailScreen({ onBack }: TtcDetailScreenProps) {
                             }}
                           >
                             <span style={{ display: 'block', fontSize: 8, fontWeight: 800 }}>
-                              {date === today ? 'TODAY' : formatShort(date).split(' ')[0]}
+                              {date === today ? 'Today' : formatShort(date).split(' ')[0]}
                             </span>
                             <strong style={{ display: 'block', marginTop: 4, fontSize: 13 }}>
                               {date.slice(-2)}
@@ -164,13 +163,10 @@ export function TtcDetailScreen({ onBack }: TtcDetailScreenProps) {
               </section>
 
               <section className="health-relief-card">
-                <div className="health-kicker" style={{ color: 'inherit' }}>
-                  Pregnancy-test timing
-                </div>
                 <h3 style={{ marginTop: 7 }}>
                   {data.overview.testPlan.suggestedDate
-                    ? `Calendar marker: ${formatShort(data.overview.testPlan.suggestedDate)}`
-                    : 'No test date yet'}
+                    ? `Pregnancy-test calendar marker: ${formatShort(data.overview.testPlan.suggestedDate)}`
+                    : 'No pregnancy-test date yet'}
                 </h3>
                 <p>{data.overview.testPlan.message}</p>
                 {data.overview.testPlan.earliestDate && (
@@ -204,7 +200,7 @@ export function TtcDetailScreen({ onBack }: TtcDetailScreenProps) {
               </section>
 
               <section className="health-panel">
-                <div className="health-kicker">Sources</div>
+                <h2 className="group-title">Sources</h2>
                 <div style={{ marginTop: 11 }}>
                   {TTC_SOURCES.map((source) => (
                     <a

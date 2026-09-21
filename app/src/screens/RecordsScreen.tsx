@@ -1,0 +1,132 @@
+import { useLiveQuery } from 'dexie-react-hooks'
+import { useEffect, useState } from 'react'
+import { getSetting, SK } from '../db/schema'
+import { isOnline, OfflineError, requireOnline, subscribeOnline } from '../platform/offline'
+import { CATEGORY_LABELS, RECORD_CATEGORIES } from '../records/categories'
+import { cancelConnection, completePendingConnection, disconnectAndDelete, grantRecordsConsent, hasRecordsConsent, providerFor, startConnection, syncSnapshot } from '../records/connect'
+import { createDemoProvider } from '../records/providers/demo'
+import { createRelayProvider } from '../records/providers/relay'
+import { loadRelaySettings, type RelaySettings } from '../records/relaySettings'
+import { categoryAvailability } from '../records/presentation'
+import { formatRecordDate } from '../records/format'
+import { countByCategory, getConnection } from '../records/store'
+import type { RecordCategory, RecordsMode } from '../records/types'
+import { useApp } from '../state/appStore'
+export function RecordsScreen() {
+  const connection = useLiveQuery(getConnection, [])
+  const counts = useLiveQuery(countByCategory, [])
+  const granted = useLiveQuery(hasRecordsConsent, [])
+  const relayUrl = useLiveQuery(() => getSetting(SK.recordsRelayUrl), [])
+  const [relay, setRelay] = useState<RelaySettings>({ baseUrl: null, token: null, tokenRelayBaseUrl: null })
+  const [categories, setCategories] = useState<RecordCategory[]>([...RECORD_CATEGORIES])
+  const [consent, setConsent] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [status, setStatus] = useState('')
+  const [online, setOnline] = useState(isOnline)
+  const { setTab, setRecordsCategory, recordsNotice, setRecordsNotice } = useApp()
+  useEffect(() => subscribeOnline(setOnline), [])
+  useEffect(() => { if (granted !== undefined) setConsent(granted) }, [granted])
+  useEffect(() => { if (connection) setCategories(connection.categories) }, [connection?.generation])
+  useEffect(() => {
+    let active = true
+    void loadRelaySettings().then(r => { if (active) setRelay(r) }, () => { if (active) setRelay({ baseUrl: null, token: null, tokenRelayBaseUrl: null }) })
+    return () => { active = false }
+  }, [relayUrl, connection?.generation])
+  const liveReady = !!relay.baseUrl && !!relay.token && relay.tokenRelayBaseUrl === relay.baseUrl
+  async function action(run: () => Promise<unknown>, success = '') {
+    setBusy(true); setStatus(''); setRecordsNotice(null)
+    try { await run(); setStatus(success) }
+    catch (error) { setStatus(error instanceof OfflineError ? error.message : 'Could not update your records. Check your connection and connector settings, then try again.') }
+    finally { setBusy(false) }
+  }
+  async function start(mode: RecordsMode) {
+    requireOnline()
+    if (!consent || !categories.length) return
+    await grantRecordsConsent()
+    const saved = await loadRelaySettings()
+    const provider = mode === 'demo' ? createDemoProvider() : createRelayProvider({ baseUrl: saved.baseUrl ?? '', token: saved.token ?? '' })
+    const result = await startConnection(categories, { provider })
+    if (result === 'error' && (await getConnection()).status !== 'disconnected') setStatus('The connection did not finish. Use the recovery action below.')
+  }
+  async function refresh() {
+    requireOnline()
+    const c = await getConnection()
+    return syncSnapshot({ provider: providerFor(c, await loadRelaySettings()) })
+  }
+  async function checkAgain() {
+    requireOnline()
+    const c = await getConnection()
+    return completePendingConnection({ isReturn: true, sessionId: null, invalidSession: false }, { provider: providerFor(c, await loadRelaySettings()) })
+  }
+  async function retryCreation() {
+    requireOnline()
+    const c = await getConnection()
+    if (c.status !== 'pending' || c.pendingSession || !c.creationAttempt) return
+    return startConnection(c.creationAttempt.categories, { provider: providerFor(c, await loadRelaySettings()) })
+  }
+  const offlineNotice = !online && <p className="offline-notice" role="status">{new OfflineError().message}</p>
+  if (!connection || !counts) return <div className="page"><h1>Your medical records</h1>{offlineNotice}<p role="status">Loading records…</p></div>
+  const total = Object.values(counts).reduce((a, b) => a + b, 0)
+  const showSnapshot = connection.status === 'connected' || !!connection.subject || !!connection.importedAt || total > 0
+  const canRefresh = connection.status !== 'disconnected' && granted && !!connection.subject && connection.grantedCategories.length > 0 && (connection.mode === 'demo' || (liveReady && connection.relayBaseUrl === relay.baseUrl))
+  const showConnect = connection.status === 'disconnected' || (connection.status === 'error' && connection.recoveryAction === 'start-again')
+  return <div className="page records-page">
+    <h1>Your medical records</h1>
+    {offlineNotice}
+    <p>Bring your conditions, medications and labs into PPP. They are encrypted on this device and never shared with the assistant. Backups include them. Reports include them only if you choose.</p>
+    {(status || recordsNotice) && <p className="card records-notice" role="status">{recordsNotice ?? status}</p>}
+    {connection.mode === 'demo' && showSnapshot && <p className="records-banner">Sample data. None of this is about you.</p>}
+    {showConnect && <section className="card records-connect">
+      <h2 className="group-title">What leaves this device</h2>
+      <p>Sample data: PPP sends FinchNode the categories you pick and a random code.</p>
+      <p className="muted">Your provider: your connector sends the categories you pick to FinchNode and brings your records back. Your connector key stays with your connector.</p>
+      <fieldset className="records-checklist"><legend>Choose categories from your provider</legend>
+        {RECORD_CATEGORIES.map(category => <label key={category}><input type="checkbox" checked={categories.includes(category)} onChange={e => setCategories(previous => e.target.checked ? [...previous, category] : previous.filter(c => c !== category))} />{CATEGORY_LABELS[category]}</label>)}
+      </fieldset>
+      <label className="records-consent"><input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
+        <span>I agree to send the categories I pick to FinchNode (through my connector for my provider). PPP keeps my records encrypted on this device and never shares them with the assistant.</span>
+      </label>
+      <div className="records-actions">
+        <button className="cta" disabled={!online || busy || !consent || categories.length === 0} onClick={() => void action(() => start('demo'))}>Try with sample data</button>
+        <button className="cta records-secondary" disabled={!online || busy || !consent || categories.length === 0 || !liveReady} onClick={() => void action(() => start('live'))}>Connect my provider</button>
+      </div>
+      {!liveReady && <p className="muted">Save your connector address and key in Settings to connect your provider. <button className="records-link" onClick={() => setTab('settings')}>Open Settings</button></p>}
+    </section>}
+    {connection.status === 'pending' && <section className="card" aria-live="polite">
+      <p><span className="records-spinner" aria-hidden="true" />Finishing your connection</p>
+      {connection.pendingSession && <button className="cta" disabled={!online || busy || !granted || !liveReady} onClick={() => void action(checkAgain)}>Check again</button>}
+      {!connection.pendingSession && connection.creationAttempt && <button className="cta" disabled={!online || busy || !granted || (connection.mode === 'live' && !liveReady)} onClick={() => void action(retryCreation)}>Try again</button>}
+      <button className="records-link" onClick={() => void action(cancelConnection, 'Connection canceled.')}>Cancel</button>
+    </section>}
+    {connection.status === 'error' && <section className="card records-error" role="alert"><p>{connection.lastError ?? 'Could not reach your records right now.'}</p>
+      {connection.recoveryAction === 'start-again' && <button className="cta" disabled={!online || busy || !consent || !categories.length || (connection.mode === 'live' && !liveReady)} onClick={() => void action(() => start(connection.mode))}>Start again</button>}
+      {connection.recoveryAction === 'check-again' && connection.pendingSession && <button className="cta" disabled={!online || busy || !granted || !liveReady} onClick={() => void action(checkAgain)}>Check again</button>}
+      {connection.recoveryAction === 'refresh' && <button className="cta" disabled={!online || busy || !canRefresh} onClick={() => void action(refresh)}>Refresh</button>}
+      <button className="records-link" onClick={() => void action(cancelConnection, 'Connection canceled.')}>Cancel</button>
+    </section>}
+    {showSnapshot && <>
+      <section className="card records-source">
+        <span className="records-badge">{connection.mode === 'demo' ? 'Sample data' : 'From your provider'}</span>
+        <h2>{connection.sources.map(s => s.organization ?? s.system).join(', ') || 'Records from your provider'}</h2>
+        <p>{connection.lastSyncAt ? `Last refreshed ${formatRecordDate(connection.lastSyncAt)}` : 'Not refreshed yet'}</p>
+        {connection.status === 'disconnected' && <p>Saved in this browser. Connect again to refresh.</p>}
+        {connection.importedAt && <p className="muted">Imported backup · {formatRecordDate(connection.importedAt)}</p>}
+        {connection.syncStatus === 'partial' && <p>Some categories were not available</p>}
+        {connection.warnings.map((w, i) => <p className="muted" key={`${w.code}-${i}`}>{w.message}</p>)}
+        {!!connection.skipped && <p>{connection.skipped} items could not be read</p>}
+        {connection.additionalItems > 0 && <p>{connection.additionalItems} more items from your provider are not shown yet</p>}
+      </section>
+      <div className="records-count-grid">{RECORD_CATEGORIES.map(category => {
+        const availability = categoryAvailability(connection, category)
+        return <button className="card records-count" key={category} onClick={() => setRecordsCategory(category)}>
+          <span>{CATEGORY_LABELS[category]}</span><strong>{counts[category]}</strong>
+          <span className="muted">{availability === 'Available' ? `${counts[category]} ${counts[category] === 1 ? 'record' : 'records'} from your provider` : `${availability}${counts[category] ? ' · saved' : ''}`}</span>
+        </button>
+      })}</div>
+    </>}
+    {(showSnapshot || connection.status !== 'disconnected') && <div className="records-actions">
+      <button className="cta records-secondary" disabled={!online || busy || !canRefresh || connection.status === 'pending'} onClick={() => void action(refresh)}>Refresh</button>
+      <button className="records-delete" onClick={() => void action(disconnectAndDelete, 'Records disconnected and deleted from this browser.')}>Disconnect and delete</button>
+    </div>}
+  </div>
+}

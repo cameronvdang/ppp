@@ -91,7 +91,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
       <div className="health-overlay">
         <header className="health-topbar">
           <button className="health-icon-button" onClick={onBack} aria-label="Close">
-            ‹
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
           </button>
           <div className="health-topbar-title">Pregnancy</div>
           <span />
@@ -115,7 +115,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
     <div className="health-overlay">
       <header className="health-topbar">
         <button className="health-icon-button" onClick={onBack} aria-label="Close pregnancy guide">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="health-topbar-title">Pregnancy guide</div>
         <span />
@@ -124,12 +124,11 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
       <div className="health-scroll">
         <main className="health-canvas">
           <section className="health-hero">
-            <div className="health-kicker">Trimester {current.trimester}</div>
             <h1 className="health-display">
               {current.week} weeks, {current.dayOfWeek} days.
             </h1>
             <p className="health-lede" style={{ marginTop: 12 }}>
-              {current.dating.provisional ? 'Estimated due date' : 'Due date'}{' '}
+              Trimester {current.trimester} · {current.dating.provisional ? 'Estimated due date' : 'Due date'}{' '}
               {formatLong(current.estimatedDueDate)} · {current.daysRemaining} days on the calendar
             </p>
             <p className="health-note" style={{ marginTop: 12 }}>
@@ -173,7 +172,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
                   onClick={() => setSelectedWeek((value) => Math.max(0, value - 1))}
                   aria-label="Previous week"
                 >
-                  ‹
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
                 </button>
                 <strong>{week.title}</strong>
                 <button
@@ -182,7 +181,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
                   onClick={() => setSelectedWeek((value) => Math.min(42, value + 1))}
                   aria-label="Next week"
                 >
-                  ›
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
                 </button>
               </div>
 
@@ -196,13 +195,12 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
               )}
 
               <section className="health-panel">
-                <div className="health-kicker">Development</div>
                 <h2
                   style={{
                     marginTop: 7,
-                    fontFamily: "'Iowan Old Style', Charter, Georgia, serif",
+                    fontFamily: 'var(--font-display)',
                     fontSize: 25,
-                    fontWeight: 600,
+                    fontWeight: 'var(--weight-display)',
                   }}
                 >
                   What is taking shape
@@ -213,19 +211,16 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
               </section>
 
               <section className="health-panel">
-                <div className="health-kicker">Your body</div>
+                <h2 className="group-title">Your body</h2>
                 <p className="health-lede" style={{ marginTop: 9 }}>
                   {week.body}
                 </p>
                 <p className="health-note" style={{ marginTop: 14 }}>
-                  {week.overview.replace(/^Week \d+ — /, '')}
+                  {week.overview.replace(/^Week \d+: /, '')}
                 </p>
               </section>
 
               <section className="health-relief-card">
-                <div className="health-kicker" style={{ color: 'inherit' }}>
-                  One useful focus
-                </div>
                 <h3 style={{ marginTop: 7 }}>{week.focus}</h3>
                 <p>
                   Your own care team’s dates and advice take priority over general week-by-week
@@ -234,9 +229,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
               </section>
 
               <p className="health-note">
-                Bleeding heavier than spotting, severe persistent belly pain, trouble breathing,
-                fainting, fluid leaking, or a noticeable reduction in baby movement can need
-                immediate care. Contact emergency services or your maternity team; do not wait for
+                Bleeding heavier than spotting, severe persistent belly pain, trouble breathing, or fainting can need immediate care. So can fluid leaking or a noticeable reduction in baby movement. Contact emergency services or your maternity team; do not wait for
                 an app.
               </p>
             </>
@@ -288,9 +281,8 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
           {tab === 'questions' && (
             <>
               <section className="health-panel">
-                <div className="health-kicker">Quick answers</div>
                 <h1 className="health-display" style={{ fontSize: 34, marginTop: 8 }}>
-                  Questions that deserve calm answers.
+                  Questions and answers.
                 </h1>
                 <div style={{ marginTop: 14 }}>
                   {PREGNANCY_FAQS.map((faq) => (
@@ -308,7 +300,7 @@ export function PregnancyDetailScreen({ dating, lmp, onBack }: PregnancyDetailSc
               </section>
 
               <section className="health-panel">
-                <div className="health-kicker">Reviewed sources</div>
+                <h2 className="group-title">Reviewed sources</h2>
                 <p className="health-lede" style={{ margin: '9px 0 12px' }}>
                   Content is original and grounded in current public-health guidance.
                 </p>

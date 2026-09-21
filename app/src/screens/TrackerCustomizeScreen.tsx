@@ -81,7 +81,7 @@ export function TrackerCustomizeScreen({ onBack }: TrackerCustomizeScreenProps) 
     <div className="health-overlay">
       <header className="health-topbar">
         <button className="health-icon-button" onClick={onBack} aria-label="Close without saving">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="health-topbar-title">Customize tracking</div>
         <span />
@@ -90,8 +90,7 @@ export function TrackerCustomizeScreen({ onBack }: TrackerCustomizeScreenProps) 
       <div className="health-scroll">
         <main className="health-canvas">
           <section className="health-hero">
-            <div className="health-kicker">Your daily log</div>
-            <h1 className="health-display">Keep only what matters.</h1>
+            <h1 className="health-display">Customize tracking</h1>
             <p className="health-lede" style={{ marginTop: 12 }}>
               Reorder sections and hide the ones you do not use. Existing entries are never
               deleted.

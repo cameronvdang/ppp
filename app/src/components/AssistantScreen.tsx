@@ -18,15 +18,16 @@ import {
   type AssistantConsent,
 } from '../lib/assistantContext'
 import { screenAssistantUrgency } from '../lib/assistantSafety'
+import { isOnline, OfflineError, requireOnline, subscribeOnline } from '../platform/offline'
 import {
   deleteSecureSecret,
   getSecureSecret,
   SECURE_SECRET_KEYS,
   secureVaultStatus,
   setSecureSecret,
-} from '../native/secureVault'
+} from '../platform/secureVault'
 import { useApp } from '../state/appStore'
-import { LunaraMark } from './LunaraMark'
+import { PppMark } from './PppMark'
 import '../styles/assistant.css'
 
 const CONSENT_OPTIONS: Array<{
@@ -79,15 +80,18 @@ export function AssistantScreen() {
   const [contextOpen, setContextOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
+  const [online, setOnline] = useState(isOnline)
   const scroller = useRef<HTMLDivElement>(null)
   const composerInput = useRef<HTMLTextAreaElement>(null)
 
   const credentialKind = apiKey ? anthropicCredentialKind(apiKey) : null
 
+  useEffect(() => subscribeOnline(setOnline), [])
+
   useEffect(() => {
     let alive = true
     ;(async () => {
-      const [savedProvider, savedModel, savedBaseUrl, savedConsent, status, legacyKey, savedOpenAiKey, savedAnthropicKey] =
+      const [savedProvider, savedModel, savedBaseUrl, savedConsent, _status, legacyKey, savedOpenAiKey, savedAnthropicKey] =
         await Promise.all([
           getSetting(SK.aiProvider),
           getSetting(SK.aiModel),
@@ -101,7 +105,7 @@ export function AssistantScreen() {
       const nextProvider: AssistantProvider = savedProvider === 'openai' ? 'openai' : 'anthropic'
 
       // One-time migration from the old Dexie implementation. Plaintext is
-      // removed immediately after the secure bridge accepts it.
+      // removed immediately after the browser vault accepts it.
       if (legacyKey) {
         await setSecureSecret(SECURE_SECRET_KEYS.openAiApiKey, legacyKey)
         await removeSetting(SK.aiKey)
@@ -114,11 +118,7 @@ export function AssistantScreen() {
       setBaseUrl(savedBaseUrl || '')
       setConsent(parseAssistantConsent(savedConsent))
       setApiKey(key)
-      setVaultLabel(
-        status.persistence === 'memory'
-          ? 'memory only for this browser tab'
-          : `${status.persistence}${status.hardwareBacked ? ' · hardware protected' : ''}`,
-      )
+      setVaultLabel('Encrypted on this device')
       setSetupOpen(!key)
       setLoading(false)
     })().catch((reason: unknown) => {
@@ -161,11 +161,11 @@ export function AssistantScreen() {
       const suppliedKey = keyInput.trim()
       if (suppliedKey) {
         if (provider === 'anthropic' && anthropicCredentialKind(suppliedKey) === null) {
-          setError('Anthropic credentials start with sk-ant- (an API key or a `claude setup-token` token).')
+          setError('Your Anthropic key or sign-in code should start with sk-ant-.')
           return
         }
         if (provider === 'openai' && !suppliedKey.startsWith('sk-')) {
-          setError('That does not look like an OpenAI API key.')
+          setError('That does not look like an OpenAI key.')
           return
         }
         await setSecureSecret(vaultKeyFor(provider), suppliedKey)
@@ -181,7 +181,7 @@ export function AssistantScreen() {
       if (!apiKey && !suppliedKey) {
         setError(
           provider === 'anthropic'
-            ? 'Add an Anthropic API key, or paste a token from `claude setup-token`.'
+            ? 'Add your Anthropic key or Claude sign-in code.'
             : 'Add an OpenAI project key, or choose another provider.',
         )
         return
@@ -211,13 +211,18 @@ export function AssistantScreen() {
   }
 
   async function send(textOverride?: string) {
+    try { requireOnline() }
+    catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Something went wrong.')
+      return
+    }
     const text = (textOverride ?? input).trim()
     if (!text || busy) return
     if (!apiKey) {
       setSetupOpen(true)
       setError(
         provider === 'anthropic'
-          ? 'Add an Anthropic key or CLI token before sending a message.'
+          ? 'Add your Anthropic key or Claude sign-in code before sending a message.'
           : 'Add an OpenAI key before sending a message.',
       )
       return
@@ -261,17 +266,16 @@ export function AssistantScreen() {
       className="overlay assistant-overlay"
       role="dialog"
       aria-modal="true"
-      aria-label="Lunara AI assistant"
+      aria-label="PPP AI assistant"
     >
       <header className="overlay-head assistant-head">
         <button className="back-btn" onClick={() => setAssistantOpen(false)} aria-label="Close">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <div className="assistant-title">
-          <LunaraMark decorative size={25} />
+          <PppMark decorative size={25} />
           <span>
-            <span className="assistant-kicker">Private companion</span>
-            <h2>Lunara AI</h2>
+            <h2>PPP AI</h2>
           </span>
         </div>
         <button
@@ -288,24 +292,25 @@ export function AssistantScreen() {
         </button>
       </header>
 
+      {!online && <p className="offline-notice" role="status">{new OfflineError().message}</p>}
+
       {loading ? (
         <div className="overlay-body assistant-loading">
-          <LunaraMark decorative size={30} />
-          <span>Preparing your private space…</span>
+          <PppMark decorative size={30} />
+          <span>Loading assistant…</span>
         </div>
       ) : setupOpen ? (
         <div className="overlay-body assistant-setup">
           <section className="assistant-setup-intro">
-            <p className="eyebrow">Connection</p>
             <h3>Choose where answers come from</h3>
-            <p>Your key stays on this device. Lunara never ships a shared key.</p>
+            <p>Your saved key is encrypted on this device. PPP sends it to the AI service used for your answers.</p>
             <div className="ai-provider-grid">
               <button
                 className={`choice-card compact ${provider === 'anthropic' ? 'selected' : ''}`}
                 onClick={() => void chooseProvider('anthropic')}
               >
                 <span className="choice-icon">✳</span>
-                <span><strong>Anthropic</strong><small>API key or Claude CLI login</small></span>
+                <span><strong>Anthropic</strong><small>Your key or Claude sign-in code</small></span>
               </button>
               <button
                 className={`choice-card compact ${provider === 'openai' ? 'selected' : ''}`}
@@ -321,7 +326,7 @@ export function AssistantScreen() {
             {provider === 'anthropic' ? (
               <>
                 <div className="field">
-                  <label htmlFor="assistant-key">Anthropic API key or CLI token</label>
+                  <label htmlFor="assistant-key">Anthropic key or Claude sign-in code</label>
                   <input
                     id="assistant-key"
                     type="password"
@@ -329,7 +334,7 @@ export function AssistantScreen() {
                     autoCapitalize="none"
                     autoCorrect="off"
                     spellCheck={false}
-                    placeholder={apiKey ? 'Saved securely · enter to replace' : 'sk-ant-api… or sk-ant-oat…'}
+                    placeholder={apiKey ? 'Saved securely · enter to replace' : 'Paste your key or sign-in code'}
                     value={keyInput}
                     onChange={(event) => setKeyInput(event.target.value)}
                   />
@@ -337,26 +342,21 @@ export function AssistantScreen() {
                     <small className="field-hint">
                       Currently using{' '}
                       {credentialKind === 'cli-token'
-                        ? 'a Claude CLI subscription token'
-                        : 'a console API key'}
+                        ? 'a Claude sign-in code'
+                        : 'an Anthropic key'}
                       .
                     </small>
                   )}
                 </div>
 
                 <details className="assistant-key-fallback">
-                  <summary>Use your Claude subscription instead (CLI login)</summary>
+                  <summary>Use your Claude subscription</summary>
                   <p className="microcopy">
-                    Lunara runs in a mobile WebView, so it cannot shell out to the{' '}
-                    <code>claude</code> CLI the way a server can. Run this once on a computer
-                    where you are signed in:
+                    PPP cannot create a Claude sign-in code. Run <code>claude</code> with the command below on a computer where you are signed in:
                   </p>
                   <pre className="cli-snippet"><code>claude setup-token</code></pre>
                   <p className="microcopy">
-                    Paste the <code>{CLI_TOKEN_PREFIX}…</code> token it prints into the field
-                    above. Lunara sends it as an OAuth bearer credential, so answers are billed
-                    to your Claude subscription rather than to API credits. The token expires —
-                    rerun the command to refresh it.
+                    Paste the <code>{CLI_TOKEN_PREFIX}…</code> sign-in code into the field above. PPP sends it to Anthropic to use your Claude subscription. When it expires, run the command again.
                   </p>
                 </details>
 
@@ -378,7 +378,7 @@ export function AssistantScreen() {
             ) : (
               <>
                 <div className="field">
-                  <label htmlFor="assistant-key">OpenAI project API key</label>
+                  <label htmlFor="assistant-key">OpenAI project key</label>
                   <input
                     id="assistant-key"
                     type="password"
@@ -404,7 +404,7 @@ export function AssistantScreen() {
               </>
             )}
             <p className="microcopy">
-              Storage: {vaultLabel}. Credentials never enter the cycle database or a backup.
+              Saved keys: {vaultLabel}. They stay separate from your logs and backups. Your PIN and device unlock lock the screen. They do not encrypt everything you log.
             </p>
             {apiKey && (
               <button className="text-button danger" onClick={removeKey}>
@@ -429,7 +429,7 @@ export function AssistantScreen() {
               aria-controls="assistant-consent-options"
             >
               <span className="assistant-context-mark" aria-hidden="true">
-                <LunaraMark decorative size={18} />
+                <PppMark decorative size={18} />
               </span>
               <span className="assistant-context-copy">
                 <strong>Tracker context</strong>
@@ -486,17 +486,16 @@ export function AssistantScreen() {
               <div className="assistant-empty">
                 <div className="assistant-orb" aria-hidden="true">
                   <span />
-                  <LunaraMark decorative size={38} />
+                  <PppMark decorative size={38} />
                 </div>
-                <span className="assistant-empty-kicker">Private by design</span>
-                <h3>What would you like to understand?</h3>
+                <h3>No messages yet.</h3>
                 <p>
                   Ask a general question, or selectively share tracker context for a more
                   personal answer.
                 </p>
                 <div className="starter-list" aria-label="Starter questions">
                   {STARTERS.map((starter) => (
-                    <button key={starter} onClick={() => send(starter)}>
+                    <button key={starter} disabled={!online || busy} onClick={() => send(starter)}>
                       <span>{starter}</span>
                       <svg viewBox="0 0 24 24" aria-hidden="true">
                         <path d="M7 17 17 7M9 7h8v8" />
@@ -510,16 +509,16 @@ export function AssistantScreen() {
               <div key={index} className={`chat-bubble ${message.role}`}>
                 {message.role === 'assistant' && (
                   <span className="chat-bubble-mark" aria-hidden="true">
-                    <LunaraMark decorative size={14} />
+                    <PppMark decorative size={14} />
                   </span>
                 )}
                 <span>{message.content}</span>
               </div>
             ))}
             {busy && (
-              <div className="chat-bubble assistant typing" aria-label="Lunara is thinking">
+              <div className="chat-bubble assistant typing" aria-label="PPP is thinking">
                 <span className="chat-bubble-mark" aria-hidden="true">
-                  <LunaraMark decorative size={14} />
+                  <PppMark decorative size={14} />
                 </span>
                 <span>Thinking</span>
                 <i /><i /><i />
@@ -543,8 +542,8 @@ export function AssistantScreen() {
             <textarea
               ref={composerInput}
               rows={1}
-              placeholder="Message Lunara…"
-              aria-label="Message Lunara"
+              placeholder="Message PPP…"
+              aria-label="Message PPP"
               enterKeyHint="send"
               value={input}
               onChange={(event) => setInput(event.target.value)}
@@ -555,7 +554,7 @@ export function AssistantScreen() {
                 }
               }}
             />
-            <button type="submit" disabled={busy || !input.trim()} aria-label="Send message">
+            <button type="submit" disabled={!online || busy || !input.trim()} aria-label="Send message">
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M12 18V6m-5 5 5-5 5 5" />
               </svg>

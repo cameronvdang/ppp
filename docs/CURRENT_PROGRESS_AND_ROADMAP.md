@@ -1,4 +1,16 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Current progress and roadmap
+
+> **2026-09-11 — Web fork update:** The current direction is the
+> [Lunara Web + FinchNode design spec](superpowers/specs/2026-09-10-lunara-web-finchnode-design.md)
+> and its [implementation plan](superpowers/plans/2026-09-11-lunara-web-finchnode.md).
+> Phase 1 provides the browser platform; Phase 2 (Tasks 9–12) typography,
+> palette, and layout and Phase 3 (Tasks 13–23) records, relay, and privacy work
+> are planned. **Everything below this note is the historical 2026-07-26
+> native-app snapshot**, including its verification results, commands, and
+> release blockers; it is not the current web roadmap. See the
+> [web capability boundary](WEB_CAPABILITY_BOUNDARY.md) for current limits.
 
 Updated: 2026-07-26
 

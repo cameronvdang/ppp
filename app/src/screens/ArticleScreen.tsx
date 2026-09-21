@@ -18,7 +18,7 @@ export function ArticleScreen({ slug, onClose }: { slug: string; onClose: () => 
     <div className="overlay">
       <div className="overlay-head">
         <button className="back-btn" onClick={onClose} aria-label="Back">
-          ‹
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
         </button>
         <h2>{article.category}</h2>
         <button className="back-btn" onClick={toggleSave} aria-label="Save">
@@ -36,7 +36,7 @@ export function ArticleScreen({ slug, onClose }: { slug: string; onClose: () => 
           </p>
         ))}
         <p className="muted" style={{ marginTop: 12 }}>
-          Educational content only — not medical advice. Talk to a clinician about your health.
+          Educational content only, not medical advice. Talk to a clinician about your health.
         </p>
       </div>
     </div>

@@ -34,12 +34,12 @@ export function CycleRing({ cycleDay, cycleLength, daysUntilPeriod, daysLate = 0
       <span className="cycle-ring-petal petal-three" aria-hidden="true" />
       <svg className="cycle-ring-svg" viewBox={`0 0 ${SIZE} ${SIZE}`} aria-hidden="true">
         <defs>
-          <linearGradient id="lunara-cycle-gradient" x1="20%" y1="0%" x2="85%" y2="100%">
-            <stop offset="0%" stopColor="var(--coral-400)" />
-            <stop offset="55%" stopColor="var(--rose-500)" />
-            <stop offset="100%" stopColor="var(--rose-700)" />
+          <linearGradient id="ppp-cycle-gradient" x1="20%" y1="0%" x2="85%" y2="100%">
+            <stop offset="0%" stopColor="var(--red-400)" />
+            <stop offset="55%" stopColor="var(--period)" />
+            <stop offset="100%" stopColor="var(--red-700)" />
           </linearGradient>
-          <filter id="lunara-ring-glow" x="-30%" y="-30%" width="160%" height="160%">
+          <filter id="ppp-ring-glow" x="-30%" y="-30%" width="160%" height="160%">
             <feGaussianBlur stdDeviation="3" result="blur" />
             <feMerge>
               <feMergeNode in="blur" />
@@ -70,23 +70,21 @@ export function CycleRing({ cycleDay, cycleLength, daysUntilPeriod, daysLate = 0
       <div className="cycle-ring-core">
         {daysLate > 0 ? (
           <>
-            <span className="cycle-ring-kicker">Period may be</span>
             <strong className="cycle-ring-number">{daysLate}</strong>
             <span className="cycle-ring-unit">
-              {daysLate === 1 ? 'day late' : 'days late'}
+              {daysLate === 1 ? 'day past the period estimate' : 'days past the period estimate'}
             </span>
           </>
         ) : hasData ? (
           <>
-            <span className="cycle-ring-kicker">Period in</span>
             <strong className="cycle-ring-number">{daysUntilPeriod}</strong>
             <span className="cycle-ring-unit">
-              {daysUntilPeriod === 1 ? 'day' : 'days'}
+              {daysUntilPeriod === 1 ? 'day until the estimated period' : 'days until the estimated period'}
             </span>
           </>
         ) : (
           <>
-            <span className="cycle-ring-welcome">Your rhythm,<br />made visible</span>
+            <span className="cycle-ring-welcome">No cycle estimate yet.</span>
             <span className="cycle-ring-empty">
               Add two period starts to begin
             </span>

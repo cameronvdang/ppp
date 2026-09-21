@@ -1,10 +1,8 @@
-import { App as NativeApp } from '@capacitor/app'
-import type { PluginListenerHandle } from '@capacitor/core'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { useEffect, useState } from 'react'
-import { AssistantScreen } from './components/AssistantScreen'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { CalendarScreen } from './components/CalendarScreen'
-import { DoctorReport } from './components/DoctorReport'
+import { RecordsReturnHandler } from './components/RecordsReturnHandler'
+import { DataWipeRecovery } from './components/DataWipeRecovery'
 import { LogSheet } from './components/LogSheet'
 import { PinLock } from './components/PinLock'
 import { TabBar } from './components/TabBar'
@@ -16,26 +14,36 @@ import { Insights } from './screens/Insights'
 import { Onboarding } from './screens/Onboarding'
 import { Settings } from './screens/Settings'
 import { Today } from './screens/Today'
-import { isNative } from './native/runtime'
-import {
-  CycleReportScreen,
-  PerimenopauseScreen,
-  PregnancyDetailScreen,
-  TrackerCustomizeScreen,
-  TtcDetailScreen,
-} from './screens/healthFeatures'
+import { appScreen, initializeSessionLock, lockHiddenSession, syncPinPresence } from './lib/lockSession'
+import { runDataWipe, type DataWipeState } from './lib/dataWipe'
+import { PerimenopauseScreen } from './screens/PerimenopauseScreen'
+import { PregnancyDetailScreen } from './screens/PregnancyDetailScreen'
+import { TrackerCustomizeScreen } from './screens/TrackerCustomizeScreen'
+import { TtcDetailScreen } from './screens/TtcDetailScreen'
 import { useApp } from './state/appStore'
+
+const AssistantScreen = lazy(() => import('./components/AssistantScreen').then(m => ({ default: m.AssistantScreen })))
+const DoctorReport = lazy(() => import('./components/DoctorReport').then(m => ({ default: m.DoctorReport })))
+const CycleReportScreen = lazy(() => import('./screens/CycleReportScreen').then(m => ({ default: m.CycleReportScreen })))
+const RecordsScreen = lazy(() => import('./screens/RecordsScreen').then(m => ({ default: m.RecordsScreen })))
+const RecordsCategoryList = lazy(() => import('./components/RecordsCategoryList').then(m => ({ default: m.RecordsCategoryList })))
 
 export default function App() {
   const {
+    recordsCategory,
+    setRecordsCategory,
+    recordsReturn,
     tab,
     setTab,
     sheetDate,
     sheetFocus,
     closeSheet,
     calendarOpen,
+    setCalendarOpen,
     assistantOpen,
+    setAssistantOpen,
     reportOpen,
+    setReportOpen,
     cycleReportOpen,
     setCycleReportOpen,
     pregnancyDetailOpen,
@@ -54,12 +62,13 @@ export default function App() {
 
   const [ready, setReady] = useState(false)
   const [onboarded, setOnboarded] = useState(false)
+  const [wipeState, setWipeState] = useState<DataWipeState>({ status: 'idle' })
 
   useEffect(() => {
     // Persist legacy/fresh-install profile state outside Dexie's read-only
     // liveQuery context. getHealthProfile remains safe to call reactively.
     void ensureHealthProfile().catch((error: unknown) => {
-      console.error('[Lunara startup] Could not persist the health profile migration.', error)
+      console.error('[PPP startup] Could not persist the health profile migration.', error)
     })
   }, [])
 
@@ -89,30 +98,38 @@ export default function App() {
     return { ob: ob === '1', hasPin: !!pin, pregnancyDating }
   }, [])
 
+  const hasPinRef = useRef(false)
+  const observedPinRef = useRef<boolean | undefined>(undefined)
+  const initialLockDone = useRef(false)
+  syncPinPresence(flags?.hasPin, observedPinRef, hasPinRef)
+  const flagsReady = flags !== undefined
+
+  // Decide the initial lock before marking the UI ready, so protected content
+  // cannot paint for one frame between profile loading and the lock effect.
+  useEffect(() => {
+    initializeSessionLock(flagsReady, initialLockDone, hasPinRef, setLocked)
+  }, [flagsReady, setLocked])
+
   useEffect(() => {
     if (flags === undefined) return
     setOnboarded(flags.ob)
-    if (flags.hasPin) setLocked(true)
     setReady(true)
-  }, [flags, setLocked])
+  }, [flags])
 
   useEffect(() => {
-    if (!isNative) return
-    let listener: PluginListenerHandle | undefined
-    void NativeApp.addListener('appStateChange', async ({ isActive }) => {
-      if (!isActive && (await getSetting(SK.pinHash))) setLocked(true)
-    }).then((handle) => {
-      listener = handle
-    })
-    return () => {
-      void listener?.remove()
-    }
+    const onVisibility = () => lockHiddenSession(document.visibilityState, hasPinRef, setLocked)
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => document.removeEventListener('visibilitychange', onVisibility)
   }, [setLocked])
 
-
-  if (!ready) return <div className="page page-loading" role="status" aria-label="Loading Lunara" />
-  if (!onboarded) return <Onboarding onDone={() => setOnboarded(true)} />
-  if (locked) return <PinLock />
+  const screen = appScreen(ready, onboarded, locked, wipeState.status !== 'idle')
+  const deleteAllData = () => { void runDataWipe(setWipeState) }
+  if (screen === 'wipe' && wipeState.status !== 'idle') {
+    return <DataWipeRecovery state={wipeState} onRetry={deleteAllData} />
+  }
+  if (screen === 'loading') return <div className="page page-loading" role="status" aria-label="Loading PPP" />
+  if (screen === 'onboarding') return <Onboarding onDone={() => setOnboarded(true)} />
+  if (screen === 'locked') return <PinLock />
 
   return (
     <>
@@ -120,29 +137,83 @@ export default function App() {
         {tab === 'today' && <Today />}
         {tab === 'insights' && <Insights />}
         {tab === 'graphs' && <Graphs />}
-        {tab === 'settings' && <Settings />}
+        {tab === 'records' && <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <RecordsScreen /> </Suspense>}
+        {tab === 'settings' && (
+          <Settings
+            onPinPresenceChange={(hasPin) => { hasPinRef.current = hasPin }}
+            onDeleteAllData={deleteAllData}
+          />
+        )}
       </main>
+      {recordsReturn && <RecordsReturnHandler params={recordsReturn} />}
+      {recordsCategory && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close category" onClick={() => setRecordsCategory(null)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <RecordsCategoryList category={recordsCategory} onBack={() => setRecordsCategory(null)} /> </Suspense>
+        </>
+      )}
       <TabBar active={tab} onChange={setTab} />
 
       {sheetDate && (
         <LogSheet date={sheetDate} initialFocus={sheetFocus ?? undefined} onClose={closeSheet} />
       )}
-      {calendarOpen && <CalendarScreen />}
-      {assistantOpen && <AssistantScreen />}
-      {reportOpen && <DoctorReport />}
-      {cycleReportOpen && <CycleReportScreen onBack={() => setCycleReportOpen(false)} />}
+      {calendarOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close calendar" onClick={() => setCalendarOpen(false)} />
+          <CalendarScreen />
+        </>
+      )}
+      {assistantOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close assistant" onClick={() => setAssistantOpen(false)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <AssistantScreen /> </Suspense>
+        </>
+      )}
+      {reportOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close report" onClick={() => setReportOpen(false)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <DoctorReport /> </Suspense>
+        </>
+      )}
+      {cycleReportOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close cycle report" onClick={() => setCycleReportOpen(false)} />
+          <Suspense fallback={<div className="page page-loading" role="status" aria-label="Loading" />}> <CycleReportScreen onBack={() => setCycleReportOpen(false)} /> </Suspense>
+        </>
+      )}
       {pregnancyDetailOpen && flags?.pregnancyDating && (
-        <PregnancyDetailScreen
-          dating={flags.pregnancyDating}
-          onBack={() => setPregnancyDetailOpen(false)}
-        />
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close pregnancy guide" onClick={() => setPregnancyDetailOpen(false)} />
+          <PregnancyDetailScreen
+            dating={flags.pregnancyDating}
+            onBack={() => setPregnancyDetailOpen(false)}
+          />
+        </>
       )}
-      {perimenopauseOpen && <PerimenopauseScreen onBack={() => setPerimenopauseOpen(false)} />}
-      {ttcDetailOpen && <TtcDetailScreen onBack={() => setTtcDetailOpen(false)} />}
+      {perimenopauseOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close perimenopause view" onClick={() => setPerimenopauseOpen(false)} />
+          <PerimenopauseScreen onBack={() => setPerimenopauseOpen(false)} />
+        </>
+      )}
+      {ttcDetailOpen && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close fertility view" onClick={() => setTtcDetailOpen(false)} />
+          <TtcDetailScreen onBack={() => setTtcDetailOpen(false)} />
+        </>
+      )}
       {trackerCustomizeOpen && (
-        <TrackerCustomizeScreen onBack={() => setTrackerCustomizeOpen(false)} />
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close without saving" onClick={() => setTrackerCustomizeOpen(false)} />
+          <TrackerCustomizeScreen onBack={() => setTrackerCustomizeOpen(false)} />
+        </>
       )}
-      {articleSlug && <ArticleScreen slug={articleSlug} onClose={() => setArticleSlug(null)} />}
+      {articleSlug && (
+        <>
+          <button type="button" className="dialog-scrim" tabIndex={-1} aria-label="Close article" onClick={() => setArticleSlug(null)} />
+          <ArticleScreen slug={articleSlug} onClose={() => setArticleSlug(null)} />
+        </>
+      )}
     </>
   )
 }

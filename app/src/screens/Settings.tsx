@@ -1,3 +1,6 @@
+import { exportForecastCalendar, exportRemindersCalendar } from '../calendar/export'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
+import { InstallCard, useInstallState } from '../components/InstallCard'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { useEffect, useRef, useState } from 'react'
 import {
@@ -20,6 +23,7 @@ import {
 import type { Envelope } from '../crypto/vault'
 import { applyImport, collectExport, decryptImport, encryptedExport, shareOrDownload } from '../db/transfer'
 import { pushBackup, restoreBackup } from '../lib/backup'
+import { offlineReadiness, requestPersistentStorage, requireOnline, type OfflineReadiness } from '../platform/offline'
 import { localToday } from '../lib/dates'
 import { addDays } from '../engine/cycle'
 import {
@@ -39,48 +43,31 @@ import {
   type PregnancyDatingMethod,
 } from '../engine/pregnancyDating'
 import {
-  authenticateWithBiometrics,
+  enrollDeviceUnlock,
+  removeDeviceUnlock,
   getBiometricStatus,
   type BiometricStatus,
-} from '../native/biometrics'
-import {
-  getHealthPlatformStatus,
-  importHealthData,
-  requestHealthAccess,
-  type HealthPlatformStatus,
-} from '../native/health'
-import {
-  applyHealthSamples,
-  healthImportProvider,
-  importAppleHealthPeriodHistory,
-} from '../native/healthImport'
+} from '../platform/deviceUnlock'
 import {
   cancelDailyReminder,
   cancelMaterializedReminders,
   notificationPermission,
   syncReminderPlans,
-} from '../native/notifications'
-import { isNative, nativePlatform } from '../native/runtime'
+  refreshReminderScheduler,
+} from '../platform/notifications'
 import {
-  clearSecureSecrets,
   deleteSecureSecret,
   getSecureSecret,
   SECURE_SECRET_KEYS,
   secureVaultStatus,
-} from '../native/secureVault'
-import { getWidgetStatus, type WidgetStatus } from '../native/widgets'
+} from '../platform/secureVault'
 import { useApp } from '../state/appStore'
+import { PrivacyTable } from '../components/PrivacyTable'
+import { getConnection } from '../records/store'
+import { loadRelaySettings, saveRelayToken, saveRelayUrl } from '../records/relaySettings'
+export { saveRelayToken, saveRelayUrl } from '../records/relaySettings'
 
 const DEVICE_TIME_ZONE = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'
-
-function profileHealthPermission(
-  authorization: HealthPlatformStatus['authorization'],
-): PermissionState {
-  if (authorization === 'granted' || authorization === 'partial') return 'granted'
-  if (authorization === 'requested') return 'requested'
-  if (authorization === 'denied') return 'denied'
-  return 'not-requested'
-}
 
 function profileReminderPermission(permission: PermissionState): ReminderPermission {
   return permission === 'requested' ? 'not-requested' : permission
@@ -125,7 +112,33 @@ function pregnancyDateBounds(method: PregnancyDatingMethod) {
   return { min: addDays(today, -300), max: today }
 }
 
-export function Settings() {
+export async function setDeviceUnlockEnabled(enabled: boolean, hasPin: boolean): Promise<void> {
+  if (!enabled) {
+    await removeSetting(SK.biometricLock)
+    await removeDeviceUnlock()
+    return
+  }
+  if (!hasPin) throw new Error('Set a PIN first so you always have a fallback.')
+  const originalPin = await db.settings.get(SK.pinHash)
+  if (!originalPin?.value) throw new Error('Set a PIN first so you always have a fallback.')
+  const { credentialId } = await enrollDeviceUnlock()
+  await db.transaction('rw', db.settings, async () => {
+    // A wipe removes the original PIN row. Verify it before persisting either setting.
+    const currentPin = await db.settings.get(SK.pinHash)
+    if (!currentPin?.value || currentPin.value !== originalPin.value) {
+      throw new Error('Your PIN or local data changed during device enrollment. Set up device unlock again.')
+    }
+    await db.settings.bulkPut([
+      { key: SK.deviceUnlockCredential, value: credentialId },
+      { key: SK.biometricLock, value: '1' },
+    ])
+  })
+}
+
+export function Settings({ onPinPresenceChange, onDeleteAllData }: {
+  onPinPresenceChange: (hasPin: boolean) => void
+  onDeleteAllData: () => void
+}) {
   const {
     setAssistantOpen,
     setCycleReportOpen,
@@ -134,19 +147,42 @@ export function Settings() {
     setTtcDetailOpen,
     setTrackerCustomizeOpen,
   } = useApp()
+  const installState = useInstallState()
   const fileInput = useRef<HTMLInputElement>(null)
   const [status, setStatus] = useState<string | null>(null)
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false)
   const [hasAnthropicKey, setHasAnthropicKey] = useState(false)
-  const [vaultLabel, setVaultLabel] = useState(isNative ? 'Checking…' : 'Session memory')
+  const [vaultLabel, setVaultLabel] = useState('Checking…')
   const [biometrics, setBiometrics] = useState<BiometricStatus | null>(null)
-  const [health, setHealth] = useState<HealthPlatformStatus | null>(null)
-  const [widget, setWidget] = useState<WidgetStatus | null>(null)
   const [capabilityBusy, setCapabilityBusy] = useState(false)
   const [reminderBusy, setReminderBusy] = useState(false)
   const [reminders, setReminders] = useState<ReminderPreferences | null>(null)
   const [pregnancyMethod, setPregnancyMethod] =
     useState<PregnancyDatingMethod>('lmp')
+  const [offline, setOffline] = useState<OfflineReadiness | null>(null)
+  const [protecting, setProtecting] = useState(false)
+
+  useEffect(() => {
+    let active = true
+    let timer: ReturnType<typeof setTimeout> | undefined
+    async function inspect() {
+      const readiness = await offlineReadiness()
+      if (!active) return
+      setOffline(readiness)
+      if (readiness.supported && !readiness.ready) timer = setTimeout(() => void inspect(), 5_000)
+    }
+    void inspect()
+    return () => { active = false; clearTimeout(timer) }
+  }, [])
+
+  async function protectStorage() {
+    if (protecting) return
+    setProtecting(true)
+    try {
+      await requestPersistentStorage()
+      setOffline(await offlineReadiness())
+    } finally { setProtecting(false) }
+  }
 
   useEffect(() => {
     let alive = true
@@ -155,24 +191,16 @@ export function Settings() {
       getSecureSecret(SECURE_SECRET_KEYS.anthropicApiKey),
       secureVaultStatus(),
       getBiometricStatus(),
-      getHealthPlatformStatus(),
-      getWidgetStatus(),
     ])
-      .then(([openAiKey, anthropicKey, vault, biometricStatus, healthStatus, widgetStatus]) => {
+      .then(([openAiKey, anthropicKey, _vault, biometricStatus]) => {
         if (!alive) return
         setHasOpenAiKey(Boolean(openAiKey))
         setHasAnthropicKey(Boolean(anthropicKey))
-        setVaultLabel(
-          vault.persistence === 'memory'
-            ? 'Session memory'
-            : `${vault.persistence}${vault.hardwareBacked ? ' · hardware protected' : ''}`,
-        )
+        setVaultLabel('Encrypted on this device')
         setBiometrics(biometricStatus)
-        setHealth(healthStatus)
-        setWidget(widgetStatus)
       })
       .catch((reason: unknown) => {
-        if (alive) setStatus(reason instanceof Error ? reason.message : 'Could not inspect native services.')
+        if (alive) setStatus(reason instanceof Error ? reason.message : 'Could not inspect browser storage and device unlock.')
       })
     return () => {
       alive = false
@@ -314,7 +342,10 @@ export function Settings() {
 
   async function exportPlain() {
     const payload = await collectExport()
-    await shareOrDownload(`lunara-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))
+    if ((await shareOrDownload(`ppp-backup-${localToday()}.json`, JSON.stringify(payload, null, 2))) === 'cancelled') {
+      setStatus('Export cancelled.')
+      return
+    }
     setStatus('Exported. Save it somewhere safe.')
   }
 
@@ -322,7 +353,10 @@ export function Settings() {
     const pass = prompt('Choose a passphrase to encrypt this file. You will need it to import.')
     if (!pass) return
     const env = await encryptedExport(pass)
-    await shareOrDownload(`lunara-encrypted-${localToday()}.json`, JSON.stringify(env))
+    if ((await shareOrDownload(`ppp-encrypted-${localToday()}.json`, JSON.stringify(env))) === 'cancelled') {
+      setStatus('Export cancelled.')
+      return
+    }
     setStatus('Encrypted export saved.')
   }
 
@@ -351,147 +385,39 @@ export function Settings() {
       return
     }
     const salt = newSalt()
-    await setSetting(SK.pinSalt, salt)
-    await setSetting(SK.pinHash, await hashPin(pin, salt))
+    const hash = await hashPin(pin, salt)
+    await db.transaction('rw', db.settings, async () => {
+      await setSetting(SK.pinSalt, salt)
+      await setSetting(SK.pinHash, hash)
+    })
+    onPinPresenceChange(true)
     setStatus('PIN lock enabled.')
   }
 
   async function removePin() {
-    await removeSetting(SK.pinHash)
-    await removeSetting(SK.pinSalt)
-    await removeSetting(SK.biometricLock)
+    await db.transaction('rw', db.settings, async () => {
+      await removeSetting(SK.pinHash)
+      await removeSetting(SK.pinSalt)
+      await removeSetting(SK.biometricLock)
+      await removeDeviceUnlock()
+    })
+    onPinPresenceChange(false)
+    setBiometrics(await getBiometricStatus())
     setStatus('PIN lock removed.')
   }
 
   async function toggleBiometricLock() {
-    if (s!.biometricLock) {
-      await removeSetting(SK.biometricLock)
-      setStatus('Biometric unlock turned off.')
-      return
-    }
-    if (!s!.hasPin) {
-      setStatus('Set a PIN first so you always have a fallback.')
-      return
-    }
-    const current = biometrics ?? (await getBiometricStatus())
-    setBiometrics(current)
-    if (!current.available || !current.enrolled) {
-      setStatus(current.reason ?? 'No enrolled biometric is available on this device.')
-      return
-    }
-    setCapabilityBusy(true)
-    try {
-      const result = await authenticateWithBiometrics('Confirm biometric unlock for Lunara')
-      if (!result.authenticated) {
-        setStatus('Biometric confirmation was cancelled.')
-        return
-      }
-      await setSetting(SK.biometricLock, '1')
-      setStatus('Biometric unlock enabled. Your PIN remains the fallback.')
-    } finally {
-      setCapabilityBusy(false)
-    }
-  }
-
-  async function syncHealthData() {
     setCapabilityBusy(true)
     setStatus(null)
     try {
-      let access = health ?? (await getHealthPlatformStatus())
-      if (!access.available) {
-        setStatus(access.reason ?? 'Health data import is not available on this device.')
-        setHealth(access)
-        return
-      }
-      access = await requestHealthAccess()
-      setHealth(access)
-      await recordHealthImportDecision(access.authorization)
-      if (access.authorization === 'denied' || access.authorization === 'unavailable') {
-        setStatus(access.reason ?? 'Health permission was not granted.')
-        return
-      }
-      const provider = healthImportProvider(access)
-      if (!provider) {
-        setStatus('This device does not expose a supported health-data provider.')
-        return
-      }
-      const today = localToday()
-      const samples = await importHealthData({
-        startDate: addDays(today, -365),
-        endDate: today,
-        types: access.grantedTypes.length ? access.grantedTypes : access.supportedTypes,
-      })
-      const result = await applyHealthSamples(samples, provider)
-      if (!samples.length && access.platform === 'healthkit') {
-        setStatus(
-          'Apple Health returned no records. For privacy, iOS does not reveal whether access was denied or the selected categories are empty.',
-        )
-      } else {
-        setStatus(
-          `Reviewed ${result.uniqueSamples} health sample${result.uniqueSamples === 1 ? '' : 's'}; ${result.daysChanged} day${result.daysChanged === 1 ? '' : 's'} added or updated.${result.fieldsSkippedForUserData ? ` Kept ${result.fieldsSkippedForUserData} manually entered value${result.fieldsSkippedForUserData === 1 ? '' : 's'}.` : ''}`,
-        )
-      }
+      const enabled = !s!.biometricLock
+      await setDeviceUnlockEnabled(enabled, s!.hasPin)
+      setBiometrics(await getBiometricStatus())
+      setStatus(enabled
+        ? 'Device unlock enabled. Your PIN remains the fallback.'
+        : 'Device unlock turned off.')
     } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : 'Health import failed.')
-    } finally {
-      setCapabilityBusy(false)
-    }
-  }
-
-  async function recordHealthImportDecision(
-    authorization: HealthPlatformStatus['authorization'],
-  ) {
-    const profile = await getHealthProfile()
-    const permission = profileHealthPermission(authorization)
-    const state =
-      authorization === 'denied'
-        ? 'declined'
-        : authorization === 'granted' ||
-            authorization === 'partial' ||
-            authorization === 'requested'
-          ? 'granted'
-          : 'not-requested'
-    const consentLedger = profile.privacy.consentLedger
-      .filter((decision) => decision.purpose !== 'health-import')
-      .concat({
-        purpose: 'health-import' as const,
-        state,
-        version: 1 as const,
-        decidedAt: new Date().toISOString(),
-      })
-    await putHealthProfile({
-      permissions: { healthData: permission },
-      privacy: { consentLedger },
-    })
-  }
-
-  async function importApplePeriods() {
-    setCapabilityBusy(true)
-    setStatus(null)
-    try {
-      const today = localToday()
-      const result = await importAppleHealthPeriodHistory({
-        startDate: addDays(today, -730),
-        endDate: today,
-      })
-      const refreshed = await getHealthPlatformStatus()
-      setHealth(refreshed)
-      if (result.authorization !== 'unavailable') {
-        await recordHealthImportDecision(result.authorization)
-      }
-      if (!result.available) {
-        setStatus(result.reason ?? 'Apple Health period import is unavailable.')
-      } else if (!result.periodSamples) {
-        setStatus(
-          'Apple Health returned no period records. For privacy, iOS does not reveal whether access was denied or Health has no menstrual-flow history.',
-        )
-      } else {
-        setStatus(
-          `Reviewed ${result.uniqueSamples} Apple Health period record${result.uniqueSamples === 1 ? '' : 's'}; ${result.daysChanged} day${result.daysChanged === 1 ? '' : 's'} added or updated.${result.fieldsSkippedForUserData ? ` Kept ${result.fieldsSkippedForUserData} manually entered period value${result.fieldsSkippedForUserData === 1 ? '' : 's'}.` : ''}`,
-        )
-      }
-    } catch (reason) {
-      setStatus(reason instanceof Error ? reason.message : 'Apple Health period import failed.')
+      setStatus(reason instanceof Error ? reason.message : 'Device unlock could not be updated. Use your PIN.')
     } finally {
       setCapabilityBusy(false)
     }
@@ -509,35 +435,37 @@ export function Settings() {
     else setHasOpenAiKey(false)
     setStatus(
       provider === 'anthropic'
-        ? 'Anthropic credential removed from this device. Revoke it in the Anthropic console to invalidate it everywhere.'
+        ? 'Anthropic key removed from this device. Revoke it in your Anthropic account to stop it working everywhere.'
         : 'OpenAI key removed from secure storage.',
     )
   }
 
   async function enableBackup() {
-    const endpoint = prompt('Backup relay URL (your deployed Lunara backup Worker):', s!.endpoint)
-    if (!endpoint) return
-    let code = s!.recoveryCode
-    if (!code) {
-      code = generateRecoveryCode()
-      await setSetting('recoveryCode', code)
-      alert(`Your recovery code — write it down, it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
-    }
-    await setSetting(SK.backupEndpoint, endpoint)
     try {
+      requireOnline()
+      const endpoint = prompt('Backup service address:', s!.endpoint)
+      if (!endpoint) return
+      let code = s!.recoveryCode
+      if (!code) {
+        code = generateRecoveryCode()
+        await setSetting('recoveryCode', code)
+        alert(`Your recovery code. Write it down; it is shown only once:\n\n${code}\n\nWithout it, backups cannot be restored.`)
+      }
+      await setSetting(SK.backupEndpoint, endpoint)
       await pushBackup(endpoint, code)
-      setStatus('Backed up (zero-knowledge — the server cannot read it).')
+      setStatus('Backed up. Your backup service cannot read this copy.')
     } catch (e) {
       setStatus(e instanceof Error ? e.message : 'Backup failed.')
     }
   }
 
   async function restore() {
-    const endpoint = prompt('Backup relay URL:', s!.endpoint)
-    if (!endpoint) return
-    const code = prompt('Enter your recovery code:')
-    if (!code) return
     try {
+      requireOnline()
+      const endpoint = prompt('Backup service address:', s!.endpoint)
+      if (!endpoint) return
+      const code = prompt('Enter your recovery code:')
+      if (!code) return
       const n = await restoreBackup(endpoint, normalizeRecoveryCode(code))
       await setSetting('recoveryCode', normalizeRecoveryCode(code))
       await setSetting(SK.backupEndpoint, endpoint)
@@ -558,11 +486,8 @@ export function Settings() {
       let prepared = next
       let permission = profileReminderPermission(s!.profile.permissions.notifications)
 
-      if (isNative && hasEnabledPlans) {
+      if (hasEnabledPlans) {
         permission = await notificationPermission(requestPermission)
-        prepared = withReminderPermission(next, permission)
-      } else if (!isNative) {
-        permission = 'not-requested'
         prepared = withReminderPermission(next, permission)
       }
 
@@ -577,41 +502,37 @@ export function Settings() {
         removeSetting(SK.reminderTime),
       ])
 
-      if (isNative) {
-        if (!hasEnabledPlans || permission !== 'granted') {
-          await cancelMaterializedReminders()
-        } else {
-          await syncReminderPlans(prepared.plans, {
-            now: new Date(),
-            horizonDays: 30,
-            limit: 64,
-          })
-        }
-
-        if (permission !== 'not-requested') {
-          const consentLedger = s!.profile.privacy.consentLedger
-            .filter((decision) => decision.purpose !== 'notifications')
-            .concat({
-              purpose: 'notifications' as const,
-              state: permission === 'granted' ? 'granted' as const : 'declined' as const,
-              version: 1 as const,
-              decidedAt: new Date().toISOString(),
-            })
-          await putHealthProfile({
-            permissions: { notifications: permission },
-            privacy: { consentLedger },
-          })
-        }
+      if (!hasEnabledPlans || permission !== 'granted') {
+        await cancelMaterializedReminders()
+      } else {
+        await syncReminderPlans(prepared.plans, {
+          now: new Date(),
+          horizonDays: 30,
+          limit: 64,
+        })
       }
 
-      if (!isNative) {
-        setStatus(
-          'Saved locally. Native alarms will be scheduled when these preferences are used in the iOS or Android app.',
-        )
-      } else if (hasEnabledPlans && permission === 'denied') {
-        setStatus('Saved locally, but notifications are blocked in your device settings.')
+      if (permission !== 'not-requested') {
+        const consentLedger = s!.profile.privacy.consentLedger
+          .filter((decision) => decision.purpose !== 'notifications')
+          .concat({
+            purpose: 'notifications' as const,
+            state: permission === 'granted' ? 'granted' as const : 'declined' as const,
+            version: 1 as const,
+            decidedAt: new Date().toISOString(),
+          })
+        await putHealthProfile({
+          permissions: { notifications: permission },
+          privacy: { consentLedger },
+        })
+      }
+
+      await refreshReminderScheduler()
+
+      if (hasEnabledPlans && permission === 'denied') {
+        setStatus('Saved locally, but notifications are blocked in your browser settings.')
       } else if (hasEnabledPlans) {
-        setStatus('Private reminder schedule updated on this device.')
+        setStatus('Reminders updated. Keep PPP open. Reminders may arrive late if your browser pauses PPP.')
       } else {
         setStatus('All local reminders are off.')
       }
@@ -646,18 +567,16 @@ export function Settings() {
     )
   }
 
-  async function wipe() {
-    if (!confirm('Delete ALL Lunara data on this device? This cannot be undone.')) return
-    await clearSecureSecrets()
-    await db.delete()
-    location.reload()
+  function wipe() {
+    if (!confirm('Delete ALL PPP data on this device? This cannot be undone.')) return
+    onDeleteAllData()
   }
 
   return (
     <div className="page">
       <h1>Settings</h1>
       {status && (
-        <div className="card" style={{ background: 'var(--rose-100)', fontSize: 14 }}>
+        <div className="card" style={{ background: 'var(--pink-100)', fontSize: 14 }}>
           {status}
         </div>
       )}
@@ -666,19 +585,18 @@ export function Settings() {
         {(Object.keys(GOAL_LABELS) as Goal[]).map((g) => (
           <button key={g} className="setting-row" onClick={() => setGoal(g)}>
             <span>{GOAL_LABELS[g]}</span>
-            <span style={{ color: 'var(--rose-500)' }}>{s.goal === g ? '●' : '○'}</span>
+            <span style={{ color: 'var(--period)' }}>{s.goal === g ? '●' : '○'}</span>
           </button>
         ))}
       </Section>
 
-      <Section title="Personalize">
+      <Section title="Personalise">
         <button className="setting-row" onClick={() => setTrackerCustomizeOpen(true)}>
           <span>Customize daily trackers</span>
-          <span className="muted">reorder &amp; hide ›</span>
+          <span className="muted">Reorder &amp; hide</span>
         </button>
         <button className="setting-row" onClick={() => setCycleReportOpen(true)}>
           <span>Cycle report &amp; patterns</span>
-          <span className="muted">›</span>
         </button>
         {s.goal === 'pregnancy' && (
           <>
@@ -758,109 +676,81 @@ export function Settings() {
               onClick={() => setPregnancyDetailOpen(true)}
             >
               <span>Pregnancy week &amp; checklist</span>
-              <span className="muted">{s.pregnancyDating ? '›' : 'add dating source first'}</span>
+              <span className="muted">{s.pregnancyDating ? 'Open' : 'Add dating source first'}</span>
             </button>
           </>
         )}
         {s.goal === 'ttc' && (
           <button className="setting-row" onClick={() => setTtcDetailOpen(true)}>
             <span>TTC daily guide</span>
-            <span className="muted">›</span>
           </button>
         )}
         {s.goal === 'peri' && (
           <button className="setting-row" onClick={() => setPerimenopauseOpen(true)}>
             <span>Perimenopause timeline</span>
-            <span className="muted">›</span>
           </button>
         )}
       </Section>
 
-      <Section title="Privacy &amp; lock">
+      <Section title="Privacy and lock">
         <button className="setting-row" onClick={s.hasPin ? removePin : setPin}>
           <span>PIN lock</span>
-          <span className="muted">{s.hasPin ? 'On — tap to remove' : 'Off'}</span>
+          <span className="muted">{s.hasPin ? 'On. Tap to remove' : 'Off'}</span>
         </button>
-        {isNative && (
+        {biometrics?.available && (
           <button className="setting-row" disabled={capabilityBusy} onClick={toggleBiometricLock}>
-            <span>Biometric unlock</span>
+            <span>Unlock with device</span>
             <span className="muted">
               {s.biometricLock
                 ? 'On'
                 : biometrics?.available
-                  ? 'Available ›'
+                  ? 'Available'
                   : 'Unavailable'}
             </span>
           </button>
         )}
         <div className="setting-row static-row">
-          <span>Secret storage</span>
+          <span>Saved keys</span>
           <span className="muted">{vaultLabel}</span>
         </div>
+        <p className="muted" style={{ padding: '8px 0' }}>
+          Saved keys are encrypted on this device. Your PIN and device unlock lock the screen.
+          They do not encrypt everything you log.
+        </p>
+        <a href="#privacy-and-data">How PPP protects your data</a>
       </Section>
 
-      {isNative && (
-        <Section title="Device health &amp; native services">
-          {nativePlatform === 'ios' && (
-            <button className="setting-row" disabled={capabilityBusy} onClick={importApplePeriods}>
-              <span>Import period history from Apple Health</span>
-              <span className="muted">{capabilityBusy ? 'Working…' : 'Up to 2 years ›'}</span>
-            </button>
-          )}
-          <button className="setting-row" disabled={capabilityBusy} onClick={syncHealthData}>
-            <span>
-              {health?.platform === 'healthkit'
-                ? 'Import other Apple Health data'
-                : health?.platform === 'health-connect'
-                  ? 'Import from Health Connect'
-                  : 'Health data import'}
-            </span>
-            <span className="muted">
-              {capabilityBusy
-                ? 'Working…'
-                : health?.available
-                  ? health.authorization === 'granted'
-                    ? 'Connected ›'
-                    : health.authorization === 'requested'
-                      ? 'Requested ›'
-                      : 'Connect ›'
-                  : 'Unavailable'}
-            </span>
-          </button>
-          <div className="setting-row static-row">
-            <span>Home-screen widget</span>
-            <span className="muted">
-              {widget?.available ? 'Available' : widget?.publisherAvailable ? 'Native extension pending' : 'Unavailable'}
-            </span>
-          </div>
-          <p className="muted" style={{ padding: '8px 0' }}>
-            Health imports are read-only, permission-scoped, and copied into your local Lunara
-            timeline. Manual entries are never silently replaced, and nothing is uploaded by this
-            step.
-          </p>
-        </Section>
-      )}
+      <Section title="Offline">
+        <div className="setting-row static-row">
+          <span>Works offline</span>
+          <span className="muted">{offline?.supported === false ? 'Not available in this browser' : offline?.ready ? 'Ready' : 'Downloading'}</span>
+        </div>
+        <div className="setting-row static-row">
+          <span>Kept on this device</span>
+          <span className="offline-storage-status">
+            <span className="muted">{offline?.persisted ? 'Yes' : 'Not guaranteed'}</span>
+            {offline?.persisted === false && typeof globalThis.navigator?.storage?.persist === 'function' &&
+              <button type="button" className="offline-protect" disabled={protecting} onClick={protectStorage}>Protect</button>}
+          </span>
+        </div>
+        <p className="offline-explanation">Once downloaded, PPP opens without a connection. Only provider records, the assistant and backups need one.</p>
+      </Section>
 
-      <Section title="Your data &amp; encrypted backup">
+      <Section title="Your data and backups">
         <button className="setting-row" onClick={exportPlain}>
           <span>Export a backup file</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={exportEncrypted}>
           <span>Export encrypted</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={() => fileInput.current?.click()}>
           <span>Import from file</span>
-          <span className="muted">›</span>
         </button>
         <button className="setting-row" onClick={enableBackup}>
           <span>Encrypted cloud backup</span>
-          <span className="muted">zero-knowledge ›</span>
         </button>
         <button className="setting-row" onClick={restore}>
           <span>Restore from backup</span>
-          <span className="muted">›</span>
         </button>
         <input
           ref={fileInput}
@@ -872,18 +762,13 @@ export function Settings() {
       </Section>
 
       <div className="reminder-settings-section">
-        <div className="section-label" style={{ marginBottom: 4 }}>
-          Local reminders
-        </div>
+        <h2 className="group-title">Reminders</h2>
         <div className="card reminder-console">
           <div className="reminder-console-heading">
             <div>
-              <span className="reminder-kicker">QUIETLY ON YOUR DEVICE</span>
-              <h3>{activeReminderCount ? `${activeReminderCount} active` : 'Your time, your rhythm'}</h3>
+              <span>{activeReminderCount ? `${activeReminderCount} active` : 'No active reminders'}</span>
               <p>
-                {isNative
-                  ? 'No account or server is used to deliver these notifications.'
-                  : 'Set your preferences here; the native iOS and Android shells deliver them.'}
+                Reminders show while PPP is open. Add them to your calendar to get them when it is closed.
               </p>
             </div>
             <span
@@ -893,9 +778,7 @@ export function Settings() {
             >
               {reminderBusy
                 ? 'Saving…'
-                : !isNative
-                  ? 'Local'
-                  : s.profile.permissions.notifications === 'denied'
+                : s.profile.permissions.notifications === 'denied'
                     ? 'Blocked'
                     : activeReminderCount
                       ? 'Ready'
@@ -963,7 +846,6 @@ export function Settings() {
                       }
                     />
                   </label>
-                  <span aria-hidden="true">→</span>
                   <label>
                     <span>Until</span>
                     <input
@@ -1045,49 +927,165 @@ export function Settings() {
         </div>
       </div>
 
+      {installState.mode !== 'unsupported' && <Section title="Home screen">
+        {installState.mode === 'installed' ? <p className="records-settings-note">Installed on this device.</p> : <InstallCard variant="settings" />}
+      </Section>}
+
+      <CalendarSettingsCard />
+
+      <RecordsSettingsCard />
+
+      <Section title="Privacy and data" id="privacy-and-data">
+        <PrivacyTable />
+        <p className="records-settings-note">Disconnect records to stop imports. Remove your AI key to stop sharing with the assistant.</p>
+      </Section>
+
       <Section title="AI assistant">
         <button className="setting-row" onClick={() => setAssistantOpen(true)}>
-          <span>Open Lunara AI</span>
+          <span>Open PPP AI</span>
           <span className="muted">
             {s.provider === 'anthropic'
               ? hasAnthropicKey
-                ? 'Anthropic connected ›'
-                : 'add Anthropic key ›'
+                ? 'Anthropic connected'
+                : 'Add Anthropic key'
               : hasOpenAiKey
-                ? 'OpenAI key secured ›'
-                : 'add OpenAI key ›'}
+                ? 'OpenAI key secured'
+                : 'Add OpenAI key'}
           </span>
         </button>
         {(s.provider === 'anthropic' ? hasAnthropicKey : hasOpenAiKey) && (
           <button className="setting-row" onClick={removeAiKey}>
-            <span>Remove saved credential</span>
-            <span className="muted">›</span>
+            <span>Remove saved key</span>
           </button>
         )}
       </Section>
 
-      <Section title="Danger zone">
+      <Section title="Delete">
         <button className="setting-row" onClick={wipe} style={{ color: 'var(--red-500)' }}>
           <span>Delete all data</span>
-          <span>›</span>
         </button>
       </Section>
 
       <p className="muted" style={{ textAlign: 'center', marginTop: 8, lineHeight: 1.5 }}>
-        Lunara is open source (AGPL-3.0) and not affiliated with Flo Health Inc. Not a medical
-        device. Removing the app deletes its local history — keep an encrypted backup.
+        PPP is open source (AGPL-3.0), based on Lunara, and not affiliated with Flo Health Inc. Not a medical
+        device. Clearing browser storage deletes local history. Keep an encrypted backup.
       </p>
     </div>
   )
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children, id }: { title: string; children: React.ReactNode; id?: string }) {
   return (
-    <div>
-      <div className="section-label" style={{ marginBottom: 4 }} dangerouslySetInnerHTML={{ __html: title }} />
+    <div id={id}>
+      <h2 className="group-title" dangerouslySetInnerHTML={{ __html: title }} />
       <div className="card" style={{ padding: '0 16px' }}>
         {children}
       </div>
     </div>
   )
+}
+
+function RecordsSettingsCard() {
+  const savedUrl = useLiveQuery(() => getSetting(SK.recordsRelayUrl), [])
+  const connection = useLiveQuery(getConnection, [])
+  const [url, setUrl] = useState('')
+  const [token, setToken] = useState('')
+  const [tokenSaved, setTokenSaved] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const [message, setMessage] = useState('')
+  const [revision, setRevision] = useState(0)
+  const setTab = useApp(s => s.setTab)
+  useEffect(() => { setUrl(savedUrl ?? ''); setToken(''); setTokenSaved(false) }, [savedUrl])
+  useEffect(() => {
+    let active = true
+    const inspect = () => { void loadRelaySettings().then(r => { if (active) setTokenSaved(!!r.token && r.baseUrl === savedUrl) }, () => { if (active) setTokenSaved(false) }) }
+    inspect()
+    window.addEventListener('focus', inspect)
+    return () => { active = false; window.removeEventListener('focus', inspect) }
+  }, [savedUrl, revision])
+  async function saveUrl() {
+    setBusy(true); setMessage('')
+    try { const canonical = await saveRelayUrl(url); setUrl(canonical ?? ''); setRevision(n => n + 1); setMessage('Connector address saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the connector address.') }
+    finally { setBusy(false) }
+  }
+  async function saveToken() {
+    setBusy(true); setMessage('')
+    try { await saveRelayToken(url, token); setToken(''); setRevision(n => n + 1); setMessage('Connector key saved.') }
+    catch (error) { setMessage(error instanceof Error ? error.message : 'Could not save the connector key.') }
+    finally { setBusy(false) }
+  }
+  return <Section title="Medical records">
+    <div className="records-settings-fields">
+      <p>Mode: {connection?.mode === 'live' ? 'Live' : 'Sample data'} · {connection?.status ?? 'disconnected'}</p>
+      <label htmlFor="records-relay-url">Connector address</label>
+      <input id="records-relay-url" type="url" autoComplete="off" placeholder="https://your-relay.example" value={url} onChange={e => setUrl(e.target.value)} onBlur={() => void saveUrl()} />
+      <p className="muted">Connect through your own connector. If you change the address, PPP disconnects and keeps what it already has.</p>
+      <label htmlFor="records-relay-token">Connector key · {tokenSaved ? 'Saved' : 'Not set'}</label>
+      <input id="records-relay-token" type="password" autoComplete="new-password" value={token} onChange={e => setToken(e.target.value)} placeholder="Enter your connector key" />
+      <button className="cta records-secondary" disabled={busy || !token.trim() || !url.trim()} onClick={() => void saveToken()}>Save key</button>
+      {message && <p role="status">{message}</p>}
+    </div>
+    <button className="setting-row" onClick={() => setTab('records')}><span>Open Records</span></button>
+  </Section>
+}
+
+function CalendarSettingsCard() {
+  const [notice, setNotice] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const today = localToday()
+  const data = useLiveQuery(async () => {
+    const [forecast, discreet, cycles, raw, legacyTime] = await Promise.all([
+      computePersonalizedForecast(today), getSetting(SK.calendarDiscreet), getSetting(SK.calendarCycles),
+      getSetting(REMINDER_SETTINGS_KEY), getSetting(SK.reminderTime),
+    ])
+    const prefs = parseReminderPreferences(raw, { timeZone: DEVICE_TIME_ZONE, startDate: today, legacyTime })
+    return {
+      discreet: discreet !== '0', cycles: cycles ?? '3',
+      hasForecast: forecast.prediction.nextPeriodStart !== null && forecast.predictionContext.eligibility.periodForecast,
+      hasReminders: prefs.plans.some(plan => plan.enabled),
+    }
+  }, [today])
+
+  async function savePreference(key: string, value: string) {
+    setSaving(true)
+    try { await setSetting(key, value) }
+    catch { setNotice('Could not save calendar preferences.') }
+    finally { setSaving(false) }
+  }
+
+  async function exportCalendar(kind: 'forecast' | 'reminders') {
+    if (busy || saving) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const result = await (kind === 'forecast' ? exportForecastCalendar() : exportRemindersCalendar())
+      if (!result.cancelled) setNotice(result.skipped ?? 'Calendar file ready.')
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') setNotice('Could not create the calendar file.')
+    } finally { setBusy(false) }
+  }
+
+  return <Section title="Calendar">
+    <div className="calendar-settings">
+      <p>Opens in your calendar app. Nothing is sent to PPP. Importing again updates the same events.</p>
+      <p>Dates are estimates, not for contraception. Quiet hours do not apply in your calendar.</p>
+      <label className="reminder-privacy-row">
+        <span><strong>Discreet titles</strong><small>Use neutral titles on calendars that may be shared.</small></span>
+        <span className="reminder-switch">
+          <input type="checkbox" role="switch" aria-label="Discreet titles" checked={data?.discreet ?? true} disabled={!data || busy || saving} onChange={event => void savePreference(SK.calendarDiscreet, event.currentTarget.checked ? '1' : '0')} />
+          <span aria-hidden="true" />
+        </span>
+      </label>
+      <div className="calendar-cycle-row"><span>Cycles</span><div className="calendar-cycles" role="group" aria-label="Cycles">
+        {['3', '6'].map(cycles => <button key={cycles} type="button" aria-pressed={(data?.cycles ?? '3') === cycles} disabled={!data || busy || saving} onClick={() => void savePreference(SK.calendarCycles, cycles)}>{cycles}</button>)}
+      </div></div>
+      <button type="button" className="setting-row" disabled={!data?.hasForecast || busy || saving} aria-describedby="calendar-forecast-reason" onClick={() => void exportCalendar('forecast')}>Add cycle forecast to calendar</button>
+      <p id="calendar-forecast-reason" className="muted">{!data ? 'Checking forecast…' : !data.hasForecast ? 'Log two period starts first.' : ''}</p>
+      <button type="button" className="setting-row" disabled={!data?.hasReminders || busy || saving} aria-describedby="calendar-reminders-reason" onClick={() => void exportCalendar('reminders')}>Add reminders to calendar</button>
+      <p id="calendar-reminders-reason" className="muted">{!data ? 'Checking reminders…' : !data.hasReminders ? 'Turn on a reminder first.' : ''}</p>
+      {notice && <p role="status">{notice}</p>}
+    </div>
+  </Section>
 }

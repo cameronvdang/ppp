@@ -1,3 +1,5 @@
+import { DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL, type AssistantProvider } from './assistantModels'
+export { ANTHROPIC_MODELS, DEFAULT_ANTHROPIC_MODEL, DEFAULT_OPENAI_MODEL, type AssistantProvider } from './assistantModels'
 import Anthropic from '@anthropic-ai/sdk'
 import { providerFetch } from './providerFetch'
 
@@ -7,7 +9,7 @@ import { providerFetch } from './providerFetch'
  * No health data is loaded here. Callers must build `approvedContext`
  * explicitly from the toggles the user selected for the current request.
  */
-export const ASSISTANT_SYSTEM_PROMPT = `You are Lunara's health companion inside a privacy-first menstrual-health app. Explain cycles, fertility, pregnancy, symptoms, and perimenopause clearly and warmly.
+export const ASSISTANT_SYSTEM_PROMPT = `You are PPP's health companion inside a privacy-first menstrual-health app. Explain cycles, fertility, pregnancy, symptoms, and perimenopause clearly and warmly.
 
 Safety rules:
 - You provide general education, not a diagnosis, prescription, or substitute for a clinician.
@@ -23,7 +25,6 @@ export interface ChatMessage {
   content: string
 }
 
-export type AssistantProvider = 'anthropic' | 'openai'
 
 /**
  * How an Anthropic credential authenticates.
@@ -52,14 +53,6 @@ export interface AssistantConfig {
 
 export type ApprovedAssistantContext = Record<string, unknown>
 
-export const DEFAULT_ANTHROPIC_MODEL = 'claude-opus-5'
-export const DEFAULT_OPENAI_MODEL = 'gpt-5.6-terra'
-
-export const ANTHROPIC_MODELS = [
-  { id: 'claude-opus-5', label: 'Claude Opus 5 · most capable' },
-  { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 · balanced' },
-  { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 · fastest' },
-] as const
 
 type FetchLike = typeof fetch
 
@@ -91,7 +84,7 @@ function apiError(provider: AssistantProvider, status: number): Error {
     return new Error(
       provider === 'openai'
         ? 'OpenAI rejected that key. Add a fresh project key in AI settings.'
-        : 'Anthropic rejected that credential. A CLI token from `claude setup-token` expires — generate a new one, or paste a console API key.',
+        : 'Anthropic rejected that key or sign-in code. Create a new Claude sign-in code, or add your Anthropic key.',
     )
   }
   if (status === 402) return new Error('That account has no available credits.')
@@ -117,7 +110,7 @@ async function askAnthropic(
 ): Promise<string> {
   const credential = config.apiKey?.trim()
   if (!credential) {
-    throw new Error('Add an Anthropic key or a `claude setup-token` CLI token before sending a message.')
+    throw new Error('Add your Anthropic key or Claude sign-in code before sending a message.')
   }
   const kind = anthropicCredentialKind(credential)
   if (kind === null) {
@@ -194,7 +187,7 @@ async function askOpenAI(
   approvedContext: ApprovedAssistantContext | undefined,
   fetchImpl: FetchLike,
 ): Promise<string> {
-  if (!config.apiKey?.trim()) throw new Error('Add an OpenAI API key before sending a message.')
+  if (!config.apiKey?.trim()) throw new Error('Add an OpenAI key before sending a message.')
   const baseUrl = cleanBaseUrl(config.baseUrl || 'https://api.openai.com')
   const response = await fetchImpl(`${baseUrl}/v1/responses`, {
     method: 'POST',

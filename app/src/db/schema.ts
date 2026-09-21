@@ -1,4 +1,6 @@
 import Dexie, { type Table } from 'dexie'
+import type { SealedBlob } from '../crypto/sealed'
+import type { RecordCategory, RecordsConnection } from '../records/types'
 import { detectBbtShiftEstimates } from '../engine/cycle'
 import type { PregnancyDatingMethod } from '../engine/pregnancyDating'
 import type { MissedDoseEvent, RegimenRecord } from './regimen'
@@ -184,6 +186,7 @@ export interface HealthProfilePermissions {
 }
 
 export type ConsentPurpose =
+  | 'medical-records'
   | 'local-health-storage'
   | 'assistant-sharing'
   | 'health-import'
@@ -359,7 +362,11 @@ export interface ContentBookmark {
   savedAt: string
 }
 
-export class LunaraDB extends Dexie {
+export interface SealedRecordRow { id: string; category: RecordCategory; date: string | null; sealed: SealedBlob }
+
+export class PppDB extends Dexie {
+  medicalRecords!: Table<SealedRecordRow, string>
+  recordsConnection!: Table<RecordsConnection, string>
   dailyLogs!: Table<DailyLog, string>
   cycles!: Table<Cycle, string>
   settings!: Table<Setting, string>
@@ -377,8 +384,8 @@ export class LunaraDB extends Dexie {
    */
   missedDoseEvents!: Table<MissedDoseEvent, string>
 
-  constructor() {
-    super('lunara')
+  constructor(name = 'ppp') {
+    super(name)
     this.version(1).stores({
       dailyLogs: 'date',
       cycles: 'startDate',
@@ -411,10 +418,16 @@ export class LunaraDB extends Dexie {
       regimenRecords: 'id, method, startDate, [method+startDate]',
       missedDoseEvents: 'id, regimenId, date, [regimenId+date]',
     })
+    this.version(4).stores({
+      dailyLogs: 'date', cycles: 'startDate', settings: 'key', contentBookmarks: 'slug',
+      healthProfiles: 'id', regimenRecords: 'id, method, startDate, [method+startDate]',
+      missedDoseEvents: 'id, regimenId, date, [regimenId+date]',
+      medicalRecords: 'id, category, date', recordsConnection: 'id',
+    })
   }
 }
 
-export const db = new LunaraDB()
+export const db = new PppDB()
 
 /**
  * Period starts for the engine: first day of each run of consecutive
@@ -656,6 +669,10 @@ export async function putHealthProfile(
 
 /** Well-known settings keys. */
 export const SK = {
+  calendarDiscreet: 'calendarDiscreet',
+  calendarCycles: 'calendarCycles',
+  installCardDismissedAt: 'installCardDismissedAt',
+  recordsRelayUrl: 'recordsRelayUrl',
   onboarded: 'onboarded',
   goal: 'goal',
   birthYear: 'birthYear',
@@ -664,6 +681,7 @@ export const SK = {
   pinSalt: 'pinSalt',
   pinHash: 'pinHash',
   biometricLock: 'biometricLock',
+  deviceUnlockCredential: 'deviceUnlockCredential',
   /** Legacy only: plaintext AI keys are migrated out, then removed. */
   aiKey: 'aiKey',
   aiProvider: 'aiProvider',

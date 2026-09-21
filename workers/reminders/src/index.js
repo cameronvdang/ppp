@@ -1,5 +1,5 @@
 /**
- * Lunara reminder relay.
+ * PPP reminder relay.
  *
  * Stores only { email, sendTime, unsubToken } per subscriber — never anything
  * about the user's cycle. Every email is generic ("you have a reminder");
@@ -88,7 +88,7 @@ async function sendEmail(env, id, sub) {
 }
 
 function originOf(env) {
-  return (env.ALLOWED_ORIGINS ?? 'https://lunara.app').split(',')[0].trim()
+  return (env.ALLOWED_ORIGINS ?? 'https://ppp.example').split(',')[0].trim()
 }
 function isEmail(s) {
   return typeof s === 'string' && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(s)

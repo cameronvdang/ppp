@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Beyond the 52 Screens: Flo Capability and Local-Feasibility Audit
 
 Updated: 2026-07-26

@@ -81,7 +81,7 @@ export async function decryptJSON<T>(env: Envelope, secret: string): Promise<T> 
 export async function blobIdFromCode(code: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(`lunara-blob-id:${normalizeRecoveryCode(code)}`),
+    new TextEncoder().encode(`ppp-blob-id:${normalizeRecoveryCode(code)}`),
   )
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 40)
 }
@@ -89,7 +89,7 @@ export async function blobIdFromCode(code: string): Promise<string> {
 export async function hashPin(pin: string, saltB64: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     'SHA-256',
-    new TextEncoder().encode(`lunara-pin:${saltB64}:${pin}`),
+    new TextEncoder().encode(`ppp-pin:${saltB64}:${pin}`),
   )
   return toB64(digest)
 }

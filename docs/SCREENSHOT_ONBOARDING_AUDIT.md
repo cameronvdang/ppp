@@ -1,3 +1,5 @@
+> Written when the product was named Lunara; the product is now PPP.
+
 # Screenshot Onboarding Audit
 
 Status: product-spec reconstruction from the 52 supplied screenshots  

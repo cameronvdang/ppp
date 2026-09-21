@@ -37,7 +37,9 @@ import {
   TRACKER_GROUPS,
 } from '../db/taxonomy'
 import { formatLong } from '../lib/dates'
-import { nativeTap } from '../native/runtime'
+import { computePersonalizedForecast } from '../lib/personalizedForecast'
+import { cyclePhaseFor } from '../engine/phase'
+import { nativeTap } from '../platform/runtime'
 import type { TrackerFocus } from '../state/appStore'
 import { Sheet } from './Sheet'
 
@@ -115,6 +117,10 @@ export function LogSheet({
   onClose: () => void
 }) {
   const existing = useLiveQuery(() => db.dailyLogs.get(date), [date])
+  const phase = useLiveQuery(async () => {
+    const { periodStarts, flowDates, prediction, predictionContext } = await computePersonalizedForecast(date)
+    return cyclePhaseFor({ date, periodStarts, flowDates, prediction, eligibility: predictionContext.eligibility })
+  }, [date])
   const customizationJSON = useLiveQuery(() => getSetting(TRACKER_CUSTOMIZATION_KEY), [])
   const [draft, setDraft] = useState<DailyLog>({ date })
   const [loadedFor, setLoadedFor] = useState<string | null>(null)
@@ -255,6 +261,9 @@ export function LogSheet({
 
   return (
     <Sheet title={formatLong(date)} onClose={onClose}>
+      {phase && <p className="phase-chip log-phase-chip" title={phase.detail}>
+        {phase.label}{(phase.phase === 'follicular' || phase.phase === 'luteal') && ' (estimate)'}{phase.cycleDay ? ` · Day ${phase.cycleDay}` : ''}
+      </p>}
       <div className="field" style={{ order: -2 }}>
         <label htmlFor="tracker-search">Find a tracker</label>
         <input
@@ -272,15 +281,15 @@ export function LogSheet({
         style={{
           order: -1,
           background: draft.checkInComplete
-            ? 'linear-gradient(135deg, var(--teal-100), var(--surface-raised))'
+            ? 'linear-gradient(135deg, var(--pink-100), var(--surface-raised))'
             : undefined,
         }}
       >
         <div className="spread">
           <div>
-            <div className="section-label">Check-in coverage</div>
+            <h2 className="group-title">Check-in coverage</h2>
             <div className="muted" style={{ marginTop: 3 }}>
-              Mark this after you have reviewed today—even if nothing needs logging.
+              Mark this after you have reviewed today, even if nothing needs logging.
             </div>
           </div>
           <button
@@ -302,7 +311,7 @@ export function LogSheet({
 
       {isVisible('flow') && visibleFlows.length > 0 && (
         <div id="tracker-flow" className="tracker-section" style={sectionStyle('flow')}>
-          <div className="section-label">Flow</div>
+          <h2 className="group-title">Flow</h2>
           <div className="chip-wrap">
             {visibleFlows.map((f) => (
               <button
@@ -326,7 +335,8 @@ export function LogSheet({
 
       {isVisible('symptoms') && visibleSymptoms.length > 0 && (
         <div id="tracker-symptoms" className="tracker-section" style={sectionStyle('symptoms')}>
-          <div className="section-label">Symptoms</div>
+          <h2 className="group-title">Symptoms</h2>
+          <p className="muted">Noting symptoms here records them for this day and phase.</p>
           <div className="chip-wrap">
             {visibleSymptoms.map((s) => (
               <button
@@ -398,7 +408,7 @@ export function LogSheet({
 
       {isVisible('mood') && visibleMoods.length > 0 && (
         <div className="tracker-section" style={sectionStyle('mood')}>
-          <div className="section-label">Mood</div>
+          <h2 className="group-title">Mood</h2>
           <div className="chip-wrap">
             {visibleMoods.map((m) => (
               <button
@@ -416,7 +426,7 @@ export function LogSheet({
 
       {isVisible('discharge') && visibleDischarges.length > 0 && (
         <div className="tracker-section" style={sectionStyle('discharge')}>
-          <div className="section-label">Discharge</div>
+          <h2 className="group-title">Discharge</h2>
           <div className="chip-wrap">
             {visibleDischarges.map((d) => (
               <button
@@ -439,7 +449,7 @@ export function LogSheet({
 
       {isVisible('intimacy') && visibleIntimacy.length > 0 && (
         <div id="tracker-intimacy" className="tracker-section" style={sectionStyle('intimacy')}>
-          <div className="section-label">Sex &amp; drive</div>
+          <h2 className="group-title">Sex &amp; drive</h2>
           <div className="muted">Choose every item that applies. These entries stay on your device.</div>
           <div className="chip-wrap">
             {visibleIntimacy.map((s) => (
@@ -466,7 +476,7 @@ export function LogSheet({
             'pregnancy test',
           )) && (
         <div className="tracker-section" style={sectionStyle('fertility')}>
-          <div className="section-label">Fertility</div>
+          <h2 className="group-title">Fertility</h2>
           <div className="row">
             {sectionMatches(query, 'fertility', 'basal body temperature bbt') && (
               <div className="field" style={{ flex: 1 }}>
@@ -543,7 +553,7 @@ export function LogSheet({
         <div className="log-group" style={sectionStyle('digestion')}>
           <div className="spread">
             <div>
-              <div className="section-label">Digestion</div>
+              <h2 className="group-title">Digestion</h2>
               <div className="muted" style={{ marginTop: 3 }}>
                 Appetite, nausea, bloating, and stool changes
               </div>
@@ -576,7 +586,7 @@ export function LogSheet({
         <div className="log-group" style={sectionStyle('movement')}>
           <div className="spread">
             <div>
-              <div className="section-label">Movement</div>
+              <h2 className="group-title">Movement</h2>
               <div className="muted" style={{ marginTop: 3 }}>
                 Choose every activity that applies
               </div>
@@ -609,9 +619,9 @@ export function LogSheet({
         <div className="log-group" style={sectionStyle('wellbeing')}>
           <div className="spread">
             <div>
-              <div className="section-label">Daily context</div>
+              <h2 className="group-title">Daily context</h2>
               <div className="muted" style={{ marginTop: 3 }}>
-                Context for your own patterns—not a medical conclusion
+                Context for your own patterns, not a medical conclusion
               </div>
             </div>
             <span className="log-group-dot sun" aria-hidden="true" />
@@ -648,7 +658,7 @@ export function LogSheet({
           <div className="log-group" key={group.id} style={sectionStyle(group.id)}>
             <div className="spread">
               <div>
-                <div className="section-label">{group.label}</div>
+                <h2 className="group-title">{group.label}</h2>
                 <div className="muted" style={{ marginTop: 3 }}>
                   {group.description}
                 </div>
@@ -676,7 +686,7 @@ export function LogSheet({
       {isVisible('measurements') &&
         sectionMatches(query, 'daily measurements', 'weight', 'water', 'sleep', 'steps') && (
         <div className="tracker-section" style={sectionStyle('measurements')}>
-          <div className="section-label">Daily measurements</div>
+          <h2 className="group-title">Daily measurements</h2>
           <div className="measurement-grid">
         <div className="field">
           <label htmlFor="weight">Weight (kg)</label>

@@ -1,9 +1,10 @@
-export type Tab = 'today' | 'insights' | 'graphs' | 'settings'
+export type Tab = 'today' | 'insights' | 'graphs' | 'records' | 'settings'
 
 const TABS: { id: Tab; label: string; icon: string }[] = [
   { id: 'today', label: 'Today', icon: 'M12 3.5c4.8 0 8.5 3.9 8.5 8.5s-3.7 8.5-8.5 8.5S3.5 16.7 3.5 12 7.2 3.5 12 3.5Zm0 3.2c-2.8 1.2-4.2 3-4.2 5.3s1.4 4.1 4.2 5.3c2.8-1.2 4.2-3 4.2-5.3S14.8 7.9 12 6.7Z' },
   { id: 'insights', label: 'Insights', icon: 'M5 5.5c2.6-.5 4.9.1 7 1.8 2.1-1.7 4.4-2.3 7-1.8v13c-2.6-.5-4.9.1-7 1.8-2.1-1.7-4.4-2.3-7-1.8v-13ZM12 7.3v13' },
   { id: 'graphs', label: 'Trends', icon: 'M4 19.5V14m5.3 5.5V8.7m5.4 10.8V11m5.3 8.5V5M3 19.5h18' },
+  { id: 'records', label: 'Records', icon: 'M6 4h9l4 4v12H6z M9 12h6M9 16h6' },
   { id: 'settings', label: 'Settings', icon: 'M4 7h9m4 0h3M4 17h3m4 0h9M13 4v6M7 14v6' },
 ]
 

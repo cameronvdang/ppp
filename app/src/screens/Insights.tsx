@@ -48,9 +48,7 @@ export function Insights() {
   return (
     <div className="page insights-page">
       <header className="page-title-block">
-        <span className="page-kicker">Knowledge for your season</span>
-        <h1>Read, ask, notice</h1>
-        <p>Calm explanations for the questions that rarely fit into a search bar.</p>
+        <h1>Insights</h1>
       </header>
 
       <button className="assistant-feature" onClick={() => setAssistantOpen(true)}>
@@ -62,15 +60,10 @@ export function Insights() {
           <i className="constellation-seed seed-c" />
         </span>
         <span className="assistant-feature-copy">
-          <span className="assistant-feature-kicker">Lunara AI</span>
-          <strong>Bring the question you keep circling</strong>
-          <small>Your key, your conversation, your choice</small>
+          <strong>Ask PPP AI</strong>
+          <small>Uses your own key. Optional.</small>
         </span>
-        <span className="assistant-feature-arrow" aria-hidden="true">
-          <svg viewBox="0 0 24 24">
-            <path d="M5 12h13M13 7l5 5-5 5" />
-          </svg>
-        </span>
+        <span className="assistant-feature-open">Open</span>
       </button>
 
       <div className="insights-search">
@@ -92,10 +85,8 @@ export function Insights() {
         <section className="insight-section search-results" aria-live="polite">
           <div className="section-heading insight-section-heading">
             <div>
-              <span className="section-overline">Library search</span>
-              <h2>{searchResults.length ? `Results for “${query.trim()}”` : 'Nothing matched yet'}</h2>
+              <h2 className="group-title">{searchResults.length ? `Results for “${query.trim()}”` : 'No matching articles'}</h2>
             </div>
-            <span className="collection-count">{searchResults.length}</span>
           </div>
           {searchResults.length ? (
             <div className="article-list">
@@ -114,14 +105,14 @@ export function Insights() {
                   <span className="article-copy">
                     <span className="article-meta">{article.category} · {article.minutes} min read</span>
                     <strong>{article.title}</strong>
-                    <span className="article-open" aria-hidden="true">Read <b>↗</b></span>
+                    <span className="article-open" aria-hidden="true">Read</span>
                   </span>
                 </button>
               ))}
             </div>
           ) : (
             <div className="card empty-card">
-              Try a broader word, or ask Lunara AI without sharing tracker data.
+              Try another search, or ask PPP AI without sharing tracker data.
             </div>
           )}
         </section>
@@ -146,12 +137,8 @@ export function Insights() {
             >
               <div className="section-heading insight-section-heading">
                 <div>
-                  <span className="section-overline">
-                    {categoryIndex === 0 ? 'Chosen for your focus' : `Collection 0${categoryIndex + 1}`}
-                  </span>
-                  <h2>{category}</h2>
+                  <h2 className="group-title">{category}</h2>
                 </div>
-                <span className="collection-count">{articles.length}</span>
               </div>
 
               <div className="article-list">
@@ -177,7 +164,7 @@ export function Insights() {
                         )}
                       </span>
                       <strong>{article.title}</strong>
-                      <span className="article-open" aria-hidden="true">Read <b>↗</b></span>
+                      <span className="article-open" aria-hidden="true">Read</span>
                     </span>
                   </button>
                 ))}

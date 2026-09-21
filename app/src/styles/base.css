@@ -18,7 +18,7 @@ body {
 }
 
 html {
-  background: var(--paper-150);
+  background: var(--pink-100);
   text-size-adjust: 100%;
 }
 
@@ -27,9 +27,9 @@ body {
   font-family: var(--font-sans);
   color: var(--ink-900);
   background:
-    radial-gradient(circle at 14% -5%, rgba(242, 139, 117, 0.15), transparent 31%),
-    radial-gradient(circle at 96% 18%, rgba(69, 162, 159, 0.11), transparent 30%),
-    var(--paper-100);
+    radial-gradient(circle at 14% -5%, rgba(240, 128, 128, 0.18), transparent 31%),
+    radial-gradient(circle at 96% 18%, rgba(244, 194, 194, 0.35), transparent 30%),
+    var(--pink-50);
   -webkit-user-select: none;
   user-select: none;
   -webkit-touch-callout: none;
@@ -46,8 +46,8 @@ body::before {
   background-image:
     repeating-linear-gradient(
       112deg,
-      rgba(74, 47, 54, 0.018) 0,
-      rgba(74, 47, 54, 0.018) 1px,
+      color-mix(in srgb, var(--ink-900) 1.8%, transparent) 0,
+      color-mix(in srgb, var(--ink-900) 1.8%, transparent) 1px,
       transparent 1px,
       transparent 6px
     );
@@ -139,7 +139,7 @@ a:focus-visible,
 input:focus-visible,
 textarea:focus-visible,
 select:focus-visible {
-  outline: 3px solid rgba(47, 133, 132, 0.42);
+  outline: 3px solid color-mix(in srgb, var(--red-600) 42%, transparent);
   outline-offset: 3px;
 }
 
@@ -149,7 +149,7 @@ a {
 
 ::selection {
   color: var(--ink-950);
-  background: var(--rose-200);
+  background: var(--red-200);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -162,3 +162,6 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+html { -webkit-text-size-adjust: 100%; }
+[role='button'], a, .chip, .cal-day, .date-cell { touch-action: manipulation; }

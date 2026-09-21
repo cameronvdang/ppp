@@ -1,0 +1,44 @@
+.records-page > p { line-height: 1.6; margin-bottom: 20px; }
+.records-page h2:not(:where(.group-title)) { font-size: 20px; }
+.records-connect p, .records-source p { line-height: 1.55; margin: 10px 0; }
+.records-banner { background: var(--pink-200); border: 1px solid var(--pink-400); border-radius: var(--radius-sm); padding: 16px; line-height: 1.5; color: var(--ink-900); margin-bottom: 16px; }
+.records-checklist { border: 0; padding: 12px 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+.records-checklist legend { font-weight: 700; padding: 8px 0; }
+.records-checklist label, .records-consent { display: flex; align-items: flex-start; gap: 10px; line-height: 1.5; }
+.records-checklist input, .records-consent input { flex-shrink: 0; width: 19px; height: 19px; margin-top: 3px; accent-color: var(--pink-500); }
+.records-consent { padding: 16px 0; font-size: 14px; }
+.records-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; align-items: center; }
+.records-actions .cta { flex: 1 1 190px; width: auto; margin: 0; }
+.records-secondary { background: var(--pink-100); color: var(--ink-900); border: 1px solid var(--pink-400); box-shadow: none; }
+.records-link { color: var(--red-800); background: transparent; text-decoration: underline; padding: 8px 0; font-weight: 700; }
+.records-delete { padding: 14px; color: var(--danger); border: 1px solid var(--red-300); border-radius: var(--radius-sm); background: var(--paper-100); }
+.records-count-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; margin: 18px 0; }
+.records-count { display: flex; flex-direction: column; text-align: left; gap: 8px; margin: 0; min-height: 140px; }
+.records-count strong { font-size: 30px; color: var(--red-800); }
+.records-count .muted { font-size: 12px; line-height: 1.4; }
+.records-badge { display: inline-block; background: var(--pink-100); color: var(--ink-800); padding: 5px 10px; border-radius: 99px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+.records-list { list-style: none; padding: 0; margin: 0; }
+.records-row { padding: 18px 0; border-bottom: 1px solid var(--line-soft); overflow-wrap: anywhere; }
+.records-row strong { font-size: 17px; }
+.records-row p { margin: 6px 0 0; line-height: 1.5; }
+.records-row .muted { font-size: 13px; }
+.records-notice { line-height: 1.5; }
+.records-error { border: 1px solid var(--red-300); }
+.records-spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid var(--pink-300); border-top-color: var(--red-800); border-radius: 50%; margin-right: 10px; animation: records-spin 1s linear infinite; }
+@keyframes records-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .records-spinner { animation: none; } }
+.records-settings-fields { display: grid; gap: 10px; padding: 16px 0; }
+.records-settings-fields label { font-weight: 700; }
+.records-settings-fields input { width: 100%; padding: 12px; border: 1px solid var(--line-soft); border-radius: var(--radius-sm); background: var(--bg); }
+.records-settings-fields p, .records-settings-note { font-size: 14px; line-height: 1.5; }
+.records-settings-note { padding-bottom: 16px; }
+.privacy-table { width: 100%; border-collapse: collapse; font-size: 13px; line-height: 1.5; }
+.privacy-table th, .privacy-table td { padding: 12px 8px; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line-soft); overflow-wrap: anywhere; }
+.privacy-table thead th { color: var(--ink-900); }
+@media (max-width: 560px) {
+  .privacy-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .privacy-table, .privacy-table tbody, .privacy-table tr, .privacy-table td, .privacy-table tbody th { display: block; }
+  .privacy-table tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+  .privacy-table th, .privacy-table td { border: 0; padding: 5px 0; }
+  .privacy-table td::before { content: attr(data-label) ': '; font-weight: 700; }
+}

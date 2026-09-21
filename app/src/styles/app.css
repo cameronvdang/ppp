@@ -27,25 +27,26 @@
 .page > :nth-child(n + 6) { animation-delay: 200ms; }
 
 .page h1,
-.page h2,
+.page h2:not(:where(.group-title)),
 .overlay h1,
-.overlay h2 {
+.overlay h2:not(:where(.group-title)) {
   font-family: var(--font-display);
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.02em;
   text-wrap: balance;
 }
 
 .page h1 {
   max-width: 13ch;
   font-size: clamp(38px, 10vw, 50px);
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 0.98;
   color: var(--ink-950);
 }
 
-.page h2 {
+.page h2:not(:where(.group-title)) {
   font-size: 27px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.08;
   color: var(--ink-950);
 }
@@ -55,7 +56,7 @@
   width: 64px;
   height: 64px;
   margin: auto;
-  background: var(--rose-600);
+  background: var(--red-600);
   border-radius: 50%;
   -webkit-mask: radial-gradient(circle at 68% 32%, transparent 0 47%, #000 48%);
   mask: radial-gradient(circle at 68% 32%, transparent 0 47%, #000 48%);
@@ -82,16 +83,16 @@
   height: 50px;
   display: grid;
   place-items: center;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-family: var(--font-display);
   font-size: 28px;
-  background: var(--rose-100);
-  border: 1px solid var(--rose-200);
+  background: var(--pink-100);
+  border: 1px solid var(--red-200);
   border-radius: 18px;
 }
 
-.startup-failure-mark .lunara-crescent {
-  color: var(--rose-700);
+.startup-failure-mark .ppp-crescent {
+  color: var(--red-700);
 }
 
 .startup-failure-card h1 {
@@ -115,7 +116,7 @@
   margin-top: 8px;
   padding: 12px;
   overflow: auto;
-  color: var(--ink-700);
+  color: var(--ink-650);
   font-size: 11px;
   line-height: 1.45;
   white-space: pre-wrap;
@@ -148,7 +149,7 @@ button.card {
 
 button.card:active {
   transform: scale(0.985);
-  box-shadow: 0 5px 16px rgba(75, 45, 50, 0.08);
+  box-shadow: 0 5px 16px color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .cta {
@@ -161,14 +162,12 @@ button.card:active {
   justify-content: center;
   gap: 12px;
   overflow: hidden;
-  color: #fffaf7;
+  color: var(--cta-fg);
   font-size: 16px;
   font-weight: 700;
   letter-spacing: -0.01em;
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.13), transparent 38%),
-    var(--rose-600);
-  border: 1px solid rgba(142, 39, 62, 0.18);
+  background: var(--cta-bg);
+  border: 1px solid color-mix(in srgb, var(--red-700) 18%, transparent);
   border-radius: var(--radius-cta);
   box-shadow: var(--shadow-rose);
   transition:
@@ -188,30 +187,32 @@ button.card:active {
 
 .cta:hover {
   filter: saturate(1.05);
-  box-shadow: 0 17px 34px rgba(213, 72, 99, 0.27);
+  box-shadow: 0 17px 34px color-mix(in srgb, var(--red-600) 27%, transparent);
 }
 
 .cta:active {
   transform: scale(0.98);
-  box-shadow: 0 8px 18px rgba(213, 72, 99, 0.2);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--red-600) 20%, transparent);
 }
 
-.cta.secondary {
-  color: var(--rose-700);
-  background: var(--rose-100);
-  border-color: var(--rose-200);
+.cta.secondary,
+.page.onboarding .ob-shell-footer .cta.secondary {
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: var(--red-200);
   box-shadow: none;
 }
 
-.cta.yellow {
+.cta.yellow,
+.page.onboarding .ob-shell-footer .cta.yellow {
   color: var(--ink-900);
   background: var(--yellow-500);
-  border-color: rgba(135, 89, 18, 0.15);
-  box-shadow: 0 14px 28px rgba(212, 154, 45, 0.19);
+  border-color: color-mix(in srgb, var(--warning) 15%, transparent);
+  box-shadow: 0 14px 28px color-mix(in srgb, var(--warning) 19%, transparent);
 }
 
 .cta:disabled {
-  color: rgba(56, 41, 47, 0.42);
+  color: color-mix(in srgb, var(--ink-900) 42%, transparent);
   background: var(--paper-200);
   border-color: transparent;
   box-shadow: none;
@@ -254,26 +255,8 @@ button.card:active {
   justify-content: space-between;
 }
 
-.section-label,
-.section-overline,
-.page-kicker,
-.eyebrow {
-  color: var(--ink-500);
-  font-size: 10px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 .page-title-block {
   padding: 18px 2px 3px;
-}
-
-.page-title-block .page-kicker {
-  display: block;
-  margin-bottom: 10px;
-  color: var(--rose-600);
 }
 
 .page-title-block h1 {
@@ -295,7 +278,7 @@ button.card:active {
   gap: 20px;
 }
 
-.section-heading h2 {
+.section-heading h2:not(:where(.group-title)) {
   margin-top: 5px;
 }
 
@@ -323,10 +306,10 @@ button.card:active {
   color: var(--ink-800);
   font-size: 13px;
   font-weight: 650;
-  background: rgba(255, 253, 249, 0.78);
+  background: color-mix(in srgb, var(--pink-50) 78%, transparent);
   border: 1px solid var(--line-medium);
   border-radius: var(--radius-chip);
-  box-shadow: 0 2px 8px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   transition:
     transform 180ms var(--ease-spring),
     color 180ms ease,
@@ -339,16 +322,16 @@ button.card:active {
 }
 
 .chip[aria-pressed='true'] {
-  color: var(--rose-700);
-  background: var(--rose-100);
-  border-color: var(--rose-400);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: var(--red-400);
   transform: translateY(-1px);
 }
 
 .chip.teal[aria-pressed='true'] {
-  color: var(--teal-700);
-  background: var(--teal-100);
-  border-color: var(--teal-500);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: var(--fertile);
 }
 
 .log-group {
@@ -356,7 +339,7 @@ button.card:active {
   padding: 17px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 104% -4%, rgba(234, 96, 121, 0.1), transparent 35%),
+    radial-gradient(circle at 104% -4%, color-mix(in srgb, var(--period) 10%, transparent), transparent 35%),
     var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 21px;
@@ -373,14 +356,14 @@ button.card:active {
   width: 9px;
   height: 9px;
   flex: 0 0 auto;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
-  box-shadow: 0 0 0 5px var(--rose-100);
+  box-shadow: 0 0 0 5px var(--pink-100);
 }
 
 .log-group-dot.teal {
-  background: var(--teal-600);
-  box-shadow: 0 0 0 5px var(--teal-100);
+  background: var(--red-600);
+  box-shadow: 0 0 0 5px var(--pink-100);
 }
 
 .log-group-dot.sun {
@@ -390,7 +373,7 @@ button.card:active {
 
 .log-group-dot.violet {
   background: var(--purple-500);
-  box-shadow: 0 0 0 5px rgba(133, 111, 157, 0.13);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--ink-650) 13%, transparent);
 }
 
 .measurement-grid {
@@ -410,7 +393,7 @@ button.card:active {
   width: 100%;
   height: 100%;
   padding: 0;
-  background: rgba(43, 32, 36, 0.42);
+  background: color-mix(in srgb, var(--ink-950) 42%, transparent);
   backdrop-filter: blur(4px);
   animation: fade-in 220ms ease-out both;
 }
@@ -429,7 +412,7 @@ button.card:active {
   flex-direction: column;
   overflow: hidden;
   background:
-    radial-gradient(circle at 90% 0, rgba(242, 139, 117, 0.1), transparent 28%),
+    radial-gradient(circle at 90% 0, color-mix(in srgb, var(--red-400) 10%, transparent), transparent 28%),
     var(--paper-100);
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-bottom: 0;
@@ -463,7 +446,7 @@ button.card:active {
   color: var(--ink-950);
   font-family: var(--font-display);
   font-size: 21px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   letter-spacing: -0.02em;
   text-align: center;
 }
@@ -511,9 +494,7 @@ button.card:active {
   color: var(--ink-500);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.08em;
   text-align: center;
-  text-transform: uppercase;
 }
 
 .cal-day {
@@ -531,19 +512,21 @@ button.card:active {
 }
 
 .cal-day.dim { color: var(--ink-300); }
-.cal-day.period { background: var(--rose-200); }
+.cal-day.phase-follicular { background: var(--pink-100); }
+.cal-day.phase-luteal { background: var(--pink-200); }
+.cal-day.period { background: var(--period); }
 
 .cal-day.predicted {
-  color: var(--rose-700);
-  border: 1.5px dashed var(--rose-400);
+  color: var(--red-700);
+  border: 1.5px dashed var(--period);
 }
 
-.cal-day.fertile { background: var(--teal-200); }
+.cal-day.fertile { background: var(--fertile); }
 
 .cal-day.ovulation {
-  color: var(--teal-700);
+  color: var(--red-700);
   font-weight: 800;
-  border: 2px solid var(--teal-500);
+  border: 2px solid var(--fertile);
 }
 
 .cal-day.today-mark::after {
@@ -552,9 +535,23 @@ button.card:active {
   bottom: 3px;
   width: 4px;
   height: 4px;
-  background: var(--rose-600);
+  background: var(--red-600);
   border-radius: 50%;
 }
+
+.cal-day.has-symptoms .cal-symptom-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ink-650);
+  transform: translateX(-50%);
+}
+
+.cal-day.today-mark.has-symptoms .cal-symptom-dot { left: calc(50% - 4px); }
+.cal-day.today-mark.has-symptoms::after { left: calc(50% + 2px); bottom: 4px; }
 
 .calendar-title-button {
   min-width: 150px;
@@ -571,7 +568,7 @@ button.card:active {
 
 .calendar-title-button > span {
   margin-top: 2px;
-  color: var(--rose-600);
+  color: var(--red-600);
   font-size: 15px;
 }
 
@@ -596,19 +593,19 @@ button.card:active {
 }
 
 .calendar-toolbar button.active {
-  color: var(--rose-700);
-  background: var(--rose-100);
-  box-shadow: 0 3px 10px rgba(75, 45, 50, 0.06);
+  color: var(--red-700);
+  background: var(--pink-100);
+  box-shadow: 0 3px 10px color-mix(in srgb, var(--ink-900) 6%, transparent);
 }
 
 .calendar-edit-note {
   margin-bottom: 15px;
   padding: 11px 13px;
-  color: var(--rose-800);
+  color: var(--red-800);
   font-size: 12px;
   line-height: 1.45;
-  background: var(--rose-100);
-  border: 1px solid var(--rose-200);
+  background: var(--pink-100);
+  border: 1px solid var(--red-200);
   border-radius: 14px;
 }
 
@@ -623,10 +620,10 @@ button.card:active {
   padding: 13px 10px 11px;
   color: var(--ink-800);
   text-align: left;
-  background: rgba(255, 253, 249, 0.75);
+  background: color-mix(in srgb, var(--pink-50) 75%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 17px;
-  box-shadow: 0 4px 14px rgba(75, 45, 50, 0.04);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink-900) 4%, transparent);
 }
 
 .mini-month > strong {
@@ -635,7 +632,7 @@ button.card:active {
   color: var(--ink-900);
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 550;
+  font-weight: var(--weight-display);
 }
 
 .mini-days {
@@ -649,16 +646,16 @@ button.card:active {
   height: 14px;
   display: grid;
   place-items: center;
-  color: var(--ink-400);
+  color: var(--ink-500);
   font-size: 6px;
   font-style: normal;
   border-radius: 50%;
 }
 
 .mini-days i.logged {
-  color: var(--rose-800);
+  color: var(--red-800);
   font-weight: 800;
-  background: var(--rose-200);
+  background: var(--red-200);
 }
 
 .calendar-legend {
@@ -695,16 +692,36 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
 }
 
 .today-heading strong {
   margin-top: 4px;
   font-family: var(--font-display);
   font-size: 19px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   letter-spacing: -0.025em;
+}
+
+.phase-chip,
+.today-heading .phase-chip {
+  margin-top: 8px;
+  padding: 5px 9px;
+  max-width: 100%;
+  border-radius: 12px;
+  background: var(--pink-100);
+  color: var(--ink-650);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: normal;
+  text-transform: none;
+  text-align: center;
+}
+
+.log-phase-chip {
+  order: -3;
+  align-self: center;
+  margin-top: 0;
 }
 
 .brand-mark {
@@ -713,9 +730,9 @@ button.card:active {
   height: 42px;
   display: block;
   overflow: hidden;
-  color: var(--rose-700);
-  background: var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.13);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 13%, transparent);
   border-radius: 15px;
 }
 
@@ -724,7 +741,7 @@ button.card:active {
   top: 11px;
   width: 11px;
   height: 18px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 100% 0 100% 0;
 }
 
@@ -744,7 +761,7 @@ button.card:active {
   bottom: 9px;
   width: 6px;
   height: 12px;
-  background: var(--coral-400);
+  background: var(--red-400);
   border-radius: 60% 60% 80% 80%;
 }
 
@@ -754,7 +771,7 @@ button.card:active {
   display: grid;
   place-items: center;
   color: var(--ink-800);
-  background: rgba(255, 253, 249, 0.65);
+  background: color-mix(in srgb, var(--pink-50) 65%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 15px;
 }
@@ -775,10 +792,10 @@ button.card:active {
 
 .date-panel {
   padding: 8px 8px 7px;
-  background: rgba(255, 253, 249, 0.58);
+  background: color-mix(in srgb, var(--pink-50) 58%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 22px;
-  box-shadow: 0 7px 22px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 7px 22px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
 }
 
 .date-strip {
@@ -804,8 +821,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .date-cell .num {
@@ -823,36 +838,36 @@ button.card:active {
 }
 
 .date-cell.sel .num {
-  color: #fffaf7;
+  color: var(--pink-50);
   background: var(--ink-900);
-  box-shadow: 0 7px 15px rgba(43, 32, 36, 0.2);
+  box-shadow: 0 7px 15px color-mix(in srgb, var(--ink-950) 20%, transparent);
 }
 
 .date-cell.logged .num {
-  color: var(--rose-700);
-  background: var(--rose-100);
+  color: var(--ink-950);
+  background: var(--period);
 }
 
 .date-cell.logged.sel .num {
   color: #fff;
-  background: var(--rose-600);
-  box-shadow: 0 7px 15px rgba(192, 58, 87, 0.24);
+  background: var(--red-700);
+  box-shadow: 0 7px 15px color-mix(in srgb, var(--red-700) 24%, transparent);
 }
 
 .date-cell.fertile:not(.logged, .sel) .num {
-  color: var(--teal-700);
-  background: var(--teal-100);
+  color: var(--ink-900);
+  background: var(--fertile);
 }
 
 .date-cell.predicted-ovulation .num {
-  outline: 1px dashed var(--teal-600);
+  outline: 1px dashed var(--red-600);
   outline-offset: 2px;
 }
 
 .date-cell.predicted-ovulation.sel .num {
   color: #fff;
-  background: var(--teal-700);
-  box-shadow: 0 7px 15px rgba(31, 121, 124, 0.24);
+  background: var(--red-700);
+  box-shadow: 0 7px 15px color-mix(in srgb, var(--red-700) 24%, transparent);
 }
 
 .date-cell-dot {
@@ -863,14 +878,14 @@ button.card:active {
 }
 
 .date-cell.logged .date-cell-dot {
-  background: var(--rose-500);
+  background: var(--period);
 }
 
 /* Reference-informed daily state */
 
 .phase-hero {
   --phase-ink: var(--ink-950);
-  --phase-accent: var(--rose-600);
+  --phase-accent: var(--period);
   --phase-soft: rgba(255, 255, 255, 0.55);
   position: relative;
   min-height: 318px;
@@ -884,10 +899,10 @@ button.card:active {
   text-align: center;
   background:
     radial-gradient(circle at 22% 9%, rgba(255, 255, 255, 0.58), transparent 31%),
-    linear-gradient(155deg, #ffd7df 0%, #f887a3 64%, #ef688a 100%);
-  border: 1px solid rgba(167, 50, 77, 0.1);
+    linear-gradient(155deg, var(--pink-200) 0%, var(--red-400) 64%, var(--period) 100%);
+  border: 1px solid color-mix(in srgb, var(--red-700) 10%, transparent);
   border-radius: 32px 32px 64px 64px / 32px 32px 42px 42px;
-  box-shadow: 0 19px 44px rgba(179, 66, 91, 0.15);
+  box-shadow: 0 19px 44px color-mix(in srgb, var(--red-700) 15%, transparent);
   isolation: isolate;
 }
 
@@ -898,50 +913,50 @@ button.card:active {
   bottom: -37%;
   left: -18%;
   height: 50%;
-  background: rgba(255, 252, 248, 0.18);
+  background: color-mix(in srgb, var(--pink-50) 18%, transparent);
   border-radius: 50% 50% 0 0;
   pointer-events: none;
 }
 
 .phase-ovulation,
 .phase-fertile {
-  --phase-accent: var(--teal-700);
+  --phase-accent: var(--red-700);
   background:
     radial-gradient(circle at 26% 12%, rgba(255, 255, 255, 0.64), transparent 33%),
-    linear-gradient(155deg, #d4f3ef 0%, #77cfce 58%, #48aeb5 100%);
-  border-color: rgba(31, 121, 124, 0.11);
-  box-shadow: 0 19px 44px rgba(30, 120, 122, 0.14);
+    linear-gradient(155deg, var(--pink-200) 0%, var(--fertile) 58%, var(--red-400) 100%);
+  border-color: color-mix(in srgb, var(--red-700) 11%, transparent);
+  box-shadow: 0 19px 44px color-mix(in srgb, var(--red-700) 14%, transparent);
 }
 
 .phase-cycle,
 .phase-empty {
-  --phase-accent: var(--rose-700);
+  --phase-accent: var(--red-700);
   background:
     radial-gradient(circle at 74% 18%, rgba(255, 255, 255, 0.75), transparent 27%),
-    linear-gradient(150deg, #fff1ec, #f5c6c1 62%, #eca19f);
+    linear-gradient(150deg, var(--pink-100), var(--phase-follicular) 62%, var(--phase-luteal));
 }
 
 .phase-peri {
-  --phase-ink: #fff9fc;
+  --phase-ink: var(--pink-50);
   --phase-accent: #fff;
   --phase-soft: rgba(255, 255, 255, 0.18);
   background:
-    radial-gradient(circle at 16% 11%, rgba(242, 183, 212, 0.3), transparent 31%),
-    radial-gradient(circle at 88% 78%, rgba(215, 169, 91, 0.28), transparent 34%),
-    linear-gradient(155deg, #65356f, #4f1f60 66%, #391440);
-  border-color: rgba(67, 20, 76, 0.18);
-  box-shadow: 0 19px 44px rgba(67, 20, 76, 0.18);
+    radial-gradient(circle at 16% 11%, color-mix(in srgb, var(--red-300) 30%, transparent), transparent 31%),
+    radial-gradient(circle at 88% 78%, color-mix(in srgb, var(--yellow-500) 28%, transparent), transparent 34%),
+    linear-gradient(155deg, var(--ink-650), var(--ink-800) 66%, var(--ink-900));
+  border-color: color-mix(in srgb, var(--ink-900) 18%, transparent);
+  box-shadow: 0 19px 44px color-mix(in srgb, var(--ink-900) 18%, transparent);
 }
 
 .phase-pregnancy {
-  --phase-accent: #a24b29;
+  --phase-accent: var(--red-700);
   min-height: 422px;
   padding-top: 18px;
   background:
     radial-gradient(circle at 50% 25%, rgba(255, 255, 255, 0.72), transparent 30%),
-    linear-gradient(155deg, #ffe6d4 0%, #f8c59f 65%, #eca978 100%);
-  border-color: rgba(162, 75, 41, 0.11);
-  box-shadow: 0 19px 44px rgba(162, 75, 41, 0.14);
+    linear-gradient(155deg, var(--pink-200) 0%, var(--pink-300) 65%, var(--pink-500) 100%);
+  border-color: color-mix(in srgb, var(--red-700) 11%, transparent);
+  box-shadow: 0 19px 44px color-mix(in srgb, var(--red-700) 14%, transparent);
 }
 
 .phase-geometry {
@@ -953,7 +968,7 @@ button.card:active {
 
 .phase-arc {
   position: absolute;
-  border: 1px solid rgba(78, 45, 56, 0.12);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 12%, transparent);
   border-radius: 50%;
 }
 
@@ -992,13 +1007,6 @@ button.card:active {
   align-items: center;
 }
 
-.phase-eyebrow {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .phase-copy h1 {
   max-width: 11ch;
   margin-top: 5px;
@@ -1025,7 +1033,7 @@ button.card:active {
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(255, 255, 255, 0.68);
   border-radius: 999px;
-  box-shadow: 0 8px 18px rgba(67, 36, 45, 0.08);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .phase-action:active {
@@ -1050,12 +1058,6 @@ button.card:active {
   border-top: 1px solid var(--phase-soft);
 }
 
-.phase-detail-link span {
-  font-family: var(--font-display);
-  font-size: 19px;
-  line-height: 0.7;
-}
-
 .pregnancy-growth-mark {
   position: relative;
   z-index: 1;
@@ -1067,7 +1069,7 @@ button.card:active {
 .growth-orbit {
   position: absolute;
   inset: 8px 25px;
-  border: 1px solid rgba(143, 73, 46, 0.14);
+  border: 1px solid color-mix(in srgb, var(--red-700) 14%, transparent);
   border-radius: 47% 53% 55% 45%;
   transform: rotate(-17deg);
 }
@@ -1086,11 +1088,11 @@ button.card:active {
   height: 78px;
   background:
     radial-gradient(circle at 37% 27%, rgba(255, 255, 255, 0.62), transparent 24%),
-    linear-gradient(145deg, #d7825f, #a9533e);
+    linear-gradient(145deg, var(--period), var(--red-700));
   border-radius: 52% 48% 57% 43% / 42% 45% 55% 58%;
   box-shadow:
-    inset -8px -11px 16px rgba(111, 48, 34, 0.14),
-    0 14px 28px rgba(111, 48, 34, 0.18);
+    inset -8px -11px 16px color-mix(in srgb, var(--red-700) 14%, transparent),
+    0 14px 28px color-mix(in srgb, var(--red-700) 18%, transparent);
   transform: rotate(24deg);
 }
 
@@ -1100,7 +1102,7 @@ button.card:active {
   bottom: 8px;
   width: 45px;
   height: 29px;
-  border: 8px solid rgba(149, 72, 51, 0.78);
+  border: 8px solid color-mix(in srgb, var(--red-700) 78%, transparent);
   border-top-color: transparent;
   border-left-color: transparent;
   border-radius: 50%;
@@ -1113,7 +1115,7 @@ button.card:active {
 }
 
 .phase-pregnancy .phase-copy p {
-  color: #795040;
+  color: var(--red-700);
 }
 
 .cycle-stage {
@@ -1133,7 +1135,7 @@ button.card:active {
   left: 50%;
   width: 260px;
   height: 210px;
-  background: radial-gradient(ellipse, rgba(242, 139, 117, 0.15), transparent 67%);
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--red-400) 15%, transparent), transparent 67%);
   transform: translateX(-50%);
   filter: blur(8px);
 }
@@ -1141,7 +1143,7 @@ button.card:active {
 .cycle-stage-orbit {
   position: absolute;
   pointer-events: none;
-  border: 1px solid rgba(111, 90, 98, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink-650) 10%, transparent);
   border-radius: 50%;
 }
 
@@ -1181,26 +1183,26 @@ button.card:active {
 
 .cycle-ring-track,
 .cycle-ring-progress {
-  fill: rgba(255, 253, 249, 0.36);
+  fill: color-mix(in srgb, var(--pink-50) 36%, transparent);
 }
 
 .cycle-ring-track {
-  stroke: rgba(214, 75, 104, 0.11);
+  stroke: color-mix(in srgb, var(--red-600) 11%, transparent);
 }
 
 .cycle-ring-progress {
   fill: none;
-  stroke: url('#lunara-cycle-gradient');
+  stroke: url('#ppp-cycle-gradient');
   stroke-linecap: round;
-  filter: url('#lunara-ring-glow');
+  filter: url('#ppp-ring-glow');
   transition: stroke-dashoffset 900ms var(--ease-out);
 }
 
 .cycle-ring-satellite {
   fill: var(--paper-50);
-  stroke: var(--rose-600);
+  stroke: var(--red-600);
   stroke-width: 3;
-  filter: drop-shadow(0 4px 7px rgba(184, 62, 88, 0.25));
+  filter: drop-shadow(0 4px 7px color-mix(in srgb, var(--red-700) 25%, transparent));
   transition: transform 900ms var(--ease-out);
   transform-origin: center;
 }
@@ -1215,22 +1217,19 @@ button.card:active {
   gap: 1px;
   background:
     radial-gradient(circle at 42% 28%, rgba(255, 255, 255, 0.86), transparent 35%),
-    rgba(255, 253, 249, 0.6);
+    color-mix(in srgb, var(--pink-50) 60%, transparent);
   border: 1px solid rgba(255, 255, 255, 0.6);
   border-radius: 50%;
   box-shadow:
-    inset 0 -12px 30px rgba(234, 96, 121, 0.045),
-    0 12px 45px rgba(75, 45, 50, 0.05);
+    inset 0 -12px 30px color-mix(in srgb, var(--period) 4.5%, transparent),
+    0 12px 45px color-mix(in srgb, var(--ink-900) 5%, transparent);
   backdrop-filter: blur(5px);
 }
 
-.cycle-ring-kicker,
 .cycle-ring-unit {
   color: var(--ink-650);
   font-size: 12px;
   font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .cycle-ring-number {
@@ -1246,12 +1245,10 @@ button.card:active {
 .cycle-ring-day {
   margin-top: 15px;
   padding: 6px 10px;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  background: var(--rose-100);
+  background: var(--pink-100);
   border-radius: 99px;
 }
 
@@ -1259,7 +1256,7 @@ button.card:active {
   color: var(--ink-950);
   font-family: var(--font-display);
   font-size: 26px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.03;
   letter-spacing: -0.035em;
   text-align: center;
@@ -1280,8 +1277,8 @@ button.card:active {
   width: 15px;
   height: 28px;
   pointer-events: none;
-  background: var(--rose-200);
-  border: 1px solid rgba(214, 75, 104, 0.12);
+  background: var(--red-200);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
   border-radius: 100% 0 100% 0;
 }
 
@@ -1296,8 +1293,8 @@ button.card:active {
   bottom: 23%;
   width: 12px;
   height: 22px;
-  background: var(--teal-200);
-  border-color: rgba(47, 133, 132, 0.12);
+  background: var(--pink-300);
+  border-color: color-mix(in srgb, var(--red-600) 12%, transparent);
   transform: rotate(72deg);
 }
 
@@ -1307,7 +1304,7 @@ button.card:active {
   width: 10px;
   height: 19px;
   background: var(--clay-200);
-  border-color: rgba(183, 131, 104, 0.12);
+  border-color: color-mix(in srgb, var(--pink-500) 12%, transparent);
   transform: rotate(149deg);
 }
 
@@ -1323,7 +1320,7 @@ button.card:active {
   color: var(--ink-650);
   font-size: 10.5px;
   font-weight: 650;
-  background: rgba(255, 253, 249, 0.76);
+  background: color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 99px;
   backdrop-filter: blur(6px);
@@ -1334,7 +1331,7 @@ button.card:active {
 }
 
 .estimate-arrow {
-  color: var(--rose-600);
+  color: var(--red-600);
   font-family: var(--font-display);
   font-size: 17px;
   line-height: 0.8;
@@ -1344,18 +1341,18 @@ button.card:active {
   width: 6px;
   height: 6px;
   flex: 0 0 auto;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
-  box-shadow: 0 0 0 4px var(--rose-100);
+  box-shadow: 0 0 0 4px var(--pink-100);
 }
 
 .goal-ttc .cycle-stage::before {
-  background: radial-gradient(ellipse, rgba(69, 162, 159, 0.16), transparent 67%);
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--fertile) 16%, transparent), transparent 67%);
 }
 
-.goal-ttc .cycle-ring-progress { stroke: var(--teal-500); }
-.goal-ttc .estimate-dot { background: var(--teal-500); box-shadow: 0 0 0 4px var(--teal-100); }
-.goal-ttc .cycle-ring-day { color: var(--teal-700); background: var(--teal-100); }
+.goal-ttc .cycle-ring-progress { stroke: var(--fertile); }
+.goal-ttc .estimate-dot { background: var(--fertile); box-shadow: 0 0 0 4px var(--pink-100); }
+.goal-ttc .cycle-ring-day { color: var(--red-700); background: var(--pink-100); }
 
 .signal-card {
   display: flex;
@@ -1388,7 +1385,7 @@ button.card:active {
 }
 
 .late-card {
-  background: linear-gradient(135deg, rgba(241, 231, 220, 0.84), rgba(255, 253, 249, 0.92));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--pink-200) 84%, transparent), color-mix(in srgb, var(--pink-50) 92%, transparent));
 }
 
 .peri-score-card {
@@ -1398,7 +1395,7 @@ button.card:active {
   align-items: center;
   gap: 16px;
   background:
-    radial-gradient(circle at 100% 0, rgba(237, 184, 70, 0.25), transparent 45%),
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--yellow-500) 25%, transparent), transparent 45%),
     var(--surface-raised);
 }
 
@@ -1406,14 +1403,6 @@ button.card:active {
   display: flex;
   flex-direction: column;
   gap: 5px;
-}
-
-.peri-score-copy strong {
-  max-width: 25ch;
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 500;
-  line-height: 1.08;
 }
 
 .peri-score-copy > span {
@@ -1429,9 +1418,9 @@ button.card:active {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #74521a;
+  color: var(--warning);
   background: var(--yellow-100);
-  border: 1px solid rgba(212, 154, 45, 0.2);
+  border: 1px solid color-mix(in srgb, var(--warning) 20%, transparent);
   border-radius: 50%;
   box-shadow: inset 0 0 0 6px rgba(255, 255, 255, 0.35);
 }
@@ -1439,7 +1428,7 @@ button.card:active {
 .peri-score-value strong {
   font-family: var(--font-display);
   font-size: 29px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 0.9;
 }
 
@@ -1447,28 +1436,12 @@ button.card:active {
   margin-top: 4px;
   font-size: 7px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .story-section {
   display: flex;
   flex-direction: column;
   gap: 13px;
-}
-
-.story-count,
-.collection-count {
-  width: 31px;
-  height: 31px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-500);
-  font-family: var(--font-display);
-  font-size: 15px;
-  background: rgba(255, 253, 249, 0.65);
-  border: 1px solid var(--line-soft);
-  border-radius: 50%;
 }
 
 .stories {
@@ -1494,8 +1467,8 @@ button.card:active {
   overflow: hidden;
   color: var(--ink-900);
   text-align: left;
-  background: var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.08);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 8%, transparent);
   border-radius: 25px;
   scroll-snap-align: start;
   transition: transform 220ms var(--ease-spring);
@@ -1506,7 +1479,7 @@ button.card:active {
   content: '';
   position: absolute;
   pointer-events: none;
-  border: 1px solid rgba(56, 41, 47, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 10%, transparent);
   border-radius: 50%;
 }
 
@@ -1525,12 +1498,12 @@ button.card:active {
 }
 
 .story:active { transform: scale(0.97) rotate(-0.5deg); }
-.story-teal { background: var(--teal-100); border-color: rgba(47, 133, 132, 0.1); }
-.story-sun { background: var(--yellow-100); border-color: rgba(212, 154, 45, 0.1); }
-.story-clay { background: var(--clay-100); border-color: rgba(183, 131, 104, 0.1); }
+.story-teal { background: var(--pink-100); border-color: color-mix(in srgb, var(--red-600) 10%, transparent); }
+.story-sun { background: var(--yellow-100); border-color: color-mix(in srgb, var(--warning) 10%, transparent); }
+.story-clay { background: var(--clay-100); border-color: color-mix(in srgb, var(--pink-500) 10%, transparent); }
 
 .story-index {
-  color: rgba(56, 41, 47, 0.45);
+  color: color-mix(in srgb, var(--ink-900) 45%, transparent);
   font-family: var(--font-display);
   font-size: 13px;
 }
@@ -1544,18 +1517,11 @@ button.card:active {
   gap: 7px;
 }
 
-.story-eyebrow {
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .story-copy strong {
   max-width: 13ch;
   font-family: var(--font-display);
   font-size: 17px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.05;
   letter-spacing: -0.025em;
 }
@@ -1576,10 +1542,6 @@ button.card:active {
 
 .daily-heading {
   align-items: center;
-}
-
-.daily-heading h2 {
-  font-size: 25px;
 }
 
 .story-log {
@@ -1604,9 +1566,9 @@ button.card:active {
   font-size: 25px;
   font-weight: 300;
   line-height: 1;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
-  box-shadow: 0 8px 16px rgba(213, 72, 99, 0.2);
+  box-shadow: 0 8px 16px color-mix(in srgb, var(--red-600) 20%, transparent);
 }
 
 .story-glyph {
@@ -1614,7 +1576,7 @@ button.card:active {
   height: 43px;
   display: block;
   background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(56, 41, 47, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 16px;
 }
 
@@ -1625,7 +1587,7 @@ button.card:active {
   height: 27px;
   margin: 7px auto;
   display: block;
-  border: 2px solid var(--rose-500);
+  border: 2px solid var(--period);
   border-radius: 48% 52% 58% 42%;
   transform: rotate(14deg);
 }
@@ -1633,7 +1595,7 @@ button.card:active {
 .story-glyph-seed::before {
   width: 16px;
   height: 24px;
-  border-color: var(--teal-600);
+  border-color: var(--red-600);
   border-radius: 100% 0 100% 0;
   transform: rotate(38deg);
 }
@@ -1642,7 +1604,7 @@ button.card:active {
   min-height: 152px;
   padding: 20px;
   background:
-    radial-gradient(circle at 100% 0, rgba(242, 139, 117, 0.14), transparent 38%),
+    radial-gradient(circle at 100% 0, color-mix(in srgb, var(--red-400) 14%, transparent), transparent 38%),
     var(--surface-raised);
 }
 
@@ -1658,15 +1620,9 @@ button.card:active {
   display: inline-flex;
   gap: 5px;
   margin-top: 14px;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.phase-reading-card b {
-  font-size: 12px;
 }
 
 /* Pregnancy */
@@ -1685,17 +1641,17 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 28%, rgba(255, 255, 255, 0.8), transparent 34%),
-    linear-gradient(160deg, var(--yellow-100), #f8ddaa);
-  border: 1px solid rgba(212, 154, 45, 0.12);
+    linear-gradient(160deg, var(--yellow-100), var(--yellow-200));
+  border: 1px solid color-mix(in srgb, var(--warning) 12%, transparent);
   border-radius: 34px;
-  box-shadow: 0 18px 45px rgba(166, 114, 28, 0.11);
+  box-shadow: 0 18px 45px color-mix(in srgb, var(--warning) 11%, transparent);
 }
 
 .pregnancy-hero::before,
 .pregnancy-hero::after {
   content: '';
   position: absolute;
-  border: 1px solid rgba(116, 82, 26, 0.12);
+  border: 1px solid color-mix(in srgb, var(--warning) 12%, transparent);
   border-radius: 50%;
 }
 
@@ -1723,13 +1679,6 @@ button.card:active {
   justify-content: center;
 }
 
-.pregnancy-kicker {
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
-}
-
 .pregnancy-week {
   margin-top: 7px;
   display: grid;
@@ -1743,7 +1692,7 @@ button.card:active {
   justify-self: end;
   font-family: var(--font-display);
   font-size: 68px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 0.88;
   letter-spacing: -0.06em;
 }
@@ -1752,19 +1701,15 @@ button.card:active {
   color: var(--ink-650);
   font-size: 11px;
   font-weight: 750;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .pregnancy-trimester {
   margin-top: 16px;
   padding: 7px 12px;
-  color: #74521a;
+  color: var(--warning);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  background: rgba(255, 253, 249, 0.5);
+  background: color-mix(in srgb, var(--pink-50) 50%, transparent);
   border-radius: 99px;
 }
 
@@ -1777,8 +1722,8 @@ button.card:active {
   align-items: center;
   justify-content: space-between;
   gap: 14px;
-  color: #765d34;
-  border-top: 1px solid rgba(116, 82, 26, 0.13);
+  color: var(--red-700);
+  border-top: 1px solid color-mix(in srgb, var(--warning) 13%, transparent);
 }
 
 .pregnancy-countdown span {
@@ -1790,7 +1735,7 @@ button.card:active {
 .pregnancy-countdown strong {
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .pregnancy-petal {
@@ -1798,7 +1743,7 @@ button.card:active {
   z-index: 1;
   width: 21px;
   height: 38px;
-  background: rgba(237, 184, 70, 0.5);
+  background: color-mix(in srgb, var(--yellow-500) 50%, transparent);
   border-radius: 100% 0 100% 0;
 }
 
@@ -1813,7 +1758,7 @@ button.card:active {
   right: 28px;
   width: 15px;
   height: 28px;
-  background: rgba(242, 139, 117, 0.38);
+  background: color-mix(in srgb, var(--red-400) 38%, transparent);
   transform: rotate(58deg);
 }
 
@@ -1834,8 +1779,6 @@ button.card:active {
   color: var(--yellow-600);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .editorial-link b {
@@ -1871,18 +1814,18 @@ button.card:active {
   min-height: 112px;
   padding: 18px;
   display: grid;
-  grid-template-columns: 46px 1fr 28px;
+  grid-template-columns: 46px 1fr;
   align-items: center;
   gap: 13px;
   overflow: hidden;
   color: var(--paper-50);
   text-align: left;
   background:
-    radial-gradient(circle at 105% -10%, rgba(242, 139, 117, 0.36), transparent 35%),
+    radial-gradient(circle at 105% -10%, color-mix(in srgb, var(--red-400) 36%, transparent), transparent 35%),
     var(--ink-900);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 27px;
-  box-shadow: 0 18px 38px rgba(43, 32, 36, 0.16);
+  box-shadow: 0 18px 38px color-mix(in srgb, var(--ink-950) 16%, transparent);
   transition: transform 220ms var(--ease-spring);
 }
 
@@ -1904,7 +1847,7 @@ button.card:active {
   height: 52px;
   display: grid;
   place-items: center;
-  color: var(--rose-200);
+  color: var(--red-200);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 14px;
@@ -1925,32 +1868,18 @@ button.card:active {
   flex-direction: column;
 }
 
-.report-copy > span {
-  color: var(--rose-200);
-  font-size: 8px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .report-copy strong {
   margin-top: 4px;
   font-family: var(--font-display);
   font-size: 19px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.08;
 }
 
 .report-copy small {
   margin-top: 5px;
-  color: rgba(255, 250, 247, 0.6);
+  color: color-mix(in srgb, var(--pink-50) 60%, transparent);
   font-size: 9px;
-}
-
-.report-arrow {
-  z-index: 1;
-  font-size: 17px;
-  text-align: right;
 }
 
 .metric-grid {
@@ -1966,8 +1895,8 @@ button.card:active {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  background: var(--rose-100);
-  border: 1px solid rgba(214, 75, 104, 0.08);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--red-600) 8%, transparent);
   border-radius: 23px;
 }
 
@@ -1976,8 +1905,6 @@ button.card:active {
   color: var(--ink-650);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .metric-card > strong {
@@ -1985,7 +1912,7 @@ button.card:active {
   margin-top: auto;
   font-family: var(--font-display);
   font-size: 36px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1;
   letter-spacing: -0.04em;
 }
@@ -1994,8 +1921,6 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
 }
 
 .metric-card i {
@@ -2004,7 +1929,7 @@ button.card:active {
   right: -19px;
   width: 91px;
   height: 91px;
-  border: 1px solid rgba(56, 41, 47, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 10%, transparent);
   border-radius: 50%;
 }
 
@@ -2012,13 +1937,13 @@ button.card:active {
   content: '';
   position: absolute;
   inset: 17px;
-  border: 1px dashed rgba(56, 41, 47, 0.1);
+  border: 1px dashed color-mix(in srgb, var(--ink-900) 10%, transparent);
   border-radius: 50%;
 }
 
 .metric-teal {
-  background: var(--teal-100);
-  border-color: rgba(47, 133, 132, 0.08);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 8%, transparent);
 }
 
 .chart-card {
@@ -2049,7 +1974,7 @@ button.card:active {
 .chart-legend i {
   width: 7px;
   height: 7px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
 }
 
@@ -2069,11 +1994,11 @@ button.card:active {
   z-index: 1;
   min-width: 12px;
   flex: 1;
-  background: linear-gradient(180deg, var(--rose-400), var(--rose-200));
-  border: 1px solid rgba(184, 62, 88, 0.08);
+  background: linear-gradient(180deg, var(--red-400), var(--red-200));
+  border: 1px solid color-mix(in srgb, var(--red-700) 8%, transparent);
   border-bottom: 0;
   border-radius: 9px 9px 2px 2px;
-  box-shadow: 0 5px 13px rgba(214, 75, 104, 0.08);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--red-600) 8%, transparent);
   animation: bar-grow 720ms var(--ease-out) both;
   transform-origin: bottom;
 }
@@ -2085,7 +2010,7 @@ button.card:active {
 .bar:nth-of-type(6) { animation-delay: 200ms; }
 
 .bar.is-latest {
-  background: linear-gradient(180deg, var(--rose-600), var(--coral-400));
+  background: linear-gradient(180deg, var(--red-600), var(--red-400));
 }
 
 .bar > span {
@@ -2100,14 +2025,14 @@ button.card:active {
   text-align: center;
 }
 
-.bar.is-latest > span { color: var(--rose-700); }
+.bar.is-latest > span { color: var(--red-700); }
 
 .chart-guide {
   position: absolute;
   right: 0;
   left: 0;
   z-index: 0;
-  border-top: 1px dashed rgba(82, 57, 65, 0.08);
+  border-top: 1px dashed color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .guide-top { top: 0; }
@@ -2195,14 +2120,14 @@ button.card:active {
 .symptom-track span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--clay-500), var(--coral-400));
+  background: linear-gradient(90deg, var(--clay-500), var(--red-400));
   border-radius: inherit;
   transform-origin: left;
   animation: track-grow 720ms var(--ease-out) both;
 }
 
 .latest-reading {
-  color: var(--teal-700);
+  color: var(--chart-bbt);
   font-family: var(--font-display);
   font-size: 24px;
   font-weight: 500;
@@ -2217,7 +2142,7 @@ button.card:active {
 
 .bbt-grid-line {
   fill: none;
-  stroke: rgba(82, 57, 65, 0.08);
+  stroke: color-mix(in srgb, var(--ink-900) 8%, transparent);
   stroke-width: 1;
   stroke-dasharray: 3 4;
 }
@@ -2226,21 +2151,21 @@ button.card:active {
 
 .bbt-line {
   fill: none;
-  stroke: var(--teal-600);
+  stroke: var(--chart-bbt);
   stroke-width: 2.4;
   stroke-linecap: round;
   stroke-linejoin: round;
-  filter: drop-shadow(0 4px 6px rgba(47, 133, 132, 0.12));
+  filter: drop-shadow(0 4px 6px color-mix(in srgb, var(--chart-bbt) 12%, transparent));
 }
 
 .bbt-point {
   fill: var(--paper-50);
-  stroke: var(--teal-500);
+  stroke: var(--chart-bbt);
   stroke-width: 1.8;
 }
 
 .bbt-point.is-latest {
-  fill: var(--teal-500);
+  fill: var(--chart-bbt);
   stroke: var(--paper-50);
   stroke-width: 2.3;
 }
@@ -2253,7 +2178,7 @@ button.card:active {
   align-items: center;
   gap: 14px;
   color: var(--ink-650);
-  background: rgba(247, 240, 232, 0.56);
+  background: color-mix(in srgb, var(--pink-100) 56%, transparent);
   border: 1px dashed var(--paper-300);
   border-radius: 18px;
 }
@@ -2262,7 +2187,7 @@ button.card:active {
   color: var(--ink-800);
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .empty-chart p {
@@ -2277,7 +2202,7 @@ button.card:active {
   width: 43px;
   height: 43px;
   flex: 0 0 auto;
-  border: 1px solid var(--rose-300);
+  border: 1px solid var(--red-300);
   border-radius: 50%;
 }
 
@@ -2285,7 +2210,7 @@ button.card:active {
   content: '';
   position: absolute;
   inset: 8px;
-  border: 1px dashed var(--rose-300);
+  border: 1px dashed var(--red-300);
   border-radius: 50%;
 }
 
@@ -2295,7 +2220,7 @@ button.card:active {
   left: 18px;
   width: 6px;
   height: 6px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
 }
 
@@ -2317,11 +2242,11 @@ button.card:active {
   color: var(--paper-50);
   text-align: left;
   background:
-    radial-gradient(circle at 73% 25%, rgba(155, 207, 202, 0.18), transparent 28%),
-    linear-gradient(145deg, #284e4d, #1e3939);
+    radial-gradient(circle at 73% 25%, color-mix(in srgb, var(--pink-400) 18%, transparent), transparent 28%),
+    linear-gradient(145deg, var(--ink-950), var(--ink-950));
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 31px;
-  box-shadow: 0 18px 43px rgba(31, 64, 63, 0.18);
+  box-shadow: 0 18px 43px color-mix(in srgb, var(--ink-900) 18%, transparent);
   transition: transform 240ms var(--ease-spring);
 }
 
@@ -2335,50 +2260,19 @@ button.card:active {
   flex-direction: column;
 }
 
-.assistant-feature-kicker {
-  color: var(--teal-300);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
 .assistant-feature-copy strong {
   margin-top: 8px;
   font-family: var(--font-display);
   font-size: 27px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.04;
   letter-spacing: -0.035em;
 }
 
 .assistant-feature-copy small {
   margin-top: 9px;
-  color: rgba(255, 253, 249, 0.58);
+  color: color-mix(in srgb, var(--pink-50) 58%, transparent);
   font-size: 9px;
-}
-
-.assistant-feature-arrow {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 3;
-  width: 39px;
-  height: 39px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-900);
-  background: var(--teal-300);
-  border-radius: 50%;
-}
-
-.assistant-feature-arrow svg {
-  width: 19px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 1.7;
-  stroke-linecap: round;
-  stroke-linejoin: round;
 }
 
 .assistant-constellation {
@@ -2391,7 +2285,7 @@ button.card:active {
 
 .constellation-orbit {
   position: absolute;
-  border: 1px solid rgba(202, 231, 225, 0.2);
+  border: 1px solid color-mix(in srgb, var(--pink-300) 20%, transparent);
   border-radius: 50%;
 }
 
@@ -2416,15 +2310,15 @@ button.card:active {
   position: absolute;
   width: 8px;
   height: 8px;
-  background: var(--teal-300);
+  background: var(--pink-400);
   border: 2px solid rgba(255, 255, 255, 0.35);
   border-radius: 50%;
-  box-shadow: 0 0 18px rgba(155, 207, 202, 0.55);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--pink-400) 55%, transparent);
 }
 
 .seed-a { top: 17px; right: 54px; }
 .seed-b { top: 88px; right: 121px; width: 5px; height: 5px; }
-.seed-c { top: 100px; right: 18px; background: var(--coral-400); }
+.seed-c { top: 100px; right: 18px; background: var(--red-400); }
 
 .insights-search {
   min-height: 51px;
@@ -2433,10 +2327,10 @@ button.card:active {
   grid-template-columns: 20px 1fr auto;
   align-items: center;
   gap: 9px;
-  background: rgba(255, 253, 249, 0.78);
+  background: color-mix(in srgb, var(--pink-50) 78%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 17px;
-  box-shadow: 0 5px 18px rgba(75, 45, 50, 0.04);
+  box-shadow: 0 5px 18px color-mix(in srgb, var(--ink-900) 4%, transparent);
 }
 
 .insights-search svg {
@@ -2458,7 +2352,7 @@ button.card:active {
 }
 
 .insights-search input::placeholder {
-  color: var(--ink-400);
+  color: var(--ink-500);
 }
 
 .insights-search input::-webkit-search-cancel-button {
@@ -2499,15 +2393,15 @@ button.card:active {
   font-size: 10px;
   font-weight: 750;
   text-decoration: none;
-  background: rgba(255, 253, 249, 0.62);
+  background: color-mix(in srgb, var(--pink-50) 62%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 99px;
 }
 
 .category-ribbon a:first-child {
-  color: var(--rose-700);
-  background: var(--rose-100);
-  border-color: var(--rose-200);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: var(--red-200);
 }
 
 .insight-sections {
@@ -2517,12 +2411,12 @@ button.card:active {
 }
 
 .insight-section {
-  --collection-accent: var(--rose-500);
-  --collection-soft: var(--rose-100);
+  --collection-accent: var(--period);
+  --collection-soft: var(--pink-100);
   scroll-margin-top: 18px;
 }
 
-.insight-section.tone-teal { --collection-accent: var(--teal-600); --collection-soft: var(--teal-100); }
+.insight-section.tone-teal { --collection-accent: var(--red-600); --collection-soft: var(--pink-100); }
 .insight-section.tone-clay { --collection-accent: var(--clay-500); --collection-soft: var(--clay-100); }
 .insight-section.tone-sun,
 .insight-section.tone-yellow { --collection-accent: var(--yellow-600); --collection-soft: var(--yellow-100); }
@@ -2530,10 +2424,6 @@ button.card:active {
 
 .insight-section-heading {
   margin-bottom: 13px;
-}
-
-.insight-section-heading .section-overline {
-  color: var(--collection-accent);
 }
 
 .article-list {
@@ -2556,7 +2446,7 @@ button.card:active {
   background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 23px;
-  box-shadow: 0 8px 26px rgba(75, 45, 50, 0.045);
+  box-shadow: 0 8px 26px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
   transition:
     transform 220ms var(--ease-spring),
     box-shadow 220ms ease;
@@ -2564,7 +2454,7 @@ button.card:active {
 
 .article-card:active {
   transform: scale(0.985);
-  box-shadow: 0 4px 14px rgba(75, 45, 50, 0.045);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
 }
 
 .article-visual {
@@ -2640,8 +2530,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .saved-label {
@@ -2655,7 +2543,7 @@ button.card:active {
   margin-top: 8px;
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.12;
   letter-spacing: -0.02em;
 }
@@ -2665,11 +2553,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 700;
-}
-
-.article-open b {
-  color: var(--collection-accent);
-  font-size: 12px;
 }
 
 .article-featured {
@@ -2730,9 +2613,9 @@ button.card:active {
   z-index: 20;
   flex: 0 0 auto;
   padding: 7px 14px calc(var(--safe-bottom) + 7px);
-  background: rgba(251, 247, 240, 0.86);
-  border-top: 1px solid rgba(82, 57, 65, 0.07);
-  box-shadow: 0 -12px 35px rgba(75, 45, 50, 0.045);
+  background: color-mix(in srgb, var(--pink-50) 86%, transparent);
+  border-top: 1px solid color-mix(in srgb, var(--ink-900) 7%, transparent);
+  box-shadow: 0 -12px 35px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
   backdrop-filter: blur(20px) saturate(1.2);
 }
 
@@ -2741,7 +2624,7 @@ button.card:active {
   max-width: var(--content-width);
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
 }
 
 .tabbar-item {
@@ -2785,16 +2668,15 @@ button.card:active {
 .tabbar-label {
   font-size: 9px;
   font-weight: 750;
-  letter-spacing: 0.01em;
 }
 
 .tabbar-item.is-active {
-  color: var(--rose-700);
+  color: var(--red-700);
 }
 
 .tabbar-item.is-active .tabbar-icon {
-  color: var(--rose-700);
-  background: var(--rose-100);
+  color: var(--red-700);
+  background: var(--pink-100);
   transform: translateY(-2px);
 }
 
@@ -2804,7 +2686,7 @@ button.card:active {
   bottom: 3px;
   width: 4px;
   height: 4px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 50%;
 }
 
@@ -2824,7 +2706,7 @@ button.card:active {
   flex-direction: column;
   overflow: hidden;
   background:
-    radial-gradient(circle at 8% 0, rgba(242, 139, 117, 0.12), transparent 25%),
+    radial-gradient(circle at 8% 0, color-mix(in srgb, var(--red-400) 12%, transparent), transparent 25%),
     var(--paper-100);
   animation: overlay-arrive 300ms var(--ease-out) both;
 }
@@ -2841,7 +2723,7 @@ button.card:active {
   flex: 1;
   color: var(--ink-950);
   font-size: 22px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   text-align: center;
 }
 
@@ -2866,7 +2748,7 @@ button.card:active {
   font-family: var(--font-display);
   font-size: 24px;
   line-height: 1;
-  background: rgba(255, 253, 249, 0.72);
+  background: color-mix(in srgb, var(--pink-50) 72%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 14px;
 }
@@ -2881,8 +2763,6 @@ button.card:active {
   color: var(--ink-650);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
 }
 
 .field input,
@@ -2893,8 +2773,8 @@ button.card:active {
   min-height: 49px;
   padding: 12px 14px;
   color: var(--ink-900);
-  caret-color: var(--rose-600);
-  background: rgba(255, 253, 249, 0.82);
+  caret-color: var(--red-600);
+  background: color-mix(in srgb, var(--pink-50) 82%, transparent);
   border: 1px solid var(--line-medium);
   border-radius: 14px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
@@ -2921,8 +2801,8 @@ button.card:active {
 .field textarea:focus,
 .assistant-input:focus {
   background: var(--paper-50);
-  border-color: var(--rose-400);
-  box-shadow: 0 0 0 4px rgba(234, 96, 121, 0.1);
+  border-color: var(--red-400);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--period) 10%, transparent);
 }
 
 .setting-row {
@@ -2966,7 +2846,7 @@ button.card:active {
 }
 
 .setting-date-save {
-  color: var(--rose-700);
+  color: var(--red-700);
 }
 
 .setting-row:disabled {
@@ -3001,28 +2881,10 @@ button.card:active {
   justify-content: space-between;
   gap: 18px;
   background:
-    radial-gradient(circle at 88% 18%, rgba(234, 96, 121, 0.2), transparent 34%),
-    radial-gradient(circle at 18% 118%, rgba(69, 162, 159, 0.2), transparent 42%),
-    linear-gradient(145deg, #fff9f3, #f8eee6);
+    radial-gradient(circle at 88% 18%, color-mix(in srgb, var(--period) 20%, transparent), transparent 34%),
+    radial-gradient(circle at 18% 118%, color-mix(in srgb, var(--fertile) 20%, transparent), transparent 42%),
+    linear-gradient(145deg, var(--pink-50), var(--pink-200));
   border-bottom: 1px solid var(--line-soft);
-}
-
-.reminder-kicker {
-  display: block;
-  margin-bottom: 7px;
-  color: var(--rose-700);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-
-.reminder-console-heading h3 {
-  margin: 0;
-  color: var(--ink-950);
-  font-family: var(--font-display);
-  font-size: 26px;
-  font-weight: 500;
-  letter-spacing: var(--tracking-tight);
 }
 
 .reminder-console-heading p {
@@ -3037,21 +2899,19 @@ button.card:active {
   flex: none;
   min-width: 52px;
   padding: 6px 9px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.06em;
   text-align: center;
-  text-transform: uppercase;
-  background: rgba(229, 242, 238, 0.86);
-  border: 1px solid rgba(47, 133, 132, 0.16);
+  background: color-mix(in srgb, var(--pink-100) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 16%, transparent);
   border-radius: var(--radius-chip);
 }
 
 .reminder-status-pill.is-blocked {
   color: var(--red-500);
-  background: var(--rose-100);
-  border-color: var(--rose-200);
+  background: var(--pink-100);
+  border-color: var(--red-200);
 }
 
 .reminder-privacy-controls {
@@ -3107,9 +2967,9 @@ button.card:active {
   width: 100%;
   height: 100%;
   background: var(--paper-300);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 999px;
-  box-shadow: inset 0 1px 3px rgba(75, 45, 50, 0.08);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--ink-900) 8%, transparent);
   transition:
     background 180ms ease,
     box-shadow 180ms ease;
@@ -3124,13 +2984,13 @@ button.card:active {
   height: 19px;
   background: var(--paper-50);
   border-radius: 50%;
-  box-shadow: 0 2px 7px rgba(75, 45, 50, 0.22);
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--ink-900) 22%, transparent);
   transition: transform 220ms var(--ease-spring);
 }
 
 .reminder-switch input:checked + span {
-  background: var(--rose-500);
-  box-shadow: inset 0 1px 3px rgba(142, 39, 62, 0.15);
+  background: var(--period);
+  box-shadow: inset 0 1px 3px color-mix(in srgb, var(--red-700) 15%, transparent);
 }
 
 .reminder-switch input:checked + span::after {
@@ -3138,7 +2998,7 @@ button.card:active {
 }
 
 .reminder-switch input:focus-visible + span {
-  outline: 3px solid rgba(234, 96, 121, 0.23);
+  outline: 3px solid color-mix(in srgb, var(--period) 23%, transparent);
   outline-offset: 2px;
 }
 
@@ -3154,7 +3014,7 @@ button.card:active {
   margin: -4px 0 14px;
   padding: 10px 12px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: 1fr 1fr;
   align-items: end;
   gap: 9px;
   color: var(--ink-300);
@@ -3172,8 +3032,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .reminder-quiet-times input,
@@ -3213,8 +3071,8 @@ button.card:active {
 
 .reminder-plan.is-enabled {
   background:
-    linear-gradient(90deg, rgba(251, 232, 231, 0.48), transparent 48%),
-    rgba(255, 253, 249, 0.34);
+    linear-gradient(90deg, color-mix(in srgb, var(--pink-100) 48%, transparent), transparent 48%),
+    color-mix(in srgb, var(--pink-50) 34%, transparent);
 }
 
 .reminder-monogram {
@@ -3223,25 +3081,25 @@ button.card:active {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 700;
-  background: var(--rose-100);
-  border: 1px solid rgba(234, 96, 121, 0.12);
+  background: var(--pink-100);
+  border: 1px solid color-mix(in srgb, var(--period) 12%, transparent);
   border-radius: 14px 14px 14px 6px;
 }
 
 .reminder-plan:nth-child(3n + 2) .reminder-monogram {
-  color: var(--teal-700);
-  background: var(--teal-100);
-  border-color: rgba(47, 133, 132, 0.12);
+  color: var(--red-700);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 12%, transparent);
 }
 
 .reminder-plan:nth-child(3n) .reminder-monogram {
-  color: #8d6220;
+  color: var(--warning);
   background: var(--yellow-100);
-  border-color: rgba(212, 154, 45, 0.13);
+  border-color: color-mix(in srgb, var(--warning) 13%, transparent);
 }
 
 .reminder-plan-copy {
@@ -3287,7 +3145,7 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   line-height: 1.45;
-  background: rgba(247, 240, 232, 0.66);
+  background: color-mix(in srgb, var(--pink-100) 66%, transparent);
   border-top: 1px solid var(--line-soft);
 }
 
@@ -3341,7 +3199,7 @@ button.card:active {
 .progress-track span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--coral-400), var(--rose-600));
+  background: linear-gradient(90deg, var(--red-400), var(--red-600));
   border-radius: inherit;
   transition: width 420ms var(--ease-out);
 }
@@ -3363,10 +3221,6 @@ button.card:active {
 
 .onboarding-content > h1 {
   margin-top: 1px;
-}
-
-.onboarding .eyebrow {
-  color: var(--rose-600);
 }
 
 .onboarding .lead {
@@ -3392,11 +3246,11 @@ button.card:active {
   margin-bottom: 4px;
   overflow: visible;
   background:
-    radial-gradient(circle at 50% 47%, var(--rose-200), transparent 51%),
-    var(--rose-100);
-  border: 1px solid var(--rose-200);
+    radial-gradient(circle at 50% 47%, var(--red-200), transparent 51%),
+    var(--pink-100);
+  border: 1px solid var(--red-200);
   border-radius: 29px;
-  box-shadow: 0 17px 35px rgba(214, 75, 104, 0.13);
+  box-shadow: 0 17px 35px color-mix(in srgb, var(--red-600) 13%, transparent);
   transform: rotate(-3deg);
 }
 
@@ -3404,7 +3258,7 @@ button.card:active {
   content: '';
   position: absolute;
   inset: -9px;
-  border: 1px dashed rgba(214, 75, 104, 0.18);
+  border: 1px dashed color-mix(in srgb, var(--red-600) 18%, transparent);
   border-radius: 34px;
 }
 
@@ -3413,7 +3267,7 @@ button.card:active {
   top: 21px;
   width: 20px;
   height: 37px;
-  background: var(--rose-500);
+  background: var(--period);
   border-radius: 100% 0 100% 0;
 }
 
@@ -3432,7 +3286,7 @@ button.card:active {
   left: 34px;
   width: 14px;
   height: 28px;
-  background: var(--coral-400);
+  background: var(--red-400);
   border-radius: 60% 60% 90% 90%;
 }
 
@@ -3442,8 +3296,8 @@ button.card:active {
   align-items: flex-start;
   gap: 12px;
   color: var(--ink-650);
-  background: rgba(229, 242, 238, 0.7);
-  border: 1px solid rgba(47, 133, 132, 0.12);
+  background: color-mix(in srgb, var(--pink-100) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
   border-radius: 18px;
 }
 
@@ -3453,7 +3307,7 @@ button.card:active {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-family: var(--font-display);
   background: rgba(255, 255, 255, 0.52);
   border-radius: 50%;
@@ -3487,10 +3341,10 @@ button.card:active {
   gap: 12px;
   color: var(--ink-800);
   text-align: left;
-  background: rgba(255, 253, 249, 0.76);
+  background: color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 20px;
-  box-shadow: 0 7px 19px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 7px 19px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   transition:
     transform 220ms var(--ease-spring),
     border-color 200ms ease,
@@ -3504,10 +3358,10 @@ button.card:active {
 
 .choice-card.selected {
   background:
-    radial-gradient(circle at 102% -5%, rgba(242, 139, 117, 0.16), transparent 35%),
-    var(--rose-100);
-  border-color: var(--rose-400);
-  box-shadow: 0 11px 26px rgba(214, 75, 104, 0.1);
+    radial-gradient(circle at 102% -5%, color-mix(in srgb, var(--red-400) 16%, transparent), transparent 35%),
+    var(--pink-100);
+  border-color: var(--red-400);
+  box-shadow: 0 11px 26px color-mix(in srgb, var(--red-600) 10%, transparent);
 }
 
 .choice-icon {
@@ -3515,16 +3369,16 @@ button.card:active {
   height: 42px;
   display: grid;
   place-items: center;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-family: var(--font-display);
   font-size: 20px;
-  background: var(--rose-100);
+  background: var(--pink-100);
   border-radius: 14px;
 }
 
 .choice-card.selected .choice-icon {
-  color: #fffaf7;
-  background: var(--rose-600);
+  color: var(--pink-50);
+  background: var(--red-600);
 }
 
 .choice-card > span:nth-child(2) {
@@ -3549,15 +3403,15 @@ button.card:active {
   height: 18px;
   display: grid;
   place-items: center;
-  color: var(--rose-600);
+  color: var(--red-600);
   font-size: 10px;
   border: 1px solid var(--line-medium);
   border-radius: 50%;
 }
 
 .choice-card.selected .choice-radio {
-  border-color: var(--rose-500);
-  box-shadow: inset 0 0 0 3px var(--rose-100);
+  border-color: var(--period);
+  box-shadow: inset 0 0 0 3px var(--pink-100);
 }
 
 .choice-card.compact {
@@ -3617,8 +3471,6 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .spacer {
@@ -3632,7 +3484,7 @@ button.card:active {
   font-size: 12px;
   font-weight: 700;
   text-decoration: underline;
-  text-decoration-color: var(--rose-300);
+  text-decoration-color: var(--red-300);
   text-underline-offset: 4px;
   background: none;
 }
@@ -3650,9 +3502,9 @@ button.card:active {
   margin-bottom: 4px;
   display: grid;
   place-items: center;
-  color: var(--rose-600);
+  color: var(--red-600);
   font-size: 22px;
-  border: 1px solid var(--rose-300);
+  border: 1px solid var(--red-300);
   border-radius: 50%;
 }
 
@@ -3660,7 +3512,7 @@ button.card:active {
 .finish-orbit::after {
   content: '';
   position: absolute;
-  border: 1px dashed var(--rose-200);
+  border: 1px dashed var(--red-200);
   border-radius: 50%;
 }
 
@@ -3719,7 +3571,7 @@ button.card:active {
 
 .assistant-screen {
   background:
-    radial-gradient(circle at 90% 1%, rgba(69, 162, 159, 0.14), transparent 25%),
+    radial-gradient(circle at 90% 1%, color-mix(in srgb, var(--fertile) 14%, transparent), transparent 25%),
     var(--paper-100);
 }
 
@@ -3733,13 +3585,13 @@ button.card:active {
 .assistant-hero h3 {
   font-family: var(--font-display);
   font-size: 27px;
-  font-weight: 500;
+  font-weight: var(--weight-display);
   line-height: 1.05;
 }
 
 .assistant-hero p {
   margin-top: 8px;
-  color: rgba(255, 253, 249, 0.63);
+  color: color-mix(in srgb, var(--pink-50) 63%, transparent);
   font-size: 11px;
   line-height: 1.5;
 }
@@ -3749,11 +3601,9 @@ button.card:active {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .assistant-status::before,
@@ -3761,9 +3611,9 @@ button.card:active {
   content: '';
   width: 6px;
   height: 6px;
-  background: var(--teal-500);
+  background: var(--fertile);
   border-radius: 50%;
-  box-shadow: 0 0 0 4px var(--teal-100);
+  box-shadow: 0 0 0 4px var(--pink-100);
 }
 
 .assistant-key-card,
@@ -3800,11 +3650,11 @@ button.card:active {
 
 .assistant-suggestion {
   padding: 9px 12px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 10px;
   font-weight: 700;
-  background: var(--teal-100);
-  border: 1px solid var(--teal-200);
+  background: var(--pink-100);
+  border: 1px solid var(--pink-300);
   border-radius: 99px;
 }
 
@@ -3819,14 +3669,14 @@ button.card:active {
   background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 18px 18px 18px 5px;
-  box-shadow: 0 6px 17px rgba(75, 45, 50, 0.04);
+  box-shadow: 0 6px 17px color-mix(in srgb, var(--ink-900) 4%, transparent);
 }
 
 .assistant-message.user,
 .assistant-message.is-user {
   align-self: flex-end;
-  color: #fffaf7;
-  background: var(--rose-600);
+  color: var(--pink-50);
+  background: var(--red-600);
   border-color: transparent;
   border-radius: 18px 18px 5px;
 }
@@ -3841,7 +3691,7 @@ button.card:active {
 .assistant-thinking i {
   width: 5px;
   height: 5px;
-  background: var(--teal-500);
+  background: var(--fertile);
   border-radius: 50%;
   animation: thinking-dot 1.1s ease-in-out infinite;
 }
@@ -3855,7 +3705,7 @@ button.card:active {
   grid-template-columns: 1fr 46px;
   align-items: end;
   gap: 8px;
-  background: rgba(251, 247, 240, 0.9);
+  background: color-mix(in srgb, var(--pink-50) 90%, transparent);
   border-top: 1px solid var(--line-soft);
   backdrop-filter: blur(18px);
 }
@@ -3872,10 +3722,10 @@ button.card:active {
   height: 46px;
   display: grid;
   place-items: center;
-  color: #fffaf7;
-  background: var(--rose-600);
+  color: var(--pink-50);
+  background: var(--red-600);
   border-radius: 16px;
-  box-shadow: 0 9px 19px rgba(214, 75, 104, 0.2);
+  box-shadow: 0 9px 19px color-mix(in srgb, var(--red-600) 20%, transparent);
 }
 
 .assistant-send:disabled {
@@ -3911,7 +3761,7 @@ button.card:active {
   background: var(--surface-raised);
   border: 1px solid var(--line-soft);
   border-radius: 50%;
-  box-shadow: 0 8px 20px rgba(75, 45, 50, 0.05);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink-900) 5%, transparent);
 }
 
 .pin-dots {
@@ -3923,13 +3773,13 @@ button.card:active {
 .pin-dot {
   width: 12px;
   height: 12px;
-  border: 1.5px solid var(--rose-500);
+  border: 1.5px solid var(--period);
   border-radius: 50%;
   transition: transform 180ms var(--ease-spring), background 180ms ease;
 }
 
 .pin-dot.filled {
-  background: var(--rose-500);
+  background: var(--period);
   transform: scale(1.12);
 }
 
@@ -3940,11 +3790,11 @@ button.card:active {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 13px;
   font-weight: 750;
-  background: var(--rose-100);
-  border: 1px solid var(--rose-200);
+  background: var(--pink-100);
+  border: 1px solid var(--red-200);
   border-radius: 14px;
 }
 
@@ -4121,6 +3971,8 @@ button.card:active {
   html,
   body {
     position: static;
+    height: auto;
+    min-height: 0;
     overflow: visible;
     background: #fff;
   }
@@ -4166,7 +4018,7 @@ button.card:active {
   overflow: hidden;
   font-family: var(--font-sans);
   background:
-    linear-gradient(180deg, rgba(255, 248, 246, 0.96), rgba(255, 253, 249, 0.98) 48%, #fffdf9);
+    linear-gradient(180deg, color-mix(in srgb, var(--pink-50) 96%, transparent), color-mix(in srgb, var(--pink-50) 98%, transparent) 48%, var(--pink-50));
 }
 
 .onboarding::before {
@@ -4175,37 +4027,37 @@ button.card:active {
   z-index: -3;
   inset: 0;
   background:
-    radial-gradient(circle at 88% 3%, rgba(247, 177, 178, 0.31), transparent 27%),
-    radial-gradient(circle at -9% 66%, rgba(202, 231, 225, 0.45), transparent 31%);
+    radial-gradient(circle at 88% 3%, color-mix(in srgb, var(--red-300) 31%, transparent), transparent 27%),
+    radial-gradient(circle at -9% 66%, color-mix(in srgb, var(--pink-300) 45%, transparent), transparent 31%);
 }
 
 .onboarding-welcome {
   background:
-    linear-gradient(155deg, #fff5f1 0%, #fffdfa 46%, #edf7f2 100%);
+    linear-gradient(155deg, var(--pink-50) 0%, var(--pink-50) 46%, var(--pink-50) 100%);
 }
 
 .onboarding-sleep {
-  color: #fffaf7;
+  color: var(--pink-50);
   background:
-    radial-gradient(circle at 78% 18%, rgba(133, 111, 157, 0.5), transparent 34%),
-    linear-gradient(160deg, #251d3d, #3c2958 50%, #181b35);
+    radial-gradient(circle at 78% 18%, color-mix(in srgb, var(--ink-650) 50%, transparent), transparent 34%),
+    linear-gradient(160deg, var(--ink-900), var(--ink-900) 50%, var(--ink-900));
 }
 
 .onboarding-sleep::before {
   background:
-    radial-gradient(circle at 16% 20%, rgba(247, 216, 142, 0.08), transparent 21%),
-    radial-gradient(circle at 100% 70%, rgba(202, 231, 225, 0.12), transparent 32%);
+    radial-gradient(circle at 16% 20%, color-mix(in srgb, var(--yellow-300) 8%, transparent), transparent 21%),
+    radial-gradient(circle at 100% 70%, color-mix(in srgb, var(--pink-300) 12%, transparent), transparent 32%);
 }
 
 .onboarding-summary {
   background:
-    linear-gradient(168deg, #f2f8f3 0 31%, #fffdf9 31% 100%);
+    linear-gradient(168deg, var(--pink-50) 0 31%, var(--pink-50) 31% 100%);
 }
 
 .onboarding-finish {
   background:
     radial-gradient(circle at 50% 26%, rgba(255, 255, 255, 0.2), transparent 23%),
-    linear-gradient(145deg, #c7435f, #e55b72 52%, #ec877c);
+    linear-gradient(145deg, var(--red-700), var(--period) 52%, var(--red-400));
 }
 
 .ob-atmosphere {
@@ -4219,7 +4071,7 @@ button.card:active {
 .ob-atmosphere > span {
   position: absolute;
   display: block;
-  border: 1px solid rgba(214, 75, 104, 0.11);
+  border: 1px solid color-mix(in srgb, var(--red-600) 11%, transparent);
   border-radius: 50%;
 }
 
@@ -4235,7 +4087,7 @@ button.card:active {
   right: -116px;
   width: 216px;
   height: 216px;
-  border-color: rgba(47, 133, 132, 0.1);
+  border-color: color-mix(in srgb, var(--red-600) 10%, transparent);
 }
 
 .ob-atmosphere > span:nth-child(3) {
@@ -4268,19 +4120,17 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .onboarding-progress .progress-track {
   height: 5px;
-  background: rgba(82, 57, 65, 0.1);
+  background: color-mix(in srgb, var(--ink-900) 10%, transparent);
 }
 
 .onboarding-progress .progress-track span {
   background:
-    linear-gradient(90deg, #e75c74, #ed8b78);
-  box-shadow: 0 2px 7px rgba(214, 75, 104, 0.2);
+    linear-gradient(90deg, var(--period), var(--red-400));
+  box-shadow: 0 2px 7px color-mix(in srgb, var(--red-600) 20%, transparent);
 }
 
 .onboarding .back-btn,
@@ -4291,7 +4141,7 @@ button.card:active {
   place-items: center;
   color: var(--ink-800);
   background: rgba(255, 255, 255, 0.58);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 14px;
 }
 
@@ -4313,11 +4163,11 @@ button.card:active {
 
 .onboarding-sleep .ob-progress-meta,
 .onboarding-sleep .ob-skip {
-  color: rgba(255, 250, 247, 0.68);
+  color: color-mix(in srgb, var(--pink-50) 68%, transparent);
 }
 
 .onboarding-sleep .back-btn {
-  color: #fffaf7;
+  color: var(--pink-50);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.1);
 }
@@ -4336,15 +4186,6 @@ button.card:active {
   gap: 16px;
 }
 
-.onboarding .eyebrow {
-  margin: 0;
-  color: #c33f5a;
-  font-size: 10px;
-  font-weight: 900;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
 .onboarding .lead,
 .onboarding .muted {
   color: var(--ink-650);
@@ -4359,13 +4200,13 @@ button.card:active {
   font-weight: 800;
   background:
     linear-gradient(120deg, rgba(255, 255, 255, 0.15), transparent 38%),
-    #d94d69;
+    var(--red-600);
   border-radius: 20px;
-  box-shadow: 0 14px 30px rgba(185, 55, 83, 0.22);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--red-700) 22%, transparent);
 }
 
 .onboarding .cta:disabled {
-  background: #eadfdc;
+  background: var(--red-200);
   box-shadow: none;
 }
 
@@ -4380,22 +4221,21 @@ button.card:active {
 .onboarding-finish h1 {
   max-width: 16ch;
   margin: 0;
-  color: #2a2024;
+  color: var(--ink-900);
   font-family: var(--font-sans);
   font-size: clamp(30px, 8.7vw, 43px);
-  font-weight: 800;
+  font-weight: var(--weight-display);
   letter-spacing: -0.055em;
   line-height: 1.02;
 }
 
 .onboarding-sleep .ob-question-intro h1,
-.onboarding-sleep .ob-question-intro .muted,
-.onboarding-sleep .eyebrow {
-  color: #fffaf7;
+.onboarding-sleep .ob-question-intro .muted {
+  color: var(--pink-50);
 }
 
 .onboarding-sleep .ob-question-intro .muted {
-  color: rgba(255, 250, 247, 0.7);
+  color: color-mix(in srgb, var(--pink-50) 70%, transparent);
 }
 
 .ob-top-figure {
@@ -4411,29 +4251,6 @@ button.card:active {
   flex: 0 0 auto;
 }
 
-.moonseed-orbit {
-  position: absolute;
-  top: 21px;
-  left: 5px;
-  width: 105px;
-  height: 70px;
-  border: 1px solid rgba(214, 75, 104, 0.26);
-  border-radius: 50%;
-  transform: rotate(-15deg);
-}
-
-.moonseed-orbit::after {
-  content: '';
-  position: absolute;
-  right: 5px;
-  bottom: -3px;
-  width: 7px;
-  height: 7px;
-  background: #e76079;
-  border-radius: 50%;
-  box-shadow: -85px -45px 0 -1px #edb846;
-}
-
 .moonseed-body {
   position: absolute;
   top: 17px;
@@ -4443,12 +4260,12 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 35% 27%, rgba(255, 255, 255, 0.55), transparent 19%),
-    linear-gradient(150deg, #f4a782, #dc5d74 66%, #bc4664);
+    linear-gradient(150deg, var(--red-400), var(--period) 66%, var(--red-700));
   border: 3px solid rgba(255, 255, 255, 0.88);
   border-radius: 45% 56% 49% 58% / 40% 43% 64% 63%;
   box-shadow:
-    0 15px 25px rgba(128, 51, 70, 0.17),
-    inset -7px -9px 15px rgba(122, 40, 65, 0.09);
+    0 15px 25px color-mix(in srgb, var(--red-700) 17%, transparent),
+    inset -7px -9px 15px color-mix(in srgb, var(--red-700) 9%, transparent);
   transform: rotate(7deg);
 }
 
@@ -4457,7 +4274,7 @@ button.card:active {
   top: 31px;
   width: 6px;
   height: 7px;
-  background: #4e3340;
+  background: var(--ink-900);
   border-radius: 50%;
 }
 
@@ -4470,7 +4287,7 @@ button.card:active {
   left: 25px;
   width: 12px;
   height: 6px;
-  border-bottom: 2px solid #63384a;
+  border-bottom: 2px solid var(--ink-900);
   border-radius: 50%;
 }
 
@@ -4479,10 +4296,10 @@ button.card:active {
   top: 11px;
   width: 29px;
   height: 39px;
-  background: linear-gradient(145deg, #6fb2a4, #2f8584);
+  background: linear-gradient(145deg, var(--fertile), var(--red-600));
   border: 2px solid rgba(255, 255, 255, 0.75);
   border-radius: 90% 5% 90% 10%;
-  box-shadow: 0 7px 12px rgba(33, 111, 112, 0.15);
+  box-shadow: 0 7px 12px color-mix(in srgb, var(--red-700) 15%, transparent);
 }
 
 .moonseed-leaf.one {
@@ -4500,7 +4317,7 @@ button.card:active {
   position: absolute;
   top: 0;
   right: 1px;
-  color: #edb846;
+  color: var(--yellow-500);
   font-size: 15px;
   animation: ob-star-pulse 2.2s ease-in-out infinite;
 }
@@ -4508,27 +4325,27 @@ button.card:active {
 .moonseed-thinking .moonseed-body {
   background:
     radial-gradient(circle at 35% 27%, rgba(255, 255, 255, 0.5), transparent 19%),
-    linear-gradient(150deg, #98d2c5, #479793 68%, #276f70);
+    linear-gradient(150deg, var(--pink-400), var(--fertile) 68%, var(--red-700));
 }
 
 .moonseed-thinking .moonseed-mouth {
   width: 8px;
   left: 27px;
   border-bottom: 0;
-  border-left: 2px solid #234f56;
+  border-left: 2px solid var(--ink-950);
 }
 
 .moonseed-resting .moonseed-eye {
   height: 4px;
   background: transparent;
-  border-bottom: 2px solid #4e3340;
+  border-bottom: 2px solid var(--ink-900);
   border-radius: 50%;
 }
 
 .moonseed-resting .moonseed-mouth {
   width: 7px;
   left: 28px;
-  border: 1px solid #63384a;
+  border: 1px solid var(--ink-900);
   border-radius: 50%;
 }
 
@@ -4540,10 +4357,10 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 44%, rgba(255, 255, 255, 0.92), transparent 28%),
-    linear-gradient(145deg, rgba(251, 232, 231, 0.76), rgba(229, 242, 238, 0.78));
-  border: 1px solid rgba(82, 57, 65, 0.07);
+    linear-gradient(145deg, color-mix(in srgb, var(--pink-100) 76%, transparent), color-mix(in srgb, var(--pink-100) 78%, transparent));
+  border: 1px solid color-mix(in srgb, var(--ink-900) 7%, transparent);
   border-radius: 34px;
-  box-shadow: 0 22px 55px rgba(90, 55, 67, 0.08);
+  box-shadow: 0 22px 55px color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .ob-hero-art::before,
@@ -4552,7 +4369,7 @@ button.card:active {
   position: absolute;
   width: 220px;
   height: 114px;
-  border: 1px dashed rgba(214, 75, 104, 0.21);
+  border: 1px dashed color-mix(in srgb, var(--red-600) 21%, transparent);
   border-radius: 50%;
   transform: rotate(-15deg);
 }
@@ -4560,32 +4377,13 @@ button.card:active {
 .ob-hero-art::after {
   width: 184px;
   height: 94px;
-  border-color: rgba(47, 133, 132, 0.2);
+  border-color: color-mix(in srgb, var(--red-600) 20%, transparent);
   transform: rotate(14deg);
 }
 
 .ob-hero-art .moonseed {
   z-index: 2;
   transform: scale(1.32);
-}
-
-.ob-hero-label {
-  position: absolute;
-  z-index: 3;
-  bottom: 18px;
-  left: 50%;
-  padding: 7px 12px;
-  color: var(--teal-700);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  text-transform: uppercase;
-  background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(47, 133, 132, 0.12);
-  border-radius: 999px;
-  transform: translateX(-50%);
-  backdrop-filter: blur(9px);
 }
 
 .onboarding-hero {
@@ -4600,45 +4398,6 @@ button.card:active {
   display: flex;
   flex-direction: column;
   gap: 10px;
-}
-
-.ob-proof-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 7px;
-}
-
-.ob-proof-row > span {
-  min-width: 0;
-  padding: 11px 7px;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  text-align: center;
-  background: rgba(255, 255, 255, 0.54);
-  border: 1px solid rgba(82, 57, 65, 0.07);
-  border-radius: 16px;
-}
-
-.ob-proof-row strong {
-  color: var(--ink-800);
-  font-size: 10px;
-}
-
-.ob-proof-row small {
-  overflow: hidden;
-  color: var(--ink-500);
-  font-size: 8px;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.ob-legal {
-  margin-top: -5px;
-  color: var(--ink-500);
-  font-size: 9px;
-  line-height: 1.4;
-  text-align: center;
 }
 
 .ob-hero-field {
@@ -4668,8 +4427,8 @@ button.card:active {
   width: 235px;
   height: 128px;
   background:
-    radial-gradient(circle at 50% 50%, rgba(246, 180, 189, 0.32), transparent 60%);
-  border: 1px dashed rgba(214, 75, 104, 0.2);
+    radial-gradient(circle at 50% 50%, color-mix(in srgb, var(--red-300) 32%, transparent), transparent 60%);
+  border: 1px dashed color-mix(in srgb, var(--red-600) 20%, transparent);
   border-radius: 50%;
   transform: rotate(-7deg);
 }
@@ -4686,7 +4445,7 @@ button.card:active {
   text-align: center;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--rose-300);
+  border-bottom: 1px solid var(--red-300);
   border-radius: 0;
 }
 
@@ -4712,8 +4471,8 @@ button.card:active {
   align-items: flex-start;
   gap: 11px;
   color: var(--ink-650);
-  background: rgba(229, 242, 238, 0.72);
-  border: 1px solid rgba(47, 133, 132, 0.13);
+  background: color-mix(in srgb, var(--pink-100) 72%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 13%, transparent);
   border-radius: 17px;
 }
 
@@ -4725,7 +4484,7 @@ button.card:active {
   flex: 0 0 auto;
   display: grid;
   place-items: center;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-weight: 900;
   background: rgba(255, 255, 255, 0.66);
   border-radius: 50%;
@@ -4765,9 +4524,9 @@ button.card:active {
   color: var(--ink-800);
   text-align: left;
   background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(82, 57, 65, 0.09);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 9%, transparent);
   border-radius: 18px;
-  box-shadow: 0 7px 18px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   transition:
     transform 180ms var(--ease-out),
     min-height 220ms var(--ease-out),
@@ -4786,12 +4545,12 @@ button.card:active {
 
 .ob-option.selected {
   min-height: 76px;
-  color: #fffaf7;
+  color: var(--pink-50);
   background:
     radial-gradient(circle at 100% 0, rgba(255, 255, 255, 0.18), transparent 34%),
-    linear-gradient(135deg, #d94d69, #e97178);
-  border-color: rgba(156, 42, 68, 0.24);
-  box-shadow: 0 13px 28px rgba(190, 59, 87, 0.17);
+    linear-gradient(135deg, var(--red-600), var(--period));
+  border-color: color-mix(in srgb, var(--red-700) 24%, transparent);
+  box-shadow: 0 13px 28px color-mix(in srgb, var(--red-700) 17%, transparent);
 }
 
 .ob-option-icon {
@@ -4799,10 +4558,10 @@ button.card:active {
   height: 41px;
   display: grid;
   place-items: center;
-  color: #b83e58;
+  color: var(--red-700);
   font-size: 18px;
   font-weight: 800;
-  background: #fbe8e7;
+  background: var(--pink-100);
   border-radius: 14px;
 }
 
@@ -4824,7 +4583,7 @@ button.card:active {
 }
 
 .ob-option-copy small {
-  color: rgba(255, 250, 247, 0.82);
+  color: color-mix(in srgb, var(--pink-50) 82%, transparent);
   font-size: 9.5px;
   line-height: 1.48;
 }
@@ -4834,15 +4593,15 @@ button.card:active {
   height: 21px;
   display: grid;
   place-items: center;
-  color: #c63f5c;
+  color: var(--red-700);
   font-size: 11px;
   font-weight: 900;
-  border: 1.5px solid rgba(82, 57, 65, 0.2);
+  border: 1.5px solid color-mix(in srgb, var(--ink-900) 20%, transparent);
   border-radius: 50%;
 }
 
 .ob-option.selected .ob-check {
-  color: #d44864;
+  color: var(--red-600);
   background: #fff;
   border-color: #fff;
 }
@@ -4856,52 +4615,13 @@ button.card:active {
   min-height: 67px;
 }
 
-.ob-chapter-band {
-  min-height: 134px;
-  padding: 13px 17px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background:
-    radial-gradient(circle at 88% 10%, rgba(255, 255, 255, 0.72), transparent 31%),
-    linear-gradient(140deg, #fbe8e7, #e8f3ee);
-  border: 1px solid rgba(82, 57, 65, 0.07);
-  border-radius: 29px;
-  box-shadow: 0 16px 38px rgba(75, 45, 50, 0.07);
-}
-
-.ob-chapter-band.pregnancy {
-  background: linear-gradient(140deg, #fae6e5, #f3e4d9);
-}
-
-.ob-chapter-band > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.ob-chapter-band > div > span {
-  color: var(--rose-600);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
-.ob-chapter-band strong {
-  max-width: 14ch;
-  color: var(--ink-900);
-  font-size: 19px;
-  line-height: 1.05;
-}
-
 .ob-prediction-gate {
-  background: rgba(251, 232, 231, 0.82);
-  border-color: rgba(214, 75, 104, 0.13);
+  background: color-mix(in srgb, var(--pink-100) 82%, transparent);
+  border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
 }
 
 .ob-prediction-gate > span {
-  color: var(--rose-700);
+  color: var(--red-700);
 }
 
 .ob-date-card {
@@ -4910,9 +4630,9 @@ button.card:active {
   flex-direction: column;
   gap: 10px;
   background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(82, 57, 65, 0.09);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 9%, transparent);
   border-radius: 21px;
-  box-shadow: 0 10px 23px rgba(75, 45, 50, 0.04);
+  box-shadow: 0 10px 23px color-mix(in srgb, var(--ink-900) 4%, transparent);
 }
 
 .ob-date-card > strong {
@@ -4927,7 +4647,7 @@ button.card:active {
   grid-template-columns: 1fr auto;
   align-items: center;
   gap: 10px;
-  background: rgba(247, 240, 232, 0.66);
+  background: color-mix(in srgb, var(--pink-100) 66%, transparent);
   border-radius: 13px;
 }
 
@@ -4971,7 +4691,7 @@ button.card:active {
   flex-direction: column;
   gap: 8px;
   background: rgba(255, 255, 255, 0.72);
-  border: 1px solid rgba(82, 57, 65, 0.09);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 9%, transparent);
   border-radius: 18px;
 }
 
@@ -4980,8 +4700,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .ob-inline-fields label > div,
@@ -5030,9 +4748,9 @@ button.card:active {
   line-height: 1.25;
   text-align: left;
   background: rgba(255, 255, 255, 0.73);
-  border: 1px solid rgba(82, 57, 65, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 10%, transparent);
   border-radius: 999px;
-  box-shadow: 0 5px 13px rgba(75, 45, 50, 0.025);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--ink-900) 2.5%, transparent);
 }
 
 .ob-chip > span {
@@ -5040,8 +4758,8 @@ button.card:active {
   height: 25px;
   display: grid;
   place-items: center;
-  color: var(--rose-700);
-  background: var(--rose-100);
+  color: var(--red-700);
+  background: var(--pink-100);
   border-radius: 50%;
 }
 
@@ -5053,28 +4771,28 @@ button.card:active {
   color: var(--ink-500);
   font-size: 10px;
   font-style: normal;
-  border: 1px solid rgba(82, 57, 65, 0.14);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 14%, transparent);
   border-radius: 50%;
 }
 
 .ob-chip.selected {
-  color: #fffaf7;
-  background: #d94d69;
-  border-color: #c43e5b;
-  box-shadow: 0 8px 17px rgba(190, 59, 87, 0.15);
+  color: var(--pink-50);
+  background: var(--red-600);
+  border-color: var(--red-700);
+  box-shadow: 0 8px 17px color-mix(in srgb, var(--red-700) 15%, transparent);
 }
 
 .ob-chip.selected > span,
 .ob-chip.selected i {
-  color: #d94d69;
+  color: var(--red-600);
   background: #fff;
   border-color: #fff;
 }
 
 .ob-chip[data-exclusive='true'].selected {
   color: var(--ink-650);
-  background: #ebe7e4;
-  border-color: rgba(82, 57, 65, 0.1);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--ink-900) 10%, transparent);
   box-shadow: none;
 }
 
@@ -5088,12 +4806,12 @@ button.card:active {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  background: rgba(251, 232, 231, 0.65);
+  background: color-mix(in srgb, var(--pink-100) 65%, transparent);
   border-radius: 14px;
 }
 
 .ob-selection-note strong {
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 10px;
 }
 
@@ -5114,15 +4832,15 @@ button.card:active {
 
 .ob-safety-note {
   display: block;
-  color: #725d3b;
-  background: rgba(255, 243, 214, 0.84);
-  border-color: rgba(212, 154, 45, 0.18);
+  color: var(--red-700);
+  background: color-mix(in srgb, var(--yellow-100) 84%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 18%, transparent);
 }
 
 .ob-safety-note strong {
   display: block;
   margin-bottom: 4px;
-  color: #7d5520;
+  color: var(--pink-500);
   font-size: 10px;
 }
 
@@ -5133,11 +4851,11 @@ button.card:active {
   grid-template-columns: 25px 1fr;
   align-items: center;
   gap: 11px;
-  color: var(--ink-700);
+  color: var(--ink-650);
   background: rgba(255, 255, 255, 0.74);
-  border: 1px solid rgba(82, 57, 65, 0.1);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 10%, transparent);
   border-radius: 19px;
-  box-shadow: 0 8px 20px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   cursor: pointer;
 }
 
@@ -5145,7 +4863,7 @@ button.card:active {
   width: 23px;
   height: 23px;
   margin: 0;
-  accent-color: var(--teal-600);
+  accent-color: var(--red-600);
 }
 
 .ob-consent > span {
@@ -5168,8 +4886,8 @@ button.card:active {
 }
 
 .ob-consent.selected {
-  background: rgba(229, 242, 238, 0.86);
-  border-color: rgba(47, 133, 132, 0.26);
+  background: color-mix(in srgb, var(--pink-100) 86%, transparent);
+  border-color: color-mix(in srgb, var(--red-600) 26%, transparent);
 }
 
 .ob-segmented {
@@ -5177,14 +4895,14 @@ button.card:active {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
-  background: rgba(82, 57, 65, 0.07);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  background: color-mix(in srgb, var(--ink-900) 7%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 16px;
 }
 
 .ob-segmented button {
   min-height: 43px;
-  color: var(--ink-600);
+  color: var(--ink-650);
   font-size: 12px;
   font-weight: 800;
   background: transparent;
@@ -5192,9 +4910,9 @@ button.card:active {
 }
 
 .ob-segmented button.selected {
-  color: var(--rose-700);
+  color: var(--red-700);
   background: rgba(255, 255, 255, 0.92);
-  box-shadow: 0 5px 13px rgba(75, 45, 50, 0.08);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .ob-impact-grid {
@@ -5207,7 +4925,7 @@ button.card:active {
   min-width: 0;
   padding: 10px 7px;
   background: rgba(255, 255, 255, 0.73);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 18px;
 }
 
@@ -5219,7 +4937,7 @@ button.card:active {
 }
 
 .ob-impact-grid section > div:first-child span {
-  color: var(--rose-600);
+  color: var(--red-600);
 }
 
 .ob-impact-grid section > div:first-child strong {
@@ -5244,7 +4962,7 @@ button.card:active {
 
 .ob-impact-grid button.selected {
   color: #fff;
-  background: var(--rose-600);
+  background: var(--red-600);
 }
 
 .ob-chip-grid.wearable {
@@ -5267,7 +4985,7 @@ button.card:active {
   padding: 17px;
   justify-content: space-between;
   background:
-    radial-gradient(circle at 90% 10%, rgba(246, 180, 189, 0.27), transparent 31%),
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--red-300) 27%, transparent), transparent 31%),
     rgba(255, 255, 255, 0.77);
   border-radius: 24px;
 }
@@ -5302,7 +5020,7 @@ button.card:active {
   left: 50%;
   width: 250px;
   height: 110px;
-  border: 9px solid rgba(189, 165, 251, 0.21);
+  border: 9px solid color-mix(in srgb, var(--pink-300) 21%, transparent);
   border-right-color: transparent;
   border-bottom-color: transparent;
   border-radius: 50%;
@@ -5311,7 +5029,7 @@ button.card:active {
 
 .ob-night-map > i {
   position: absolute;
-  color: #f7d88e;
+  color: var(--yellow-300);
   font-size: 10px;
   font-style: normal;
 }
@@ -5321,20 +5039,20 @@ button.card:active {
 .ob-night-map > i:nth-of-type(3) { left: 29%; bottom: 17px; font-size: 6px; }
 
 .onboarding-sleep .ob-option {
-  color: rgba(255, 250, 247, 0.9);
+  color: color-mix(in srgb, var(--pink-50) 90%, transparent);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
   box-shadow: none;
 }
 
 .onboarding-sleep .ob-option.selected {
-  color: #2e2146;
-  background: #cbb8f4;
-  border-color: #d9caf8;
+  color: var(--ink-900);
+  background: var(--pink-300);
+  border-color: var(--pink-200);
 }
 
 .onboarding-sleep .ob-option.selected .ob-option-copy small {
-  color: rgba(46, 33, 70, 0.72);
+  color: color-mix(in srgb, var(--ink-900) 72%, transparent);
 }
 
 .onboarding-sleep .ob-check {
@@ -5342,14 +5060,14 @@ button.card:active {
 }
 
 .onboarding-sleep .ob-option.selected .ob-check {
-  color: #6a5290;
+  color: var(--ink-650);
 }
 
 .onboarding-sleep .cta {
-  color: #2d1e40;
-  background: #f4a782;
+  color: var(--ink-900);
+  background: var(--red-400);
   border-color: rgba(255, 255, 255, 0.15);
-  box-shadow: 0 14px 30px rgba(12, 9, 27, 0.28);
+  box-shadow: 0 14px 30px color-mix(in srgb, var(--ink-900) 28%, transparent);
 }
 
 .ob-analysis-hero {
@@ -5364,7 +5082,7 @@ button.card:active {
   position: absolute;
   width: 250px;
   height: 104px;
-  border: 1px solid rgba(47, 133, 132, 0.2);
+  border: 1px solid color-mix(in srgb, var(--red-600) 20%, transparent);
   border-radius: 50%;
   transform: rotate(-8deg);
 }
@@ -5373,23 +5091,12 @@ button.card:active {
   width: 210px;
   height: 86px;
   border-style: dashed;
-  border-color: rgba(214, 75, 104, 0.2);
+  border-color: color-mix(in srgb, var(--red-600) 20%, transparent);
   transform: rotate(13deg);
 }
 
 .ob-analysis-hero .moonseed {
   z-index: 1;
-}
-
-.ob-analysis-hero > span {
-  position: absolute;
-  z-index: 2;
-  bottom: 5px;
-  color: var(--teal-700);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .ob-summary-list {
@@ -5405,7 +5112,7 @@ button.card:active {
   align-items: start;
   gap: 11px;
   background: rgba(255, 255, 255, 0.78);
-  border: 1px solid rgba(82, 57, 65, 0.08);
+  border: 1px solid color-mix(in srgb, var(--ink-900) 8%, transparent);
   border-radius: 17px;
 }
 
@@ -5417,16 +5124,14 @@ button.card:active {
   color: #fff;
   font-size: 7.5px;
   font-weight: 900;
-  letter-spacing: 0.07em;
-  text-transform: uppercase;
-  background: var(--teal-600);
+  background: var(--red-600);
   border-radius: 999px;
 }
 
 .ob-summary-list article > span.paused { background: var(--ink-500); }
 .ob-summary-list article > span.learning { background: var(--yellow-600); }
 .ob-summary-list article > span.cautious { background: var(--purple-500); }
-.ob-summary-list article > span.local { background: var(--teal-600); }
+.ob-summary-list article > span.local { background: var(--red-600); }
 
 .ob-summary-list article div {
   display: flex;
@@ -5470,7 +5175,7 @@ button.card:active {
 .onboarding-ai .ai-setup-card {
   padding: 15px;
   background: rgba(255, 255, 255, 0.72);
-  box-shadow: 0 10px 28px rgba(75, 45, 50, 0.05);
+  box-shadow: 0 10px 28px color-mix(in srgb, var(--ink-900) 5%, transparent);
 }
 
 .onboarding-ai .ai-setup-card input {
@@ -5478,7 +5183,7 @@ button.card:active {
 }
 
 .onboarding-finish .onboarding-content {
-  color: #fffaf7;
+  color: var(--pink-50);
 }
 
 .onboarding-finish {
@@ -5487,14 +5192,13 @@ button.card:active {
   gap: 17px;
 }
 
-.onboarding-finish .eyebrow,
 .onboarding-finish h1,
 .onboarding-finish .lead {
-  color: #fffaf7;
+  color: var(--pink-50);
 }
 
 .onboarding-finish .lead {
-  color: rgba(255, 250, 247, 0.78);
+  color: color-mix(in srgb, var(--pink-50) 78%, transparent);
 }
 
 .ob-finish-orbit {
@@ -5532,7 +5236,7 @@ button.card:active {
   z-index: 3;
   width: 11px;
   height: 11px;
-  background: #fff4d9;
+  background: var(--yellow-100);
   border-radius: 50%;
 }
 
@@ -5564,21 +5268,21 @@ button.card:active {
 }
 
 .ob-commitment span {
-  color: rgba(255, 250, 247, 0.72);
+  color: color-mix(in srgb, var(--pink-50) 72%, transparent);
   font-size: 9px;
   line-height: 1.48;
 }
 
 .onboarding-finish .cta {
-  color: #a93552;
-  background: #fffaf7;
+  color: var(--red-700);
+  background: var(--pink-50);
   border-color: rgba(255, 255, 255, 0.5);
-  box-shadow: 0 17px 34px rgba(116, 33, 55, 0.22);
+  box-shadow: 0 17px 34px color-mix(in srgb, var(--red-700) 22%, transparent);
 }
 
 .onboarding-finish .error-text {
   color: #fff;
-  background: rgba(104, 20, 42, 0.34);
+  background: color-mix(in srgb, var(--red-700) 34%, transparent);
 }
 
 @keyframes ob-star-pulse {
@@ -5618,10 +5322,6 @@ button.card:active {
     min-height: 215px;
   }
 
-  .ob-proof-row small {
-    display: none;
-  }
-
   .ob-impact-grid {
     gap: 5px;
   }
@@ -5644,12 +5344,12 @@ button.card:active {
 /* Retained as a historical design exploration; intentionally inactive. */
 @media (max-width: 0px) {
 .page.onboarding {
-  --ob-canvas: #f8f4ec;
-  --ob-ink: #2f2728;
-  --ob-muted: #756a68;
-  --ob-rule: rgba(54, 41, 42, 0.16);
-  --ob-rule-strong: rgba(54, 41, 42, 0.3);
-  --ob-accent: #9d4057;
+  --ob-canvas: var(--pink-100);
+  --ob-ink: var(--ink-900);
+  --ob-muted: var(--ink-650);
+  --ob-rule: color-mix(in srgb, var(--ink-900) 16%, transparent);
+  --ob-rule-strong: color-mix(in srgb, var(--ink-900) 30%, transparent);
+  --ob-accent: var(--red-700);
   width: 100%;
   min-height: 100%;
   height: auto;
@@ -5659,16 +5359,16 @@ button.card:active {
   overflow: visible;
   color: var(--ob-ink);
   background:
-    linear-gradient(90deg, transparent 0 23px, rgba(157, 64, 87, 0.055) 23px 24px, transparent 24px),
-    linear-gradient(180deg, #faf7f0, var(--ob-canvas));
+    linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--red-700) 5.5%, transparent) 23px 24px, transparent 24px),
+    linear-gradient(180deg, var(--pink-50), var(--ob-canvas));
   touch-action: pan-y;
 }
 
 .page.onboarding::before {
   inset: 0;
   background:
-    radial-gradient(circle at 90% 12%, rgba(157, 64, 87, 0.07), transparent 24%),
-    radial-gradient(circle at 7% 72%, rgba(47, 133, 132, 0.055), transparent 22%);
+    radial-gradient(circle at 90% 12%, color-mix(in srgb, var(--red-700) 7%, transparent), transparent 24%),
+    radial-gradient(circle at 7% 72%, color-mix(in srgb, var(--red-600) 5.5%, transparent), transparent 22%);
 }
 
 .page.onboarding-welcome,
@@ -5676,23 +5376,23 @@ button.card:active {
 .page.onboarding-sleep {
   color: var(--ob-ink);
   background:
-    linear-gradient(90deg, transparent 0 23px, rgba(157, 64, 87, 0.055) 23px 24px, transparent 24px),
-    linear-gradient(180deg, #faf7f0, var(--ob-canvas));
+    linear-gradient(90deg, transparent 0 23px, color-mix(in srgb, var(--red-700) 5.5%, transparent) 23px 24px, transparent 24px),
+    linear-gradient(180deg, var(--pink-50), var(--ob-canvas));
 }
 
 .page.onboarding-finish {
-  --ob-canvas: #713344;
-  --ob-ink: #fff9f0;
-  --ob-muted: rgba(255, 249, 240, 0.7);
-  --ob-rule: rgba(255, 249, 240, 0.2);
-  --ob-rule-strong: rgba(255, 249, 240, 0.38);
-  --ob-accent: #f2c9c0;
+  --ob-canvas: var(--red-700);
+  --ob-ink: var(--pink-50);
+  --ob-muted: color-mix(in srgb, var(--pink-50) 70%, transparent);
+  --ob-rule: color-mix(in srgb, var(--pink-50) 20%, transparent);
+  --ob-rule-strong: color-mix(in srgb, var(--pink-50) 38%, transparent);
+  --ob-accent: var(--red-300);
   min-height: 100%;
   justify-content: flex-start;
   color: var(--ob-ink);
   background:
     linear-gradient(90deg, transparent 0 23px, rgba(255, 255, 255, 0.08) 23px 24px, transparent 24px),
-    linear-gradient(160deg, #713344, #482634);
+    linear-gradient(160deg, var(--red-700), var(--ink-900));
 }
 
 .page.onboarding .ob-atmosphere {
@@ -5725,7 +5425,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 18px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
   letter-spacing: -0.025em;
 }
 
@@ -5782,7 +5482,6 @@ button.card:active {
   color: var(--ob-muted);
   font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.12em;
 }
 
 .page.onboarding .progress-track {
@@ -5818,7 +5517,6 @@ button.card:active {
   justify-content: end;
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.08em;
 }
 
 .page.onboarding .onboarding-content {
@@ -5834,13 +5532,6 @@ button.card:active {
   gap: 12px;
 }
 
-.page.onboarding .eyebrow {
-  color: var(--ob-accent);
-  font-size: 9px;
-  font-weight: 750;
-  letter-spacing: 0.16em;
-}
-
 .page.onboarding .ob-question-intro h1,
 .page.onboarding .onboarding-hero h1,
 .page.onboarding .onboarding-finish h1 {
@@ -5848,7 +5539,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: clamp(38px, 11vw, 54px);
-  font-weight: 500;
+  font-weight: var(--weight-display);
   letter-spacing: -0.045em;
   line-height: 0.98;
 }
@@ -5856,7 +5547,6 @@ button.card:active {
 .page.onboarding .lead,
 .page.onboarding .muted,
 .page.onboarding-sleep .ob-question-intro .muted,
-.page.onboarding-sleep .eyebrow,
 .page.onboarding-sleep .ob-question-intro h1 {
   color: var(--ob-muted);
 }
@@ -5875,10 +5565,9 @@ button.card:active {
 .page.onboarding .cta {
   min-height: 58px;
   margin-top: auto;
-  color: #fffaf4;
+  color: var(--pink-50);
   font-size: 14px;
   font-weight: 700;
-  letter-spacing: 0.01em;
   background: var(--ob-ink);
   border: 1px solid var(--ob-ink);
   border-radius: 2px;
@@ -5890,7 +5579,7 @@ button.card:active {
 }
 
 .page.onboarding .cta:disabled {
-  color: rgba(47, 39, 40, 0.38);
+  color: color-mix(in srgb, var(--ink-900) 38%, transparent);
   background: transparent;
   border-color: var(--ob-rule-strong);
 }
@@ -5931,22 +5620,6 @@ button.card:active {
   transform: rotate(-16deg);
 }
 
-.page.onboarding .ob-hero-label {
-  right: 0;
-  bottom: 13px;
-  left: auto;
-  padding: 0;
-  color: var(--ob-muted);
-  font-size: 8px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  background: transparent;
-  border: 0;
-  border-radius: 0;
-  transform: none;
-  backdrop-filter: none;
-}
-
 .page.onboarding .moonseed {
   position: relative;
   width: 128px;
@@ -5968,24 +5641,6 @@ button.card:active {
   height: 8px;
 }
 
-.page.onboarding .moonseed-orbit {
-  top: 28px;
-  left: -8px;
-  width: 143px;
-  height: 70px;
-  border: 1px solid var(--ob-rule);
-  transform: rotate(-15deg);
-}
-
-.page.onboarding .moonseed-orbit::after {
-  right: 8px;
-  bottom: -3px;
-  width: 5px;
-  height: 5px;
-  background: var(--ob-accent);
-  box-shadow: -112px -36px 0 -1px var(--ob-accent);
-}
-
 .page.onboarding .moonseed-star {
   top: 7px;
   right: 7px;
@@ -6005,43 +5660,6 @@ button.card:active {
   transform-origin: left center;
 }
 
-.page.onboarding .ob-proof-row {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0;
-  border-top: 1px solid var(--ob-rule);
-  border-bottom: 1px solid var(--ob-rule);
-}
-
-.page.onboarding .ob-proof-row > span {
-  padding: 13px 9px;
-  text-align: left;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--ob-rule);
-  border-radius: 0;
-}
-
-.page.onboarding .ob-proof-row > span:last-child {
-  border-right: 0;
-}
-
-.page.onboarding .ob-proof-row strong {
-  color: var(--ob-ink);
-  font-family: var(--font-display);
-  font-size: 13px;
-  font-weight: 600;
-}
-
-.page.onboarding .ob-proof-row small,
-.page.onboarding .ob-legal {
-  color: var(--ob-muted);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-legal {
-  text-align: left;
-}
-
 .page.onboarding .ob-hero-field {
   margin-top: clamp(16px, 5vh, 48px);
 }
@@ -6050,8 +5668,6 @@ button.card:active {
 .page.onboarding .field label {
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-hero-field input,
@@ -6095,8 +5711,6 @@ button.card:active {
   bottom: 39px;
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-option-stack {
@@ -6126,7 +5740,7 @@ button.card:active {
   min-height: 72px;
   padding-left: 11px;
   color: var(--ob-ink);
-  background: rgba(157, 64, 87, 0.065);
+  background: color-mix(in srgb, var(--red-700) 6.5%, transparent);
   border-left: 2px solid var(--ob-accent);
   border-bottom-color: var(--ob-rule);
   box-shadow: none;
@@ -6162,7 +5776,7 @@ button.card:active {
   color: inherit;
   font-family: var(--font-display);
   font-size: 17px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
   line-height: 1.2;
 }
 
@@ -6187,41 +5801,6 @@ button.card:active {
   border-color: var(--ob-accent);
 }
 
-.page.onboarding .ob-chapter-band {
-  min-height: 104px;
-  padding: 16px 0;
-  gap: 14px;
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--ob-rule);
-  border-bottom: 1px solid var(--ob-rule);
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.page.onboarding .ob-chapter-band .moonseed {
-  width: 76px;
-  height: 76px;
-}
-
-.page.onboarding .ob-chapter-band .moonseed .ob-crescent-mark {
-  width: 48px;
-  height: 48px;
-}
-
-.page.onboarding .ob-chapter-band > div > span {
-  color: var(--ob-accent);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-chapter-band strong {
-  max-width: 22ch;
-  color: var(--ob-ink);
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 500;
-}
-
 .page.onboarding .ob-why,
 .page.onboarding .ob-data-boundary,
 .page.onboarding .ob-prediction-gate,
@@ -6235,7 +5814,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-safety-note {
-  border-left-color: #b97b28;
+  border-left-color: var(--warning);
 }
 
 .page.onboarding .ob-why > span,
@@ -6279,7 +5858,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
   border-bottom: 1px solid var(--ob-rule);
 }
 
@@ -6299,8 +5878,6 @@ button.card:active {
 .page.onboarding .ob-date-card label span {
   color: var(--ob-muted);
   font-size: 9px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-date-card input {
@@ -6389,7 +5966,7 @@ button.card:active {
 .page.onboarding .ob-chip[data-exclusive='true'].selected {
   padding-left: 8px;
   color: var(--ob-ink);
-  background: rgba(157, 64, 87, 0.065);
+  background: color-mix(in srgb, var(--red-700) 6.5%, transparent);
   border-color: var(--ob-rule);
   border-left: 2px solid var(--ob-accent);
   box-shadow: none;
@@ -6413,8 +5990,6 @@ button.card:active {
 .page.onboarding .ob-selection-note strong {
   color: var(--ob-accent);
   font-size: 9px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-selection-note span {
@@ -6426,7 +6001,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display) !important;
   font-size: 21px !important;
-  font-weight: 500 !important;
+  font-weight: var(--weight-display) !important;
 }
 
 .page.onboarding .ob-consent {
@@ -6449,7 +6024,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .page.onboarding .ob-consent small {
@@ -6458,7 +6033,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-consent.selected {
-  background: rgba(157, 64, 87, 0.05);
+  background: color-mix(in srgb, var(--red-700) 5%, transparent);
   border-color: var(--ob-rule-strong);
 }
 
@@ -6486,7 +6061,7 @@ button.card:active {
 
 .page.onboarding .ob-segmented button.selected {
   color: var(--ob-ink);
-  background: rgba(157, 64, 87, 0.065);
+  background: color-mix(in srgb, var(--red-700) 6.5%, transparent);
   box-shadow: inset 0 -2px var(--ob-accent);
 }
 
@@ -6520,7 +6095,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .page.onboarding .ob-impact-grid section > div:last-child {
@@ -6543,7 +6118,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-impact-grid button.selected {
-  color: #fffaf4;
+  color: var(--pink-50);
   background: var(--ob-accent);
 }
 
@@ -6578,7 +6153,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-night-path {
-  border-color: rgba(157, 64, 87, 0.12);
+  border-color: color-mix(in srgb, var(--red-700) 12%, transparent);
   border-right-color: transparent;
   border-bottom-color: transparent;
 }
@@ -6595,7 +6170,7 @@ button.card:active {
 }
 
 .page.onboarding-sleep .ob-option.selected {
-  background: rgba(157, 64, 87, 0.065);
+  background: color-mix(in srgb, var(--red-700) 6.5%, transparent);
 }
 
 .page.onboarding-sleep .ob-check {
@@ -6607,7 +6182,7 @@ button.card:active {
 }
 
 .page.onboarding-sleep .cta {
-  color: #fffaf4;
+  color: var(--pink-50);
   background: var(--ob-ink);
   border-color: var(--ob-ink);
   box-shadow: none;
@@ -6621,11 +6196,6 @@ button.card:active {
 .page.onboarding .ob-analysis-hero::before,
 .page.onboarding .ob-analysis-hero::after {
   border-color: var(--ob-rule);
-}
-
-.page.onboarding .ob-analysis-hero > span {
-  color: var(--ob-accent);
-  font-size: 8px;
 }
 
 .page.onboarding .ob-summary-list {
@@ -6657,7 +6227,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 16px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .page.onboarding .ob-summary-list p {
@@ -6700,7 +6270,6 @@ button.card:active {
   gap: 23px;
 }
 
-.page.onboarding-finish .eyebrow,
 .page.onboarding-finish h1,
 .page.onboarding-finish .lead {
   color: var(--ob-ink);
@@ -6732,7 +6301,7 @@ button.card:active {
   color: var(--ob-ink);
   font-family: var(--font-display);
   font-size: 15px;
-  font-weight: 600;
+  font-weight: var(--weight-display);
 }
 
 .page.onboarding-finish .ob-commitment span {
@@ -6741,9 +6310,9 @@ button.card:active {
 }
 
 .page.onboarding-finish .cta {
-  color: #482634;
-  background: #fff9f0;
-  border-color: #fff9f0;
+  color: var(--ink-900);
+  background: var(--pink-50);
+  border-color: var(--pink-50);
   box-shadow: none;
 }
 
@@ -6763,9 +6332,6 @@ button.card:active {
     grid-template-columns: 1fr;
   }
 
-  .page.onboarding .ob-proof-row small {
-    display: block;
-  }
 }
 }
 
@@ -6774,27 +6340,15 @@ button.card:active {
   min-height: 78px;
   padding: 13px 14px;
   display: grid;
-  grid-template-columns: 39px 1fr 16px;
+  grid-template-columns: 1fr;
   align-items: center;
   gap: 11px;
   color: var(--ink-800);
   text-align: left;
-  background: rgba(255, 253, 249, 0.76);
+  background: color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 19px;
-  box-shadow: 0 9px 24px rgba(75, 45, 50, 0.045);
-}
-
-.prediction-basis-glyph {
-  width: 39px;
-  height: 39px;
-  display: grid;
-  place-items: center;
-  color: var(--teal-700);
-  font-family: var(--font-display);
-  font-size: 18px;
-  background: var(--teal-100);
-  border-radius: 14px;
+  box-shadow: 0 9px 24px color-mix(in srgb, var(--ink-900) 4.5%, transparent);
 }
 
 .prediction-basis-card > span:nth-child(2) {
@@ -6802,14 +6356,6 @@ button.card:active {
   display: flex;
   flex-direction: column;
   gap: 2px;
-}
-
-.prediction-basis-card small {
-  color: var(--ink-500);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
 }
 
 .prediction-basis-card strong {
@@ -6830,27 +6376,10 @@ button.card:active {
 
 .prediction-basis-window {
   margin-top: 3px;
-  color: var(--teal-700);
+  color: var(--red-700);
   font-size: 8px;
   font-weight: 750;
   line-height: 1.35;
-}
-
-.prediction-basis-card > i {
-  color: var(--ink-300);
-  font-size: 24px;
-  font-style: normal;
-}
-
-.prediction-basis-card.evidence-suppressed .prediction-basis-glyph {
-  color: var(--rose-700);
-  background: var(--rose-100);
-}
-
-.prediction-basis-card.evidence-insufficient .prediction-basis-glyph,
-.prediction-basis-card.evidence-baseline-calendar .prediction-basis-glyph {
-  color: #8c641f;
-  background: var(--yellow-100);
 }
 
 /* -------------------------------------------------------------------------- */
@@ -6872,8 +6401,8 @@ button.card:active {
   color: var(--ink-900);
   font-family: var(--font-sans);
   background:
-    radial-gradient(circle at 102% 11%, rgba(246, 180, 189, 0.31), transparent 30%),
-    radial-gradient(circle at -8% 86%, rgba(202, 231, 225, 0.46), transparent 31%),
+    radial-gradient(circle at 102% 11%, color-mix(in srgb, var(--red-300) 31%, transparent), transparent 30%),
+    radial-gradient(circle at -8% 86%, color-mix(in srgb, var(--pink-300) 46%, transparent), transparent 31%),
     var(--paper-100);
 }
 
@@ -6883,8 +6412,8 @@ button.card:active {
 #root > .page.onboarding-welcome {
   color: var(--ink-900);
   background:
-    radial-gradient(circle at 102% 11%, rgba(246, 180, 189, 0.31), transparent 30%),
-    radial-gradient(circle at -8% 86%, rgba(202, 231, 225, 0.46), transparent 31%),
+    radial-gradient(circle at 102% 11%, color-mix(in srgb, var(--red-300) 31%, transparent), transparent 30%),
+    radial-gradient(circle at -8% 86%, color-mix(in srgb, var(--pink-300) 46%, transparent), transparent 31%),
     var(--paper-100);
 }
 
@@ -6903,7 +6432,7 @@ button.card:active {
 .page.onboarding .ob-atmosphere > span {
   position: absolute;
   display: block;
-  border: 1px solid rgba(214, 75, 104, 0.075);
+  border: 1px solid color-mix(in srgb, var(--red-600) 7.5%, transparent);
   border-radius: 50%;
 }
 
@@ -6919,7 +6448,7 @@ button.card:active {
   right: -80px;
   width: 156px;
   height: 156px;
-  border-color: rgba(47, 133, 132, 0.07);
+  border-color: color-mix(in srgb, var(--red-600) 7%, transparent);
 }
 
 .page.onboarding .ob-atmosphere > span:nth-child(3) {
@@ -6927,7 +6456,7 @@ button.card:active {
   left: -62px;
   width: 116px;
   height: 116px;
-  border-color: rgba(47, 133, 132, 0.07);
+  border-color: color-mix(in srgb, var(--red-600) 7%, transparent);
   border-style: dashed;
 }
 
@@ -6935,9 +6464,9 @@ button.card:active {
   position: relative;
   z-index: 20;
   padding: max(8px, var(--safe-top)) 20px 10px;
-  background: rgba(251, 247, 240, 0.92);
+  background: color-mix(in srgb, var(--pink-50) 92%, transparent);
   border-bottom: 1px solid var(--line-soft);
-  box-shadow: 0 7px 24px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 7px 24px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -6972,7 +6501,7 @@ button.card:active {
   display: grid;
   place-items: center;
   color: var(--ink-800);
-  background: rgba(255, 253, 249, 0.7);
+  background: color-mix(in srgb, var(--pink-50) 70%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 15px;
   box-shadow: none;
@@ -6989,7 +6518,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 10px;
   font-weight: 800;
-  letter-spacing: 0.02em;
 }
 
 .page.onboarding .onboarding-progress {
@@ -7011,15 +6539,13 @@ button.card:active {
   color: var(--ink-500);
   font-size: 8px;
   font-weight: 850;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .progress-track,
 .page.onboarding .onboarding-progress .progress-track {
   height: 4px;
   overflow: hidden;
-  background: rgba(82, 57, 65, 0.09);
+  background: color-mix(in srgb, var(--ink-900) 9%, transparent);
   border: 0;
   border-radius: 999px;
 }
@@ -7028,7 +6554,7 @@ button.card:active {
 .page.onboarding .onboarding-progress .progress-track span {
   display: block;
   height: 100%;
-  background: linear-gradient(90deg, var(--coral-400), var(--rose-600));
+  background: linear-gradient(90deg, var(--red-400), var(--red-600));
   border-radius: inherit;
   box-shadow: none;
 }
@@ -7077,9 +6603,9 @@ button.card:active {
   position: relative;
   z-index: 30;
   padding: 10px 20px max(10px, var(--safe-bottom));
-  background: rgba(251, 247, 240, 0.94);
+  background: color-mix(in srgb, var(--pink-50) 94%, transparent);
   border-top: 1px solid var(--line-soft);
-  box-shadow: 0 -12px 28px rgba(75, 45, 50, 0.055);
+  box-shadow: 0 -12px 28px color-mix(in srgb, var(--ink-900) 5.5%, transparent);
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -7095,15 +6621,13 @@ button.card:active {
   min-height: 58px;
   margin: 0;
   padding: 0 20px;
-  color: #fffaf7;
+  color: var(--cta-fg);
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 750;
   letter-spacing: -0.01em;
-  background:
-    linear-gradient(120deg, rgba(255, 255, 255, 0.13), transparent 38%),
-    var(--rose-600);
-  border: 1px solid rgba(142, 39, 62, 0.18);
+  background: var(--cta-bg);
+  border: 1px solid color-mix(in srgb, var(--red-700) 18%, transparent);
   border-radius: var(--radius-cta);
   box-shadow: var(--shadow-rose);
 }
@@ -7113,7 +6637,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-shell-footer .cta:disabled {
-  color: rgba(56, 41, 47, 0.42);
+  color: color-mix(in srgb, var(--ink-900) 42%, transparent);
   background: var(--paper-200);
   border-color: transparent;
   box-shadow: none;
@@ -7121,17 +6645,6 @@ button.card:active {
 
 .page.onboarding .ob-shell-footer .cta:disabled::before {
   display: none;
-}
-
-.page.onboarding .eyebrow,
-.page.onboarding-sleep .eyebrow {
-  margin: 0;
-  color: var(--rose-600);
-  font-family: var(--font-sans);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: var(--tracking-label);
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-question-intro {
@@ -7145,8 +6658,8 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 100% 0, rgba(255, 255, 255, 0.78), transparent 35%),
-    linear-gradient(145deg, rgba(251, 232, 231, 0.92), rgba(247, 240, 232, 0.9));
-  border: 1px solid rgba(214, 75, 104, 0.1);
+    linear-gradient(145deg, color-mix(in srgb, var(--pink-100) 92%, transparent), color-mix(in srgb, var(--pink-100) 90%, transparent));
+  border: 1px solid color-mix(in srgb, var(--red-600) 10%, transparent);
   border-radius: 28px;
   box-shadow: var(--shadow-card);
 }
@@ -7156,7 +6669,7 @@ button.card:active {
   content: '';
   position: absolute;
   pointer-events: none;
-  border: 1px solid rgba(214, 75, 104, 0.08);
+  border: 1px solid color-mix(in srgb, var(--red-600) 8%, transparent);
   border-radius: 50%;
 }
 
@@ -7172,7 +6685,7 @@ button.card:active {
   right: -18px;
   width: 102px;
   height: 102px;
-  border-color: rgba(47, 133, 132, 0.07);
+  border-color: color-mix(in srgb, var(--red-600) 7%, transparent);
 }
 
 .page.onboarding .ob-question-intro > * {
@@ -7189,8 +6702,8 @@ button.card:active {
   color: var(--ink-950);
   font-family: var(--font-display);
   font-size: clamp(30px, 8.2vw, 38px);
-  font-weight: 500;
-  letter-spacing: var(--tracking-tight);
+  font-weight: var(--weight-display);
+  letter-spacing: -0.02em;
   line-height: 1.01;
 }
 
@@ -7215,29 +6728,6 @@ button.card:active {
   flex: 0 0 auto;
 }
 
-.page.onboarding .moonseed-orbit {
-  position: absolute;
-  top: 17px;
-  left: 4px;
-  width: 104px;
-  height: 72px;
-  border: 1px solid rgba(214, 75, 104, 0.2);
-  border-radius: 50%;
-  transform: rotate(-14deg);
-}
-
-.page.onboarding .moonseed-orbit::after {
-  content: '';
-  position: absolute;
-  right: 4px;
-  bottom: -3px;
-  width: 7px;
-  height: 7px;
-  background: var(--rose-500);
-  border-radius: 50%;
-  box-shadow: -84px -44px 0 -1px var(--yellow-500);
-}
-
 .page.onboarding .moonseed .ob-crescent-mark {
   position: absolute;
   z-index: 2;
@@ -7245,12 +6735,12 @@ button.card:active {
   left: 27px;
   width: 58px;
   height: 58px;
-  color: var(--rose-600);
-  filter: drop-shadow(0 10px 13px rgba(184, 62, 88, 0.16));
+  color: var(--red-600);
+  filter: drop-shadow(0 10px 13px color-mix(in srgb, var(--red-700) 16%, transparent));
 }
 
 .page.onboarding .moonseed-thinking .ob-crescent-mark {
-  color: var(--teal-600);
+  color: var(--red-600);
 }
 
 .page.onboarding .moonseed-resting .ob-crescent-mark {
@@ -7280,7 +6770,7 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 50% 40%, rgba(255, 255, 255, 0.92), transparent 31%),
-    linear-gradient(145deg, rgba(251, 232, 231, 0.9), rgba(229, 242, 238, 0.9));
+    linear-gradient(145deg, color-mix(in srgb, var(--pink-100) 90%, transparent), color-mix(in srgb, var(--pink-100) 90%, transparent));
   border: 1px solid var(--line-soft);
   border-radius: 32px 32px 64px 32px;
   box-shadow: var(--shadow-card);
@@ -7292,7 +6782,7 @@ button.card:active {
   position: absolute;
   width: 208px;
   height: 106px;
-  border: 1px solid rgba(214, 75, 104, 0.14);
+  border: 1px solid color-mix(in srgb, var(--red-600) 14%, transparent);
   border-radius: 50%;
   transform: rotate(-14deg);
 }
@@ -7300,7 +6790,7 @@ button.card:active {
 .page.onboarding .ob-hero-art::after {
   width: 172px;
   height: 88px;
-  border-color: rgba(47, 133, 132, 0.14);
+  border-color: color-mix(in srgb, var(--red-600) 14%, transparent);
   border-style: dashed;
   transform: rotate(13deg);
 }
@@ -7310,26 +6800,6 @@ button.card:active {
   transform: scale(1.16);
 }
 
-.page.onboarding .ob-hero-label {
-  position: absolute;
-  z-index: 3;
-  right: 16px;
-  bottom: 15px;
-  left: auto;
-  padding: 7px 10px;
-  color: var(--teal-700);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  text-transform: uppercase;
-  background: rgba(255, 253, 249, 0.78);
-  border: 1px solid rgba(47, 133, 132, 0.12);
-  border-radius: var(--radius-chip);
-  transform: none;
-  backdrop-filter: blur(10px);
-}
-
 .page.onboarding .onboarding-hero > div:nth-child(2) {
   padding: 0 4px;
   display: flex;
@@ -7337,53 +6807,6 @@ button.card:active {
   gap: 9px;
 }
 
-.page.onboarding .ob-proof-row {
-  padding: 4px;
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 4px;
-  background: rgba(255, 253, 249, 0.72);
-  border: 1px solid var(--line-soft);
-  border-radius: 19px;
-  box-shadow: 0 8px 22px rgba(75, 45, 50, 0.035);
-}
-
-.page.onboarding .ob-proof-row > span {
-  min-width: 0;
-  padding: 10px 4px;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: center;
-  background: transparent;
-  border: 0;
-  border-right: 1px solid var(--line-soft);
-  border-radius: 0;
-}
-
-.page.onboarding .ob-proof-row > span:last-child {
-  border-right: 0;
-}
-
-.page.onboarding .ob-proof-row strong {
-  color: var(--ink-800);
-  font-size: 9px;
-}
-
-.page.onboarding .ob-proof-row small,
-.page.onboarding .ob-legal {
-  color: var(--ink-500);
-  font-size: 8px;
-}
-
-.page.onboarding .ob-legal {
-  margin: -2px 0 0;
-  padding: 0 5px;
-  line-height: 1.45;
-  text-align: center;
-}
-
-.page.onboarding .ob-chapter-band,
 .page.onboarding .ob-night-map,
 .page.onboarding .ob-analysis-hero,
 .page.onboarding .ob-finish-orbit {
@@ -7392,50 +6815,16 @@ button.card:active {
   overflow: hidden;
   background:
     radial-gradient(circle at 88% 8%, rgba(255, 255, 255, 0.7), transparent 34%),
-    linear-gradient(145deg, var(--teal-100), var(--rose-100));
+    linear-gradient(145deg, var(--pink-100), var(--pink-100));
   border: 1px solid var(--line-soft);
   border-radius: 27px;
   box-shadow: var(--shadow-card);
 }
 
-.page.onboarding .ob-chapter-band {
-  padding: 13px 17px;
-  display: flex;
-  align-items: center;
-  gap: 13px;
-}
-
-.page.onboarding .ob-chapter-band .moonseed {
-  transform: scale(0.83);
-}
-
-.page.onboarding .ob-chapter-band > div {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.page.onboarding .ob-chapter-band > div > span {
-  color: var(--rose-600);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.11em;
-  text-transform: uppercase;
-}
-
-.page.onboarding .ob-chapter-band strong {
-  max-width: 15ch;
-  color: var(--ink-900);
-  font-family: var(--font-display);
-  font-size: 19px;
-  font-weight: 500;
-  line-height: 1.04;
-}
-
 .page.onboarding .ob-option-stack {
   gap: 0;
   overflow: hidden;
-  background: rgba(255, 253, 249, 0.76);
+  background: color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 22px;
   box-shadow: var(--shadow-card);
@@ -7470,10 +6859,10 @@ button.card:active {
 .page.onboarding-sleep .ob-option.selected {
   min-height: 70px;
   padding-left: 14px;
-  color: #fffaf7;
+  color: var(--pink-50);
   background:
     radial-gradient(circle at 100% 0, rgba(255, 255, 255, 0.17), transparent 34%),
-    linear-gradient(135deg, var(--rose-600), #e56e78);
+    linear-gradient(135deg, var(--red-600), var(--period));
   border-color: transparent;
   border-left: 0;
   box-shadow: none;
@@ -7482,9 +6871,9 @@ button.card:active {
 .page.onboarding .ob-option-icon {
   width: 39px;
   height: 39px;
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 17px;
-  background: var(--rose-100);
+  background: var(--pink-100);
   border: 0;
   border-radius: 14px;
 }
@@ -7510,7 +6899,7 @@ button.card:active {
 
 .page.onboarding .ob-option-copy small,
 .page.onboarding .ob-option.selected .ob-option-copy small {
-  color: rgba(255, 250, 247, 0.82);
+  color: color-mix(in srgb, var(--pink-50) 82%, transparent);
   font-size: 9px;
   line-height: 1.42;
 }
@@ -7518,7 +6907,7 @@ button.card:active {
 .page.onboarding .ob-check {
   width: 21px;
   height: 21px;
-  color: var(--rose-600);
+  color: var(--red-600);
   background: transparent;
   border: 1.5px solid var(--line-medium);
   border-radius: 50%;
@@ -7526,7 +6915,7 @@ button.card:active {
 
 .page.onboarding .ob-option.selected .ob-check,
 .page.onboarding-sleep .ob-option.selected .ob-check {
-  color: var(--rose-600);
+  color: var(--red-600);
   background: #fff;
   border-color: #fff;
 }
@@ -7551,17 +6940,17 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 11px;
   font-weight: 700;
-  background: rgba(255, 253, 249, 0.78);
+  background: color-mix(in srgb, var(--pink-50) 78%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-chip);
-  box-shadow: 0 5px 14px rgba(75, 45, 50, 0.03);
+  box-shadow: 0 5px 14px color-mix(in srgb, var(--ink-900) 3%, transparent);
 }
 
 .page.onboarding .ob-chip > span {
   width: 24px;
   height: 24px;
-  color: var(--rose-700);
-  background: var(--rose-100);
+  color: var(--red-700);
+  background: var(--pink-100);
   border: 0;
   border-radius: 50%;
 }
@@ -7579,30 +6968,30 @@ button.card:active {
 .page.onboarding .ob-chip.selected,
 .page.onboarding .ob-chip[data-exclusive='true'].selected {
   padding-left: 11px;
-  color: #fffaf7;
-  background: var(--rose-600);
-  border-color: rgba(184, 62, 88, 0.26);
-  border-left: 1px solid rgba(184, 62, 88, 0.26);
-  box-shadow: 0 8px 18px rgba(190, 59, 87, 0.15);
+  color: var(--pink-50);
+  background: var(--red-600);
+  border-color: color-mix(in srgb, var(--red-700) 26%, transparent);
+  border-left: 1px solid color-mix(in srgb, var(--red-700) 26%, transparent);
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--red-700) 15%, transparent);
 }
 
 .page.onboarding .ob-chip.selected > span,
 .page.onboarding .ob-chip.selected i,
 .page.onboarding .ob-chip[data-exclusive='true'].selected i {
-  color: var(--rose-600);
+  color: var(--red-600);
   background: #fff;
   border-color: #fff;
 }
 
 .page.onboarding .ob-selection-note {
   padding: 11px 13px;
-  background: rgba(251, 232, 231, 0.68);
-  border: 1px solid rgba(214, 75, 104, 0.09);
+  background: color-mix(in srgb, var(--pink-100) 68%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 9%, transparent);
   border-radius: 15px;
 }
 
 .page.onboarding .ob-selection-note strong {
-  color: var(--rose-700);
+  color: var(--red-700);
   font-size: 9px;
   letter-spacing: 0;
   text-transform: none;
@@ -7617,7 +7006,7 @@ button.card:active {
   color: var(--ink-900);
   font-family: var(--font-display) !important;
   font-size: 19px !important;
-  font-weight: 500 !important;
+  font-weight: var(--weight-display) !important;
   letter-spacing: -0.025em !important;
 }
 
@@ -7631,8 +7020,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 850;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-hero-field input,
@@ -7644,18 +7031,18 @@ button.card:active {
   font-family: var(--font-sans);
   font-size: 16px;
   font-weight: 650;
-  background: rgba(255, 253, 249, 0.86);
+  background: color-mix(in srgb, var(--pink-50) 86%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 17px;
-  box-shadow: 0 7px 20px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 7px 20px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
 }
 
 .page.onboarding .ob-number-stage {
   min-height: 196px;
   overflow: hidden;
   background:
-    radial-gradient(circle at 80% 5%, rgba(246, 180, 189, 0.22), transparent 35%),
-    rgba(255, 253, 249, 0.76);
+    radial-gradient(circle at 80% 5%, color-mix(in srgb, var(--red-300) 22%, transparent), transparent 35%),
+    color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 26px;
   box-shadow: var(--shadow-card);
@@ -7664,8 +7051,8 @@ button.card:active {
 .page.onboarding .ob-number-stage::before {
   width: 220px;
   height: 116px;
-  background: radial-gradient(circle, rgba(246, 180, 189, 0.28), transparent 64%);
-  border: 1px solid rgba(214, 75, 104, 0.14);
+  background: radial-gradient(circle, color-mix(in srgb, var(--red-300) 28%, transparent), transparent 64%);
+  border: 1px solid color-mix(in srgb, var(--red-600) 14%, transparent);
 }
 
 .page.onboarding .ob-number-stage input {
@@ -7694,17 +7081,17 @@ button.card:active {
   align-items: flex-start;
   gap: 10px;
   color: var(--ink-650);
-  background: rgba(229, 242, 238, 0.76);
-  border: 1px solid rgba(47, 133, 132, 0.12);
+  background: color-mix(in srgb, var(--pink-100) 76%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
   border-radius: 17px;
   box-shadow: none;
 }
 
 .page.onboarding .ob-safety-note {
   display: block;
-  color: #725d3b;
-  background: rgba(255, 243, 214, 0.84);
-  border-color: rgba(212, 154, 45, 0.18);
+  color: var(--red-700);
+  background: color-mix(in srgb, var(--yellow-100) 84%, transparent);
+  border-color: color-mix(in srgb, var(--warning) 18%, transparent);
 }
 
 .page.onboarding .ob-why > span,
@@ -7712,7 +7099,7 @@ button.card:active {
 .page.onboarding .ob-prediction-gate > span {
   width: 27px;
   height: 27px;
-  color: var(--teal-700);
+  color: var(--red-700);
   background: rgba(255, 255, 255, 0.7);
   border-radius: 50%;
 }
@@ -7737,14 +7124,14 @@ button.card:active {
 }
 
 .page.onboarding .ob-prediction-gate {
-  background: rgba(251, 232, 231, 0.82);
-  border-color: rgba(214, 75, 104, 0.13);
+  background: color-mix(in srgb, var(--pink-100) 82%, transparent);
+  border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
 }
 
 .page.onboarding .ob-date-card {
   padding: 15px;
   gap: 9px;
-  background: rgba(255, 253, 249, 0.8);
+  background: color-mix(in srgb, var(--pink-50) 80%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 21px;
   box-shadow: var(--shadow-card);
@@ -7765,7 +7152,7 @@ button.card:active {
   min-height: 50px;
   padding: 8px 11px;
   grid-template-columns: 1fr auto;
-  background: rgba(247, 240, 232, 0.7);
+  background: color-mix(in srgb, var(--pink-100) 70%, transparent);
   border: 0;
   border-radius: 13px;
 }
@@ -7807,10 +7194,10 @@ button.card:active {
   flex-direction: column;
   justify-content: space-between;
   gap: 8px;
-  background: rgba(255, 253, 249, 0.8);
+  background: color-mix(in srgb, var(--pink-50) 80%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 19px;
-  box-shadow: 0 8px 20px rgba(75, 45, 50, 0.035);
+  box-shadow: 0 8px 20px color-mix(in srgb, var(--ink-900) 3.5%, transparent);
 }
 
 .page.onboarding .ob-measure-grid {
@@ -7820,8 +7207,8 @@ button.card:active {
 .page.onboarding .ob-measure-grid > label {
   min-height: 134px;
   background:
-    radial-gradient(circle at 90% 10%, rgba(246, 180, 189, 0.25), transparent 33%),
-    rgba(255, 253, 249, 0.82);
+    radial-gradient(circle at 90% 10%, color-mix(in srgb, var(--red-300) 25%, transparent), transparent 33%),
+    color-mix(in srgb, var(--pink-50) 82%, transparent);
   border-radius: 23px;
 }
 
@@ -7829,8 +7216,6 @@ button.card:active {
 .page.onboarding .ob-measure-grid label > span {
   color: var(--ink-500);
   font-size: 8px;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .page.onboarding .ob-inline-fields input,
@@ -7855,8 +7240,8 @@ button.card:active {
 .page.onboarding .ob-consent {
   min-height: 78px;
   padding: 13px 14px;
-  color: var(--ink-700);
-  background: rgba(255, 253, 249, 0.82);
+  color: var(--ink-650);
+  background: color-mix(in srgb, var(--pink-50) 82%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 19px;
   box-shadow: var(--shadow-card);
@@ -7875,14 +7260,14 @@ button.card:active {
 }
 
 .page.onboarding .ob-consent.selected {
-  background: rgba(229, 242, 238, 0.9);
-  border-color: rgba(47, 133, 132, 0.24);
+  background: color-mix(in srgb, var(--pink-100) 90%, transparent);
+  border-color: color-mix(in srgb, var(--red-600) 24%, transparent);
 }
 
 .page.onboarding .ob-segmented {
   padding: 4px;
   gap: 4px;
-  background: rgba(82, 57, 65, 0.07);
+  background: color-mix(in srgb, var(--ink-900) 7%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 16px;
 }
@@ -7896,9 +7281,9 @@ button.card:active {
 }
 
 .page.onboarding .ob-segmented button.selected {
-  color: var(--rose-700);
-  background: rgba(255, 253, 249, 0.96);
-  box-shadow: 0 5px 13px rgba(75, 45, 50, 0.08);
+  color: var(--red-700);
+  background: color-mix(in srgb, var(--pink-50) 96%, transparent);
+  box-shadow: 0 5px 13px color-mix(in srgb, var(--ink-900) 8%, transparent);
 }
 
 .page.onboarding .ob-impact-grid {
@@ -7912,10 +7297,10 @@ button.card:active {
   min-width: 0;
   padding: 10px 7px;
   display: block;
-  background: rgba(255, 253, 249, 0.8);
+  background: color-mix(in srgb, var(--pink-50) 80%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  box-shadow: 0 7px 18px rgba(75, 45, 50, 0.03);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ink-900) 3%, transparent);
 }
 
 .page.onboarding .ob-impact-grid section > div:first-child {
@@ -7923,7 +7308,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-impact-grid section > div:first-child span {
-  color: var(--rose-600);
+  color: var(--red-600);
 }
 
 .page.onboarding .ob-impact-grid section > div:first-child strong {
@@ -7949,7 +7334,7 @@ button.card:active {
 
 .page.onboarding .ob-impact-grid button.selected {
   color: #fff;
-  background: var(--rose-600);
+  background: var(--red-600);
 }
 
 .page.onboarding .ob-summary-list {
@@ -7961,10 +7346,10 @@ button.card:active {
   min-height: 72px;
   padding: 12px;
   grid-template-columns: 58px minmax(0, 1fr);
-  background: rgba(255, 253, 249, 0.82);
+  background: color-mix(in srgb, var(--pink-50) 82%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 17px;
-  box-shadow: 0 7px 18px rgba(75, 45, 50, 0.03);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ink-900) 3%, transparent);
 }
 
 .page.onboarding .ob-summary-list article > span {
@@ -7973,14 +7358,14 @@ button.card:active {
   place-items: center;
   color: #fff;
   font-size: 7px;
-  background: var(--teal-600) !important;
+  background: var(--red-600) !important;
   border-radius: var(--radius-chip);
 }
 
 .page.onboarding .ob-summary-list article > span.paused { background: var(--ink-500) !important; }
 .page.onboarding .ob-summary-list article > span.learning { background: var(--yellow-600) !important; }
 .page.onboarding .ob-summary-list article > span.cautious { background: var(--purple-500) !important; }
-.page.onboarding .ob-summary-list article > span.local { background: var(--teal-600) !important; }
+.page.onboarding .ob-summary-list article > span.local { background: var(--red-600) !important; }
 
 .page.onboarding .ob-summary-list strong {
   color: var(--ink-900);
@@ -8005,7 +7390,7 @@ button.card:active {
 .page.onboarding .ob-night-map {
   background:
     radial-gradient(circle at 82% 20%, rgba(255, 255, 255, 0.75), transparent 32%),
-    linear-gradient(145deg, rgba(229, 242, 238, 0.9), rgba(229, 220, 240, 0.9));
+    linear-gradient(145deg, color-mix(in srgb, var(--pink-100) 90%, transparent), color-mix(in srgb, var(--pink-200) 90%, transparent));
 }
 
 .page.onboarding .ob-night-map .moonseed {
@@ -8016,7 +7401,7 @@ button.card:active {
 }
 
 .page.onboarding .ob-night-path {
-  border-color: rgba(133, 111, 157, 0.14);
+  border-color: color-mix(in srgb, var(--ink-650) 14%, transparent);
   border-right-color: transparent;
   border-bottom-color: transparent;
 }
@@ -8033,13 +7418,7 @@ button.card:active {
 .page.onboarding .ob-analysis-hero::after,
 .page.onboarding .ob-finish-orbit::before,
 .page.onboarding .ob-finish-orbit::after {
-  border-color: rgba(47, 133, 132, 0.13);
-}
-
-.page.onboarding .ob-analysis-hero > span {
-  bottom: 11px;
-  color: var(--teal-700);
-  font-size: 8px;
+  border-color: color-mix(in srgb, var(--red-600) 13%, transparent);
 }
 
 .page.onboarding-ai .ai-provider-grid {
@@ -8054,7 +7433,7 @@ button.card:active {
   padding: 12px;
   border: 1px solid var(--line-soft);
   border-radius: 19px;
-  box-shadow: 0 7px 18px rgba(75, 45, 50, 0.03);
+  box-shadow: 0 7px 18px color-mix(in srgb, var(--ink-900) 3%, transparent);
 }
 
 .page.onboarding-ai .ai-provider-grid .ob-option.selected {
@@ -8066,7 +7445,7 @@ button.card:active {
   display: flex;
   flex-direction: column;
   gap: 13px;
-  background: rgba(255, 253, 249, 0.82);
+  background: color-mix(in srgb, var(--pink-50) 82%, transparent);
   border: 1px solid var(--line-soft);
   border-radius: 21px;
   box-shadow: var(--shadow-card);
@@ -8084,7 +7463,6 @@ button.card:active {
   background: transparent;
 }
 
-.page.onboarding-finish .eyebrow,
 .page.onboarding-finish h1,
 .page.onboarding-finish .lead {
   color: var(--ink-900);
@@ -8100,8 +7478,8 @@ button.card:active {
 
 .page.onboarding-finish .ob-commitment {
   padding: 14px;
-  background: rgba(229, 242, 238, 0.78);
-  border: 1px solid rgba(47, 133, 132, 0.12);
+  background: color-mix(in srgb, var(--pink-100) 78%, transparent);
+  border: 1px solid color-mix(in srgb, var(--red-600) 12%, transparent);
   border-radius: 18px;
 }
 
@@ -8119,7 +7497,7 @@ button.card:active {
 
 .page.onboarding-finish .error-text {
   color: var(--red-500);
-  background: rgba(201, 71, 71, 0.08);
+  background: color-mix(in srgb, var(--red-500) 8%, transparent);
 }
 
 @media (max-height: 720px) {
@@ -8167,9 +7545,6 @@ button.card:active {
     gap: 5px;
   }
 
-  .page.onboarding .ob-proof-row small {
-    display: none;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -8220,6 +7595,10 @@ button.card:active {
   gap: 8px;
 }
 
+.today-quick-actions.has-calendar {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .quick-action {
   position: relative;
   min-width: 0;
@@ -8240,12 +7619,12 @@ button.card:active {
   display: grid;
   place-items: center;
   color: var(--ink-500);
-  background: rgba(255, 253, 249, 0.76);
+  background: color-mix(in srgb, var(--pink-50) 76%, transparent);
   border: 1px solid rgba(255, 255, 255, 0.82);
   border-radius: 50%;
   box-shadow:
-    0 11px 25px rgba(75, 45, 50, 0.07),
-    inset 0 0 0 1px rgba(75, 45, 50, 0.025);
+    0 11px 25px color-mix(in srgb, var(--ink-900) 7%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--ink-900) 2.5%, transparent);
   transition:
     transform 180ms var(--ease-spring),
     background 180ms ease;
@@ -8264,9 +7643,9 @@ button.card:active {
 
 .quick-action-period {
   color: #fff;
-  background: var(--rose-600);
+  background: var(--red-600);
   border-color: rgba(255, 255, 255, 0.34);
-  box-shadow: 0 12px 26px rgba(201, 64, 94, 0.24);
+  box-shadow: 0 12px 26px color-mix(in srgb, var(--red-700) 24%, transparent);
 }
 
 .quick-action-period svg path:first-child {
@@ -8290,8 +7669,8 @@ button.card:active {
 }
 
 .quick-action.is-recorded:not(:first-child) .quick-action-circle {
-  color: var(--teal-700);
-  background: var(--teal-100);
+  color: var(--red-700);
+  background: var(--pink-100);
 }
 
 .quick-action.is-recorded .quick-action-circle::after {
@@ -8301,7 +7680,7 @@ button.card:active {
   bottom: 5px;
   width: 10px;
   height: 10px;
-  background: var(--teal-600);
+  background: var(--red-600);
   border: 3px solid var(--paper-100);
   border-radius: 50%;
 }
@@ -8328,10 +7707,10 @@ button.card:active {
   overflow: hidden;
   color: var(--ink-900);
   text-align: left;
-  background: var(--rose-100);
-  border: 1.5px solid rgba(214, 75, 104, 0.36);
+  background: var(--pink-100);
+  border: 1.5px solid color-mix(in srgb, var(--red-600) 36%, transparent);
   border-radius: 22px;
-  box-shadow: 0 9px 22px rgba(75, 45, 50, 0.055);
+  box-shadow: 0 9px 22px color-mix(in srgb, var(--ink-900) 5.5%, transparent);
 }
 
 .daily-insight-tile::after {
@@ -8346,30 +7725,28 @@ button.card:active {
 }
 
 .daily-insight-tile.insight-blue {
-  background: #e5eaff;
-  border-color: rgba(92, 112, 208, 0.3);
+  background: var(--pink-200);
+  border-color: color-mix(in srgb, var(--pink-500) 30%, transparent);
 }
 
 .daily-insight-tile.insight-teal {
-  background: var(--teal-100);
-  border-color: rgba(47, 133, 132, 0.3);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 30%, transparent);
 }
 
 .daily-insight-tile.insight-rose {
-  background: var(--rose-100);
-  border-color: rgba(214, 75, 104, 0.3);
+  background: var(--pink-100);
+  border-color: color-mix(in srgb, var(--red-600) 30%, transparent);
 }
 
-.daily-insight-tile > span {
+.daily-insight-tile > h3 {
   position: relative;
   z-index: 1;
   min-height: 22px;
   color: var(--ink-650);
-  font-size: 9px;
-  font-weight: 850;
-  letter-spacing: 0.085em;
+  font-size: 15px;
+  font-weight: 600;
   line-height: 1.25;
-  text-transform: uppercase;
 }
 
 .daily-insight-tile > strong {
@@ -8378,7 +7755,7 @@ button.card:active {
   margin-top: 9px;
   font-family: var(--font-display);
   font-size: clamp(17px, 5vw, 22px);
-  font-weight: 550;
+  font-weight: var(--weight-display);
   line-height: 0.98;
   letter-spacing: -0.035em;
 }
@@ -8392,22 +7769,6 @@ button.card:active {
   font-size: 9.25px;
   font-weight: 600;
   line-height: 1.35;
-}
-
-.daily-insight-tile > i {
-  position: absolute;
-  right: 9px;
-  bottom: 8px;
-  width: 17px;
-  height: 17px;
-  display: grid;
-  place-items: center;
-  color: var(--ink-650);
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-style: normal;
-  background: rgba(255, 255, 255, 0.36);
-  border-radius: 50%;
 }
 
 .daily-insight-tile:active {
@@ -8485,8 +7846,6 @@ button.card:active {
   color: var(--ink-500);
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
 }
 
 .date-cell.is-today .date-cell-caption {
@@ -8495,8 +7854,8 @@ button.card:active {
 
 /* Future days read as an outline waiting to be filled in. */
 .date-cell.is-future .num {
-  color: var(--rose-600);
-  border: 1.5px dashed rgba(214, 75, 104, 0.5);
+  color: var(--red-600);
+  border: 1.5px dashed color-mix(in srgb, var(--red-600) 50%, transparent);
 }
 
 .date-cell.is-future.sel .num {
@@ -8504,7 +7863,7 @@ button.card:active {
 }
 
 .today-page .date-cell.sel .num {
-  box-shadow: 0 0 0 4px rgba(255, 253, 249, 0.9);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--pink-50) 90%, transparent);
 }
 
 /*
@@ -8517,24 +7876,17 @@ button.card:active {
   padding: 40px 24px 20px;
   border: 0;
   border-radius: 0 0 40px 40px;
-  box-shadow: 0 22px 40px -26px rgba(179, 66, 91, 0.5);
+  box-shadow: 0 22px 40px -26px color-mix(in srgb, var(--red-700) 50%, transparent);
 }
 
 .today-page .phase-hero .phase-copy {
   gap: 2px;
 }
 
-.today-page .phase-eyebrow {
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0;
-  text-transform: none;
-}
-
 .today-page .phase-copy h1 {
   margin-top: 2px;
   font-size: clamp(52px, 17vw, 76px);
-  font-weight: 700;
+  font-weight: var(--weight-display);
   line-height: 1.02;
   letter-spacing: -0.035em;
 }
@@ -8544,7 +7896,7 @@ button.card:active {
   margin-top: 10px;
 }
 
-/* The hero's call to action is a pill, not a footer strip. */
+/* A text action below the phase information. */
 .today-page .phase-detail-link {
   margin-top: auto;
   padding: 11px 16px;
@@ -8553,17 +7905,8 @@ button.card:active {
   border-top: 0;
   font-size: 14px;
   font-weight: 650;
-  background: rgba(255, 253, 249, 0.42);
-  border-radius: 999px;
-}
-
-.today-page .phase-detail-link span {
-  width: 22px;
-  height: 22px;
-  display: grid;
-  place-items: center;
-  background: rgba(255, 253, 249, 0.75);
-  border-radius: 50%;
+  background: transparent;
+  text-decoration: underline;
 }
 
 .today-quick-actions {
@@ -8573,16 +7916,6 @@ button.card:active {
 /* Insights scroll horizontally so a fourth card is discoverable, not hidden. */
 .daily-heading {
   margin-bottom: 2px;
-}
-
-.daily-heading h2 {
-  font-size: 21px;
-  letter-spacing: -0.02em;
-}
-
-.daily-heading-when {
-  color: var(--ink-500);
-  font-weight: 500;
 }
 
 .daily-insight-rail {
@@ -8610,8 +7943,7 @@ button.card:active {
   }
 }
 
-/* Sentence-length hero titles ("Let's pick this back up") need a smaller
-   scale than the numeric states ("Day 3") the display size was tuned for. */
+/* Longer empty and midlife headings use a smaller display size. */
 .today-page .phase-empty .phase-copy h1,
 .today-page .phase-peri .phase-copy h1 {
   font-size: clamp(32px, 9.5vw, 42px);
@@ -8702,4 +8034,20 @@ button.card:active {
   .today-page .phase-hero.enter-previous {
     animation: none;
   }
+}
+
+.group-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--ink-900);
+  margin: 22px 0 8px;
+}
+
+.assistant-feature-open {
+  position: relative;
+  z-index: 3;
+  margin-left: auto;
+  padding-left: 12px;
+  font-size: 15px;
+  font-weight: 600;
 }

@@ -1,9 +1,8 @@
 import { Children, isValidElement, type ReactNode, useMemo, useState } from 'react'
-import { LunaraMark } from '../components/LunaraMark'
+import { PppMark } from '../components/PppMark'
 import {
   createDefaultHealthProfile,
   db,
-  getPeriodStarts,
   putHealthProfile,
   setSetting,
   SK,
@@ -21,20 +20,16 @@ import {
   DEFAULT_ANTHROPIC_MODEL,
   DEFAULT_OPENAI_MODEL,
   type AssistantProvider,
-} from '../lib/assistant'
+} from '../lib/assistantModels'
 import { localToday } from '../lib/dates'
-import { addDays, toEpochDay } from '../engine/cycle'
 import {
   resolvePregnancyDating,
   type PregnancyDatingMethod,
 } from '../engine/pregnancyDating'
-import type { HealthAuthorization } from '../native/health'
-import { importAppleHealthPeriodHistory } from '../native/healthImport'
-import { nativePlatform } from '../native/runtime'
 import {
   SECURE_SECRET_KEYS,
   setSecureSecret,
-} from '../native/secureVault'
+} from '../platform/secureVault'
 
 type StepId =
   | 'welcome'
@@ -108,7 +103,7 @@ const GOALS: Array<{ id: Goal; icon: string; label: string; detail: string }> = 
 
 const CONTRACEPTION_OPTIONS: Option[] = [
   { id: 'none', label: 'None', detail: 'Cycle estimates can use your natural bleeding history.' },
-  { id: 'combined-pill-patch-ring', label: 'Combined pill, patch, or ring', detail: 'These usually suppress ovulation, so Lunara will not show a fertile-window forecast.' },
+  { id: 'combined-pill-patch-ring', label: 'Combined pill, patch, or ring', detail: 'These usually suppress ovulation, so PPP will not show a fertile-window forecast.' },
   { id: 'progestin-only-pill', label: 'Progestin-only pill', detail: 'Bleeding can be less predictable; medication tracking stays available.' },
   { id: 'injection', label: 'Injection', detail: 'Cycle and fertile-window forecasts will be paused.' },
   { id: 'implant', label: 'Implant', detail: 'Cycle and fertile-window forecasts will be paused.' },
@@ -126,7 +121,7 @@ const TRACKING_AREAS: Option[] = [
   { id: 'mood', icon: '◡', label: 'Mood & energy' },
   { id: 'discharge', icon: '◌', label: 'Discharge' },
   { id: 'sleep', icon: '☾', label: 'Sleep' },
-  { id: 'movement', icon: '↗', label: 'Movement' },
+  { id: 'movement', icon: '≈', label: 'Movement' },
   { id: 'fertility', icon: '✦', label: 'Fertility signals' },
   { id: 'sexual-wellbeing', icon: '♡', label: 'Sexual wellbeing' },
 ]
@@ -268,10 +263,12 @@ function Frame({
       <div className="ob-shell-top">
         <header className="ob-appbar">
           {showProgress && onBack
-            ? <button type="button" className="back-btn" onClick={onBack} aria-label="Go back">‹</button>
+            ? <button type="button" className="back-btn" onClick={onBack} aria-label="Go back">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="m15 5-7 7 7 7" /></svg>
+              </button>
             : <span className="ob-appbar-spacer" aria-hidden="true" />}
-          <div className="lunara-brand-button ob-appbar-mark" aria-label="Lunara">
-            <LunaraMark decorative size={24} />
+          <div className="ppp-brand-button ob-appbar-mark" aria-label="PPP">
+            <PppMark decorative size={24} />
           </div>
           {showProgress && onSkip
             ? <button type="button" className="ob-skip" onClick={onSkip}>Skip</button>
@@ -281,7 +278,7 @@ function Frame({
           <div className="onboarding-progress">
             <div className="ob-progress-meta">
               <span>{chapter ?? 'Your baseline'}</span>
-              <span>{stepNumber} of {totalSteps}</span>
+              <span>Step {stepNumber} of {totalSteps}</span>
             </div>
             <div className="progress-track" aria-label={`Step ${stepNumber} of ${totalSteps}`}>
               <span style={{ width: `${(stepNumber / totalSteps) * 100}%` }} />
@@ -303,7 +300,7 @@ function Frame({
 
 function CrescentMark({ quiet = false }: { quiet?: boolean }) {
   return (
-    <LunaraMark
+    <PppMark
       className={`ob-crescent-mark ${quiet ? 'quiet' : ''}`}
       decorative
       size={64}
@@ -314,7 +311,6 @@ function CrescentMark({ quiet = false }: { quiet?: boolean }) {
 function Moonseed({ mood = 'bright' }: { mood?: 'bright' | 'thinking' | 'resting' }) {
   return (
     <div className={`moonseed moonseed-${mood}`} aria-hidden="true">
-      <span className="moonseed-orbit" />
       <CrescentMark quiet={mood === 'resting'} />
       <span className="moonseed-star">✦</span>
     </div>
@@ -384,17 +380,14 @@ function ChipGrid({
 }
 
 function QuestionIntro({
-  eyebrow,
   title,
   body,
 }: {
-  eyebrow: string
   title: string
   body?: string
 }) {
   return (
     <div className="ob-question-intro">
-      <p className="eyebrow">{eyebrow}</p>
       <h1>{title}</h1>
       {body && <p className="muted">{body}</p>}
     </div>
@@ -418,25 +411,6 @@ function choiceLabel(value: AnswerChoice | undefined): string {
   return 'Not answered'
 }
 
-function onboardingHealthPermission(
-  authorization: HealthAuthorization,
-): HealthProfile['permissions']['healthData'] {
-  if (authorization === 'granted' || authorization === 'partial') return 'granted'
-  if (authorization === 'requested') return 'requested'
-  if (authorization === 'denied') return 'denied'
-  return 'not-requested'
-}
-
-function recentCycleLength(startsNewestFirst: string[]): number | undefined {
-  const gaps = startsNewestFirst
-    .slice(0, -1)
-    .map((date, index) => toEpochDay(date) - toEpochDay(startsNewestFirst[index + 1]))
-    .filter((gap) => gap >= 15 && gap <= 90)
-    .sort((a, b) => a - b)
-  if (!gaps.length) return undefined
-  return gaps[Math.floor(gaps.length / 2)]
-}
-
 export function Onboarding({ onDone }: { onDone: () => void }) {
   const [current, setCurrent] = useState<StepId>('welcome')
   const [draft, setDraft] = useState<Draft>(DEFAULT_DRAFT)
@@ -446,11 +420,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   const [baseUrl, setBaseUrl] = useState('')
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
-  const [healthImportBusy, setHealthImportBusy] = useState(false)
-  const [healthImportAttempted, setHealthImportAttempted] = useState(false)
-  const [healthImportAuthorization, setHealthImportAuthorization] =
-    useState<HealthAuthorization>('not-determined')
-  const [healthImportMessage, setHealthImportMessage] = useState<string | null>(null)
   const thisYear = new Date().getFullYear()
   const birth = Number(draft.birthYear)
   const age = /^\d{4}$/.test(draft.birthYear) ? thisYear - birth : null
@@ -540,55 +509,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     }
   }
 
-  async function importApplePeriodsDuringOnboarding() {
-    setHealthImportBusy(true)
-    setHealthImportAttempted(true)
-    setHealthImportMessage(null)
-    try {
-      const today = localToday()
-      const result = await importAppleHealthPeriodHistory({
-        startDate: addDays(today, -730),
-        endDate: today,
-      })
-      setHealthImportAuthorization(result.authorization)
-      if (!result.available) {
-        setHealthImportMessage(result.reason ?? 'Apple Health period import is unavailable.')
-        return
-      }
-      if (!result.periodSamples) {
-        setHealthImportMessage(
-          'No period records were returned. Apple does not tell apps whether read access was denied or Health has no menstrual-flow history.',
-        )
-        return
-      }
-
-      const recentStarts = (await getPeriodStarts()).slice(-3).reverse()
-      const importedCycleLength = recentCycleLength(recentStarts)
-      patch({
-        periodStarts: [
-          recentStarts[0] ?? '',
-          recentStarts[1] ?? '',
-          recentStarts[2] ?? '',
-        ],
-        dateConfidence: recentStarts.length ? 'known' : draft.dateConfidence,
-        typicalCycleLength: importedCycleLength
-          ? String(importedCycleLength)
-          : draft.typicalCycleLength,
-      })
-      setHealthImportMessage(
-        recentStarts.length
-          ? `Imported ${result.uniqueSamples} period record${result.uniqueSamples === 1 ? '' : 's'} and found ${recentStarts.length} recent period start${recentStarts.length === 1 ? '' : 's'}. You can correct the dates below.`
-          : `Imported ${result.uniqueSamples} menstrual-flow record${result.uniqueSamples === 1 ? '' : 's'}, but none was marked as a cycle start. You can add recent start dates below.`,
-      )
-    } catch (error) {
-      setHealthImportMessage(
-        error instanceof Error ? error.message : 'Apple Health period import failed.',
-      )
-    } finally {
-      setHealthImportBusy(false)
-    }
-  }
-
   async function finish() {
     if (!draft.goal) return
     setSaving(true)
@@ -665,7 +585,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         },
         permissions: {
           ...defaults.permissions,
-          healthData: onboardingHealthPermission(healthImportAuthorization),
         },
         privacy: {
           ageBand:
@@ -680,6 +599,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           localOnly: true,
           onboardingVersion: 2,
           consentLedger: [
+            { purpose: 'medical-records', state: 'not-requested', version: 1, decidedAt },
             {
               purpose: 'local-health-storage',
               state: draft.privacyAccepted ? 'granted' : 'declined',
@@ -699,11 +619,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             },
             {
               purpose: 'health-import',
-              state: healthImportAttempted
-                ? healthImportAuthorization === 'denied'
-                  ? 'declined'
-                  : 'granted'
-                : 'not-requested',
+              state: 'not-requested',
               version: 1,
               decidedAt,
             },
@@ -768,24 +684,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         <div className="onboarding-hero">
           <div className="ob-hero-art">
             <Moonseed />
-            <span className="ob-hero-label">Built for private, local-first tracking</span>
           </div>
-          <div>
-            <p className="eyebrow">Meet Lunara</p>
-            <h1>A clearer map of your changing body.</h1>
+          <div role="group" aria-label="PPP principles">
+            <h1>Track your cycle privately.</h1>
             <p className="lead">
-              Start with what you know. Lunara will adapt its questions, show when an estimate is
-              uncertain, and keep core tracking on this device.
+              PPP keeps your data on this device and explains every estimate.
             </p>
           </div>
-          <div className="ob-proof-row" aria-label="Lunara principles">
-            <span><strong>Local</strong><small>Core history</small></span>
-            <span><strong>Explainable</strong><small>Every estimate</small></span>
-            <span><strong>Optional</strong><small>Sensitive answers</small></span>
-          </div>
-          <p className="ob-legal">Educational estimates only—not diagnosis or birth control.</p>
         </div>
-        <button className="cta" onClick={next}>Build my baseline <span aria-hidden="true">→</span></button>
+        <button className="cta" onClick={next}>Get started</button>
       </Frame>
     )
   }
@@ -795,8 +702,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <Frame {...frameProps} chapter="About you" onSkip={next}>
         <div className="ob-top-figure"><Moonseed mood="thinking" /></div>
         <QuestionIntro
-          eyebrow="Let’s make this feel like yours"
-          title="What should Lunara call you?"
+          title="What should PPP call you?"
           body="A first name or nickname is enough. It never has to leave your device."
         />
         <div className="field ob-hero-field">
@@ -821,7 +727,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="About you">
         <QuestionIntro
-          eyebrow={draft.displayName ? `Nice to meet you, ${firstName(draft.displayName)}` : 'A useful baseline'}
           title="What year were you born?"
           body="Age changes which cycle ranges are considered typical. It does not decide what your body should do."
         />
@@ -852,22 +757,21 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Privacy">
         <QuestionIntro
-          eyebrow="Sensitive data deserves a clear boundary"
           title="Your core health history stays on this device."
-          body="Lunara needs permission to store the answers and logs you choose to enter. You can export or erase them from Settings."
+          body="PPP needs permission to store the answers and logs you choose to enter. You can export or erase them from Settings."
         />
         <div className="ob-summary-list privacy">
           <article>
             <span className="local">Local</span>
-            <div><strong>Core tracking</strong><p>Cycle dates, symptoms, notes, and your profile are stored in Lunara’s local database.</p></div>
+            <div><strong>Core tracking</strong><p>Your cycle dates, symptoms, notes and profile stay on this device.</p></div>
           </article>
           <article>
             <span className="paused">Off</span>
-            <div><strong>Cloud account</strong><p>No Lunara account, advertising profile, or background cloud sync is created.</p></div>
+            <div><strong>Cloud account</strong><p>No PPP account or advertising profile is created. Nothing is uploaded automatically.</p></div>
           </article>
           <article>
             <span className="cautious">Ask first</span>
-            <div><strong>AI and health imports</strong><p>They remain separate and require an explicit setup or operating-system permission later.</p></div>
+            <div><strong>AI and health imports</strong><p>They remain separate and require explicit setup and consent.</p></div>
           </article>
         </div>
         {age !== null && age < 18 && (
@@ -884,7 +788,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           />
           <span>
             <strong>Store my selected health information locally</strong>
-            <small>I understand Lunara provides educational estimates, not diagnosis or contraception.</small>
+            <small>I understand PPP provides educational estimates, not diagnosis or contraception.</small>
           </span>
         </label>
         <div className="spacer" />
@@ -897,7 +801,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Your mode">
         <QuestionIntro
-          eyebrow="Choose your primary mode"
           title="What is happening in your life right now?"
           body="This changes the rest of setup. You can switch modes later without losing your history."
         />
@@ -919,12 +822,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   if (current === 'cycle-context') {
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={() => { patch({ contraception: 'prefer-not-to-say' }); next() }}>
-        <div className="ob-chapter-band">
-          <Moonseed mood="thinking" />
-          <div><span>Chapter 1</span><strong>How your cycle is shaped</strong></div>
-        </div>
         <QuestionIntro
-          eyebrow="Prediction eligibility"
           title="Are you using contraception now?"
           body="Some hormonal methods suppress ovulation or create withdrawal bleeding. That changes which predictions are responsible to show."
         />
@@ -946,15 +844,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   if (current === 'cycle-history') {
     const regularityOptions: Array<{ id: CycleRegularity; label: string; detail: string }> = [
       { id: 'regular', label: 'Usually predictable', detail: 'The gap is roughly similar, though it does not need to be exactly the same.' },
-      { id: 'irregular', label: 'Often unpredictable', detail: 'Lunara will show wider ranges and avoid pretending there is one exact day.' },
+      { id: 'irregular', label: 'Often unpredictable', detail: 'PPP will show wider ranges and avoid pretending there is one exact day.' },
       { id: 'unsure', label: 'I’m not sure yet', detail: 'That is enough to start. Your prospective history matters more than a guess.' },
     ]
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={() => { patch({ dateConfidence: 'unknown' }); next() }}>
         <QuestionIntro
-          eyebrow="Your real history beats a generic 28-day cycle"
           title="What do you know about your recent periods?"
-          body="Add up to three true period starts—not spotting. Fewer dates are completely fine."
+          body="Add up to three period starts, excluding spotting. Fewer dates are fine."
         />
         <div className="ob-option-stack compact">
           {regularityOptions.map((option) => (
@@ -966,38 +863,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             />
           ))}
         </div>
-        {nativePlatform === 'ios' && (
-          <section className="ob-health-import" aria-labelledby="apple-health-import-title">
-            <div className="ob-health-import-icon" aria-hidden="true">
-              <LunaraMark decorative size={28} />
-            </div>
-            <div className="ob-health-import-copy">
-              <span className="eyebrow">Optional shortcut</span>
-              <strong id="apple-health-import-title">Bring in period history from Apple Health</strong>
-              <p>
-                Lunara requests read-only access to menstrual-flow records, keeps their source
-                attached, and never replaces a period date you entered yourself.
-              </p>
-            </div>
-            <button
-              type="button"
-              className="ob-health-import-button"
-              disabled={healthImportBusy}
-              onClick={importApplePeriodsDuringOnboarding}
-            >
-              {healthImportBusy
-                ? 'Checking Apple Health…'
-                : healthImportAttempted
-                  ? 'Import again'
-                  : 'Import from Apple Health'}
-            </button>
-            {healthImportMessage && (
-              <p className="ob-health-import-status" role="status">
-                {healthImportMessage}
-              </p>
-            )}
-          </section>
-        )}
         <div className="ob-date-card">
           <strong>Recent period starts</strong>
           {draft.periodStarts.map((date, index) => (
@@ -1044,15 +909,14 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Cycle context" onSkip={next}>
         <QuestionIntro
-          eyebrow="Your mode has adapted"
           title="What bleeding pattern have you noticed?"
-          body="Lunara can track bleeding and medication adherence, but it will pause fertile-window estimates while this method makes them unreliable."
+          body="PPP can track bleeding and medication adherence, but it will pause fertile-window estimates while this method makes them unreliable."
         />
         <div className="ob-prediction-gate">
           <span aria-hidden="true">◌</span>
           <div>
             <strong>Fertility forecast paused</strong>
-            <p>Not a failure—this is the medically honest state for this context.</p>
+            <p>Estimates are paused for this context.</p>
           </div>
         </div>
         <div className="ob-option-stack">
@@ -1083,14 +947,9 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
             : 'Embryo transfer date'
     return (
       <Frame {...frameProps} chapter="Pregnancy baseline" onSkip={next}>
-        <div className="ob-chapter-band pregnancy">
-          <Moonseed />
-          <div><span>Pregnancy mode</span><strong>Start with a provisional timeline</strong></div>
-        </div>
         <QuestionIntro
-          eyebrow="Dating source matters"
           title="Which date should anchor your timeline?"
-          body="Lunara preserves the source instead of quietly treating every pregnancy as LMP-dated."
+          body="PPP keeps your selected dating source instead of assuming the date of your last period. Your timeline is provisional unless a clinician has assigned your due date."
         />
         <div className="ob-option-stack compact">
           {datingOptions.map((option) => (
@@ -1145,9 +1004,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Trying to conceive" onSkip={next}>
         <QuestionIntro
-          eyebrow="A more useful fertility plan"
           title="When did you start trying?"
-          body="Optional. Lunara uses this only for age-aware education and clinician-conversation prompts—not to label infertility."
+          body="Optional. PPP uses this only for age-aware education and clinician-conversation prompts, not to label infertility."
         />
         <div className="field ob-hero-field">
           <label htmlFor="trying-since">Month you started</label>
@@ -1166,12 +1024,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
   if (current === 'tracking') {
     return (
       <Frame {...frameProps} chapter="Your tracker">
-        <div className="ob-chapter-band">
-          <Moonseed />
-          <div><span>Chapter 2</span><strong>Choose what deserves space</strong></div>
-        </div>
         <QuestionIntro
-          eyebrow="You control the tracker"
           title="What would you like to understand?"
           body="Choose as many as you want. This changes logging shortcuts and which questions appear next."
         />
@@ -1189,14 +1042,13 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Your tracker" onSkip={next}>
         <QuestionIntro
-          eyebrow="A baseline, not a diagnosis"
           title="What are you noticing today?"
-          body="This seeds your first check-in. Lunara only calls something a pattern after it repeats across prospectively tracked cycles."
+          body="This seeds your first check-in. PPP only calls something a pattern after it repeats across prospectively tracked cycles."
         />
         <ChipGrid options={SYMPTOM_OPTIONS} values={draft.baselineSymptoms} exclusive="none" onToggle={(id) => toggle('baselineSymptoms', id, 'none')} />
         <div className="ob-why">
           <span aria-hidden="true">i</span>
-          <p>An unlogged day is treated as missing—not as a symptom-free day.</p>
+          <p>An unlogged day is treated as missing, not as a symptom-free day.</p>
         </div>
         <div className="spacer" />
         <button className="cta" onClick={next}>Continue</button>
@@ -1208,9 +1060,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Health context" onSkip={next}>
         <QuestionIntro
-          eyebrow="Use only what you already know"
           title="Have you been told you have any of these?"
-          body="Choose diagnosed or clinician-discussed conditions only. Lunara will never infer one from this onboarding."
+          body="Choose diagnosed or clinician-discussed conditions only. PPP will never infer one from this onboarding."
         />
         <div className="ob-option-stack compact">
           {CONDITION_OPTIONS.map((option) => (
@@ -1219,7 +1070,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               option={option}
               selected={draft.conditions.includes(option.id)}
               onClick={() => toggle('conditions', option.id)}
-              selectionDetail="Used to widen uncertainty and tailor caution—not as a diagnosis."
+              selectionDetail="Used to widen uncertainty and tailor caution, not as a diagnosis."
             />
           ))}
         </div>
@@ -1232,7 +1083,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Health context" onSkip={next}>
         <QuestionIntro
-          eyebrow="What you have already noticed"
           title="Do any of these describe your cycle?"
           body="These answers can add safety prompts or make estimates more cautious. They never identify the cause."
         />
@@ -1257,7 +1107,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Daily wellbeing" onSkip={next}>
         <QuestionIntro
-          eyebrow="Look beyond period dates"
           title="Where does your cycle seem to show up?"
           body="Your answers choose which check-ins and educational cards appear. They are not used to claim cause and effect."
         />
@@ -1265,10 +1114,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           {([
             ['sleepImpact', 'Sleep', '☾'],
             ['skinImpact', 'Skin', '✺'],
-            ['activityImpact', 'Energy', '↗'],
+            ['activityImpact', 'Energy', ''],
           ] as const).map(([key, label, icon]) => (
             <section key={key}>
-              <div><span aria-hidden="true">{icon}</span><strong>{label}</strong></div>
+              <div>{icon && <span aria-hidden="true">{icon}</span>}<strong>{label}</strong></div>
               <div>
                 {impactOptions.map((option) => (
                   <button
@@ -1338,7 +1187,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Daily wellbeing" onSkip={next}>
         <QuestionIntro
-          eyebrow="Optional movement context"
           title="What does a typical day feel like?"
           body="This can shape movement check-ins. It does not improve period prediction on its own."
         />
@@ -1356,8 +1204,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           ))}
         </div>
         <div className="ob-why">
-          <span aria-hidden="true">↗</span>
-          <p><strong>Permission comes later</strong> Lunara explains the benefit before asking iOS or Android for health access.</p>
+          <p><strong>Permission comes later</strong> Choosing a wearable records your preference; it does not connect to or import health data.</p>
         </div>
         <button className="cta" onClick={next}>Continue</button>
       </Frame>
@@ -1368,9 +1215,8 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     return (
       <Frame {...frameProps} chapter="Optional measurements" onSkip={next}>
         <QuestionIntro
-          eyebrow="Your choice"
           title="Would you like to add body measurements?"
-          body="Useful for weight trends and clinician reports. Lunara does not pretend these make a calendar estimate precise."
+          body="Useful for weight trends and clinician reports. PPP does not pretend these make a calendar estimate precise."
         />
         <div className="ob-measure-grid">
           <label>
@@ -1401,7 +1247,6 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           <i>✦</i><i>✦</i><i>✦</i>
         </div>
         <QuestionIntro
-          eyebrow="Your final wellbeing chapter"
           title="What would make sleep feel better?"
           body={`You said sleep impact is “${choiceLabel(draft.sleepImpact)}.” Choose any goals worth checking in on.`}
         />
@@ -1428,12 +1273,10 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
       <Frame {...frameProps} chapter="Your map">
         <div className="ob-analysis-hero">
           <Moonseed mood="thinking" />
-          <span>Baseline assembled on this device</span>
         </div>
         <QuestionIntro
-          eyebrow="Here is what your answers actually change"
-          title={`${firstName(draft.displayName) || 'Your'} setup is ready to learn.`}
-          body="No mystery score and no pretend diagnosis. Every active or paused feature has a reason."
+          title={`${firstName(draft.displayName) || 'Your'} setup summary`}
+          body="Review which features are active or paused and why; this summary was assembled on this device."
         />
         <div className="ob-summary-list">
           <article>
@@ -1450,7 +1293,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
           </article>
           <article>
             <span className="local">Local</span>
-            <div><strong>Health profile</strong><p>Stored in Lunara’s on-device database and editable from Settings.</p></div>
+            <div><strong>Health profile</strong><p>Stored in PPP’s on-device database and editable from Settings.</p></div>
           </article>
         </div>
         <div className="ob-why">
@@ -1464,20 +1307,19 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
 
   if (current === 'ai') {
     return (
-      <Frame {...frameProps} chapter="Optional companion" onSkip={next}>
+      <Frame {...frameProps} chapter="Optional assistant" onSkip={next}>
         <QuestionIntro
-          eyebrow="AI is separate from prediction"
           title="Choose how the assistant runs."
-          body="Core tracking and calculations work without AI. You bring your own credential; Lunara never ships a shared key."
+          body="Core tracking and calculations work without AI. You bring your own credential; PPP never ships a shared key."
         />
         <div className="ai-provider-grid">
           <OptionCard
-            option={{ id: 'anthropic', icon: '✳', label: 'Anthropic', detail: 'An API key, or a token from `claude setup-token` to use your Claude subscription.' }}
+            option={{ id: 'anthropic', icon: '✳', label: 'Anthropic', detail: 'Use your Anthropic key or Claude sign-in code.' }}
             selected={provider === 'anthropic'}
             onClick={() => chooseProvider('anthropic')}
           />
           <OptionCard
-            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Stored in Keychain or Keystore on native.' }}
+            option={{ id: 'openai', icon: '✦', label: 'OpenAI', detail: 'Bring your own project key. Your saved key is encrypted on this device.' }}
             selected={provider === 'openai'}
             onClick={() => chooseProvider('openai')}
           />
@@ -1485,7 +1327,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
         {provider === 'anthropic' ? (
           <div className="card ai-setup-card">
             <div className="field">
-              <label htmlFor="anthropic-key">Anthropic API key or CLI token</label>
+              <label htmlFor="anthropic-key">Anthropic key or Claude sign-in code</label>
               <input
                 id="anthropic-key"
                 type="password"
@@ -1511,9 +1353,7 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
               </select>
             </div>
             <p className="microcopy">
-              To bill answers to a Claude subscription instead of API credits, run{' '}
-              <code>claude setup-token</code> on a computer where you are signed in and paste the
-              token here. Lunara cannot run the CLI itself from a mobile app.
+              To use your Claude subscription, run <code>claude setup-token</code> on a computer where you are signed in. Paste the sign-in code here. PPP cannot create this code.
             </p>
           </div>
         ) : (
@@ -1550,19 +1390,15 @@ export function Onboarding({ onDone }: { onDone: () => void }) {
     <Frame step={current} stepNumber={progressSteps.length} totalSteps={progressSteps.length}>
       <div className="onboarding-finish">
         <div className="ob-finish-orbit"><Moonseed /><span /><span /></div>
-        <p className="eyebrow">Your baseline, not a verdict</p>
-        <h1>Ready to notice what changes.</h1>
-        <p className="lead">
-          Lunara will start uncertain, show why, and learn from complete check-ins and real cycle history.
-        </p>
+        <h1>Review your setup.</h1>
         <div className="ob-commitment">
-          <strong>I’ll use estimates as context—not contraception or diagnosis.</strong>
+          <strong>I’ll use estimates as context, not contraception or diagnosis.</strong>
           <span>Predictions can be wrong, especially with irregular cycles, hormonal contraception, postpartum changes, or limited data.</span>
         </div>
         {saveError && <p className="error-text">{saveError}</p>}
       </div>
       <button className="cta" disabled={saving} onClick={finish}>
-        {saving ? 'Securing your baseline…' : 'Enter Lunara'}
+        {saving ? 'Securing your baseline…' : 'Enter PPP'}
       </button>
     </Frame>
   )

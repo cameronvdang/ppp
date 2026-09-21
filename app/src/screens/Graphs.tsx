@@ -56,9 +56,7 @@ export function Graphs() {
   return (
     <div className="page trends-page">
       <header className="page-title-block">
-        <span className="page-kicker">Your body, over time</span>
-        <h1>Your patterns</h1>
-        <p>Look for direction, not perfection. Every log adds a little more context.</p>
+        <h1>Trends</h1>
       </header>
 
       <button className="report-callout" onClick={() => setReportOpen(true)}>
@@ -68,22 +66,20 @@ export function Graphs() {
           </svg>
         </span>
         <span className="report-copy">
-          <span>For your next appointment</span>
-          <strong>Create a doctor-ready summary</strong>
-          <small>A clear, printable view of what you logged</small>
+          <strong>Doctor's summary</strong>
+          <small>A printable view of what you logged.</small>
         </span>
-        <span className="report-arrow" aria-hidden="true">↗</span>
       </button>
 
       <section className="metric-grid" aria-label="Cycle summary">
         <article className="metric-card metric-rose">
           <span>Average cycle</span>
-          <strong>{windowStats.averageDays ?? '—'}{windowStats.averageDays && <small> days</small>}</strong>
+          <strong>{windowStats.averageDays ?? 'Not available'}{windowStats.averageDays && <small> days</small>}</strong>
           <i aria-hidden="true" />
         </article>
         <article className="metric-card metric-teal">
           <span>Recent variation</span>
-          <strong>{windowStats.rangeDays ?? '—'}{windowStats.rangeDays !== null && <small> days</small>}</strong>
+          <strong>{windowStats.rangeDays ?? 'Not available'}{windowStats.rangeDays !== null && <small> days</small>}</strong>
           <i aria-hidden="true" />
         </article>
       </section>
@@ -91,8 +87,7 @@ export function Graphs() {
       <section className="card chart-card">
         <div className="chart-heading">
           <div>
-            <div className="section-label">Cycle length</div>
-            <h2>One cycle at a time</h2>
+            <h2>Cycle length</h2>
           </div>
           <div className="report-window-switch" aria-label="Cycle history window">
             <button
@@ -113,8 +108,8 @@ export function Graphs() {
         </div>
         {displayCycles.length < 2 ? (
           <EmptyChart
-            title="Your rhythm will appear here"
-            body="Log a couple of period starts to see how your cycle length moves."
+            title="No completed cycles yet."
+            body="Log two period starts."
           />
         ) : (
           <>
@@ -145,15 +140,14 @@ export function Graphs() {
       <section className="card chart-card">
         <div className="chart-heading">
           <div>
-            <div className="section-label">Bleeding</div>
-            <h2>Logged episode length</h2>
+            <h2>Logged bleeding episode length</h2>
+            <p className="report-method-note">Log flow on each bleeding day to see episode length and the heaviest level selected.</p>
           </div>
           <span className="report-sample">{data.report.bleedingTrend.sampleSize} episodes</span>
         </div>
         {data.report.bleedingTrend.episodes.length < 2 ? (
           <EmptyChart
-            title="Flow history will appear here"
-            body="Log flow on each bleeding day to see episode length and the heaviest level selected."
+            title="No flow logged yet."
           />
         ) : (
           <>
@@ -177,15 +171,13 @@ export function Graphs() {
       <section className="card chart-card symptom-card">
         <div className="chart-heading">
           <div>
-            <div className="section-label">Symptoms</div>
-            <h2>What shows up most</h2>
+            <h2>Most logged symptoms</h2>
           </div>
           <span className="botanical-mark" aria-hidden="true" />
         </div>
         {data.symptoms.length === 0 ? (
           <EmptyChart
-            title="No patterns yet"
-            body="Symptoms you choose to log will gather here without judgment."
+            title="No symptoms logged yet."
           />
         ) : (
           <div className="symptom-list">
@@ -207,8 +199,7 @@ export function Graphs() {
       <section className="card chart-card">
         <div className="chart-heading">
           <div>
-            <div className="section-label">Symptoms by phase</div>
-            <h2>Complete check-ins only</h2>
+            <h2>Symptoms by phase (complete check-ins only)</h2>
           </div>
           <span className="report-sample">
             {data.report.completeness.completeCheckInDays} complete
@@ -241,8 +232,8 @@ export function Graphs() {
       <section className="card chart-card temperature-card">
         <div className="chart-heading">
           <div>
-            <div className="section-label">Basal temperature</div>
-            <h2>Your latest readings</h2>
+            <h2>Basal temperature</h2>
+            <p className="report-method-note">Measure after waking, before getting up.</p>
           </div>
           {latestTemperature !== null && (
             <strong className="latest-reading">{latestTemperature.toFixed(2)}°</strong>
@@ -250,8 +241,8 @@ export function Graphs() {
         </div>
         {bbt.length < 3 ? (
           <EmptyChart
-            title="Three readings unlock the line"
-            body="Measure after waking, before getting up, for a more readable pattern."
+            title="No readings yet."
+            body="Log three temperatures to see the line."
           />
         ) : (
           <>
@@ -263,8 +254,8 @@ export function Graphs() {
             >
               <defs>
                 <linearGradient id="bbt-area" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="var(--teal-500)" stopOpacity=".24" />
-                  <stop offset="100%" stopColor="var(--teal-500)" stopOpacity="0" />
+                  <stop offset="0%" stopColor="var(--chart-bbt)" stopOpacity=".24" />
+                  <stop offset="100%" stopColor="var(--chart-bbt)" stopOpacity="0" />
                 </linearGradient>
               </defs>
               <path className="bbt-grid-line" d="M16 20H284M16 61H284M16 102H284" />
@@ -305,8 +296,7 @@ export function Graphs() {
 
       <section className="card report-quality-card">
         <div>
-          <span className="section-label">Data completeness · 90 days</span>
-          <h2>{data.report.completeness.completeCoveragePercent}% complete</h2>
+          <h2>Data completeness: {data.report.completeness.completeCoveragePercent}% over 90 days</h2>
           <p>
             {data.report.completeness.completeCheckInDays} complete check-ins ·{' '}
             {data.report.completeness.daysWithAnyEntry} days with any entry
@@ -322,13 +312,13 @@ export function Graphs() {
   )
 }
 
-function EmptyChart({ title, body }: { title: string; body: string }) {
+function EmptyChart({ title, body }: { title: string; body?: string }) {
   return (
     <div className="empty-chart">
       <span className="empty-orbit" aria-hidden="true"><i /></span>
       <div>
         <strong>{title}</strong>
-        <p>{body}</p>
+        {body && <p>{body}</p>}
       </div>
     </div>
   )

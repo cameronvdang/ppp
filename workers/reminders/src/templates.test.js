@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { bodyFor, FORBIDDEN_TERMS, subjectFor } from './templates.js'
 
-const APP = 'Lunara'
-const UNSUB = 'https://lunara.app/v1/unsubscribe?id=x&t=y'
+const APP = 'PPP'
+const UNSUB = 'https://ppp.example/v1/unsubscribe?id=x&t=y'
 
 describe('reminder templates leak no health information', () => {
   const surfaces = [
